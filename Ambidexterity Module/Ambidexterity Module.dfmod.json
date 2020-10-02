@@ -1,0 +1,16 @@
+{
+    "ModTitle": "Ambidexterity Module",
+    "ModVersion": "1.0",
+    "ModAuthor": "l3lessed",
+    "DFUnity_Version": "0.10.24",
+    "GUID": "d531b364-2f7e-41ce-9cbb-4b4bbbcb06b6",
+    "Files": [
+        "Assets/Scripts/Mods/Ambidexterity Module/AmbidexterityConsole.cs",
+        "Assets/Scripts/Mods/Ambidexterity Module/AmbidexterityManager.cs",
+        "Assets/Scripts/Mods/Ambidexterity Module/ShieldFormulaHelper.cs",
+        "Assets/Scripts/Mods/Ambidexterity Module/FPSShield.cs",
+        "Assets/Scripts/Mods/Ambidexterity Module/AltFPSWeapon.cs",
+        "Assets/Scripts/Mods/Ambidexterity Module/OffHandFPSWeapon.cs",
+        "Assets/Game/Mods/Ambidexterity Module/modsettings.json"
+    ]
+}
