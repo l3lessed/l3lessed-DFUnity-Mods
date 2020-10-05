@@ -60,6 +60,13 @@
                     "Description": "How long of a delay, in seconds, before you begin a new attack combo once stopping your last combo/attack. During this time window, you can initiate a parry.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Value": true,
+                    "Name": "PhysicalWeapons",
+                    "Description": "Weapons have actual hit arcs and will bounce off physical objects when hit.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }
             ],
             "$version": "v1"

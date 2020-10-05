@@ -36,6 +36,8 @@ namespace AmbidexterityModule
         public static WeaponAnimation[] weaponAnims;
         public static Rect curAnimRect;
 
+        private static GameObject attackHit;
+
         public static int currentFrame = 0;
         static int frameBeforeStepping = 0;
         const int nativeScreenWidth = 320;
@@ -51,6 +53,7 @@ namespace AmbidexterityModule
         public static bool flip;
         public static bool isParrying;
         private static bool lerpfinished;
+        private static bool hitObject;
         private static bool breatheTrigger;
         private static bool attackCasted;
 
@@ -198,17 +201,42 @@ namespace AmbidexterityModule
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
 
-                if (percentagetime > .4f && !isParrying && !attackCasted)
+                if (percentagetime > .4f && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
-                    FPSShield.BashAttack(equippedOffHandFPSWeapon, 11);
+                    Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
+                    AmbidexterityManager.AttackCast(equippedOffHandFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
+                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons)
+                {
+                    Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
-                if (percentagetime >= 1 || percentagetime <= 0)
+                    if (weaponState == WeaponStates.StrikeRight)
+                        attackcast = ArcCastCalculator(0, 35, 0, 0, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                    else if (weaponState == WeaponStates.StrikeDownRight)
+                        attackcast = ArcCastCalculator(-35, 35, 0, 30, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                    else if (weaponState == WeaponStates.StrikeLeft)
+                        attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                    else if (weaponState == WeaponStates.StrikeDownLeft)
+                        attackcast = ArcCastCalculator(-35, -35, 0, 30, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                    else if (weaponState == WeaponStates.StrikeDown)
+                        attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                    else if (weaponState == WeaponStates.StrikeUp)
+                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, 2.5f, percentagetime));
+
+                    if (AmbidexterityManager.AttackCast(equippedOffHandFPSWeapon, attackcast, out attackHit))
+                    {
+                        hitObject = true;
+                        breatheTrigger = true;
+                    }
+                }
+
+                    if (percentagetime >= 1 || percentagetime <= 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;
                     isParrying = false;
+                    hitObject = false;
                     lerpfinished = true;
                     breatheTrigger = false;
                     attackCasted = false;
@@ -230,6 +258,18 @@ namespace AmbidexterityModule
                 yield return new WaitForEndOfFrame();
 
             }
+        }
+
+        //uses vector3 axis rotations to figure out starting and ending point of arc, then uses lerp to calculate where the ray is in the arc, and then returns the calculations.
+        public static Vector3 ArcCastCalculator(float startposX, float startposY, float startposZ, float endposX, float endposY, float endposZ, float percentageTime, Vector3 castDirection)
+        {
+            //sets up starting and ending quaternion angles for the vector3 offset/raycast.
+            Quaternion startq = Quaternion.Euler(startposX, startposY, startposZ);
+            Quaternion endq = Quaternion.Euler(endposX, endposY, endposZ);
+            //computes rotation for each raycast using a lerp. The time percentage is modified above using the animation time.
+            Quaternion slerpq = Quaternion.Slerp(startq, endq, percentageTime);
+            Vector3 attackcast = slerpq * castDirection;
+            return attackcast;
         }
 
         public static void ResetAnimation()

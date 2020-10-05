@@ -24,8 +24,6 @@ namespace AmbidexterityModule
         //sets up different class properties.
         #region Properties       
         public static FPSShield FPSShieldInstance;
-        //used for finding direction player is being hit from.
-        public static GameObject mainCamera;
         //enemy hit by bash.
         public static DaggerfallEntity bashedEnemyEntity;
         //currently equipped shield.
@@ -46,6 +44,8 @@ namespace AmbidexterityModule
         private IEnumerator startCoroutine;
         private IEnumerator currentAnimationNumerator;
         private IEnumerator bashNumerator;
+
+        private static GameObject attackHit;
 
         public Coroutine Bobcoroutine;
         private Coroutine currentAnimation;
@@ -114,9 +114,6 @@ namespace AmbidexterityModule
 
         void Start()
         {
-            //assigns the main camera engine object to mainCamera general object. Used to detect shield knock back directions.
-            mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
-
             //sets shield texture path, using the application base directory.
             smallTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/buckler.png";
             largeTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/heater.png";
@@ -654,7 +651,7 @@ namespace AmbidexterityModule
                         //how far enemy will push back after succesful block.
                         targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .75f, 2f, 5f);
                         //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                        targetMotor.KnockbackDirection = mainCamera.transform.forward;
+                        targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
                         //assigns animation routine with timing.
                         hitCoroutine = OnHit(.25f);
                         //Figures out fatigue penalty for getting hit when vulnerable, which scales with attackers damage.
@@ -677,7 +674,7 @@ namespace AmbidexterityModule
                         //how far enemy will push back after succesful block.
                         targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage, 4f, 8f);
                         //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                        targetMotor.KnockbackDirection = mainCamera.transform.forward;
+                        targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
                         //assigns animation routine with timing.
                         if ((shieldTypes == 109 || shieldTypes == 110) && !isBashing)
                         {
@@ -732,7 +729,7 @@ namespace AmbidexterityModule
                             //how far enemy will push back after succesful block.
                             targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .5f, 2f, 5f);
                             //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                            targetMotor.KnockbackDirection = mainCamera.transform.forward;
+                            targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
                             //sets up hit animations
                             hitCoroutine = OnHit(.3f);
                             //calculates the fatigue cost of blocking an attack. Uses enemy damage as the base value.
@@ -756,7 +753,9 @@ namespace AmbidexterityModule
                             //plays cloth equipping sound with a reduced sound level to simulate equipment rustling.
                             AmbidexterityManager.dfAudioSource.PlayOneShot(418, .15f, .15f);
                             yield return new WaitForSeconds(.2f);
-                            BashAttack(null, fatigueamount);
+                            Vector3 bashCast = AmbidexterityManager.mainCamera.transform.forward * 1.8f;
+                            GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
+                            AmbidexterityManager.AttackCast(null, bashCast, out attackHit);
                         }
                     }
                     else if((shieldTypes == 109 || shieldTypes == 110))
@@ -776,7 +775,7 @@ namespace AmbidexterityModule
                             //how far enemy will push back after succesful block.
                             targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * 2, 8f, 12f);
                             //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                            targetMotor.KnockbackDirection = mainCamera.transform.forward;
+                            targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
                             //assigns animation routine with timing.
                             if (!isBashing)
                             {
@@ -839,58 +838,7 @@ namespace AmbidexterityModule
         }
         #endregion
 
-        #region BashAttack
-        public static void BashAttack(DaggerfallUnityItem weapon, int FatigueDecreaseAmount)
-        {
-            Vector3 attackcast;
-            attackcast = mainCamera.transform.forward * (2f - .2f);
-            //assigns the above triggered attackcast to the debug ray for easy debugging in unity.
-            Debug.DrawRay(mainCamera.transform.position + -mainCamera.transform.forward * 0.1f, attackcast, Color.red, 5);
-            //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
-            RaycastHit hit;
-            Ray ray = new Ray(mainCamera.transform.position + -mainCamera.transform.forward * 0.1f, attackcast);
 
-            GameManager.Instance.PlayerEntity.DecreaseFatigue(FatigueDecreaseAmount);
-
-            //if spherecast hits something, do....
-            if (Physics.SphereCast(ray, .2f, out hit, 2.25f))
-            {
-                //checks if it hit a environment object. If not, begins enemy damage work.
-                if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit))
-                {
-                    //grab hit entity properties for ues.
-                    DaggerfallEntityBehaviour entityBehaviour = hit.transform.GetComponent<DaggerfallEntityBehaviour>();
-                    EnemyAttack targetAttack = hit.transform.GetComponent<EnemyAttack>();
-
-                    //if attackable entity is hit, do....
-                    if (entityBehaviour != null && targetAttack != null)
-                    {
-                        //check if hit entity was attacking, if so, do extra effects.
-                        if (targetAttack.MeleeTimer != 0)
-                        {
-                            entityBehaviour.Entity.IsParalyzed = true;
-                            entityBehaviour.Entity.IsParalyzed = false;
-                            Debug.Log("HIT DURING ATTACK");
-                        }
-
-                        if (GameManager.Instance.WeaponManager.WeaponDamage(weapon, false, hit.transform, hit.point, mainCamera.transform.forward))
-                        {
-                            //bashedEnemyEntity = entityBehaviour.Entity as EnemyEntity;
-                            //DaggerfallEntity enemyEntity = entityBehaviour.Entity;
-                            //DaggerfallMobileUnit entityMobileUnit = entityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
-                        }
-                        //else, play high or low pitch swing miss randomly.
-                        else
-                            AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(105, 106), .5f, .5f);
-                    }
-                    //check if environment object is hit and do proper work.
-                    else if (GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit))
-                        ;
-
-                }
-            }
-        }
-        #endregion
 
         #region CalculateAnimationValues
         //calculates x, y, and size values of the shield using lerp calculator and passthrough vars. Ensures each cordinate has its own object/instance of lerpcalculator.

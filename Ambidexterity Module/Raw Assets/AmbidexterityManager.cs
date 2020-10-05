@@ -29,6 +29,8 @@ namespace AmbidexterityModule
         //sets up dfAudioSource object to attach objects to and play sound from said object.
         public static DaggerfallAudioSource dfAudioSource;
 
+        public static int playerLayerMask;
+
         int[] randomattack;
 
         //block key.
@@ -57,6 +59,7 @@ namespace AmbidexterityModule
         public static bool toggleBob;
         public static bool bucklerMechanics;
         public static bool classicAnimations;
+        public static bool physicalWeapons;
         public static bool usingMainhand;
         //triggers for CalculateAttackFormula to ensure hits are registered and trigger corresponding script code blocks.
         public static bool isHit = false;
@@ -84,6 +87,7 @@ namespace AmbidexterityModule
         public static KeyCode offHandKeyCode;
         private RacialOverrideEffect racialOverride;
         private bool reset;
+        public static GameObject mainCamera;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -145,6 +149,11 @@ namespace AmbidexterityModule
             OffHandFPSWeapon.flip = GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal;
             AltFPSWeapon.flip = GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal;
 
+            //assigns the main camera engine object to mainCamera general object. Used to detect shield knock back directions.
+            mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+
+            playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
+
             //*THIS NEEDS CLEANED UP. CAN USE A SINGLE INSTANCE OF THIS IN MANAGER FILE*
             OffHandFPSWeapon.dfUnity = DaggerfallUnity.Instance;
             AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;           
@@ -157,6 +166,8 @@ namespace AmbidexterityModule
             toggleBob = settings.GetValue<bool>("Settings", "ToggleBob");
             bucklerMechanics = settings.GetValue<bool>("Settings", "BucklerMechanics");
             classicAnimations = settings.GetValue<bool>("Settings", "ClassicAnimations");
+            physicalWeapons = settings.GetValue<bool>("Settings", "PhysicalWeapons");
+
             Debug.Log("You're equipment is setup, and you feel limber and ready for anything.");
 
             //If not using classic animations, this limits the types of attacks and is central to ensuring the smooth animation system I'm working on can function correctly.
@@ -299,6 +310,7 @@ namespace AmbidexterityModule
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
                     FPSShield.shieldStates = 7;
+                    GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     AltFPSWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
@@ -314,6 +326,7 @@ namespace AmbidexterityModule
                         attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                         AltFPSWeapon.weaponState = (WeaponStates)attackState;
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
+                        GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
                     }
                     //else, both weapons are idle, then perform attack routine....
@@ -322,6 +335,7 @@ namespace AmbidexterityModule
                         attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                         AltFPSWeapon.weaponState = (WeaponStates)attackState;
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
+                        GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
                     }
                 }
@@ -339,6 +353,7 @@ namespace AmbidexterityModule
                 {
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
+                    GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
                 }
@@ -348,6 +363,7 @@ namespace AmbidexterityModule
                     //trigger offhand weapon attack animation routines.
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
+                    GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
                 }
@@ -399,7 +415,9 @@ namespace AmbidexterityModule
                         Debug.Log("Parry Activated");
                         Parry();
                         break;
-                }           
+                }
+
+                playerInput.Clear();
             } 
         }
 
@@ -765,6 +783,65 @@ namespace AmbidexterityModule
             //play random hit sound from the player and attack voice to simulate parry happening in audio.
             dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
             GameManager.Instance.WeaponManager.ScreenWeapon.PlayAttackVoice();
+        }
+
+        public static bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit)
+        {
+            bool hitObject = false;
+            attackHit = null;
+            //assigns the above triggered attackcast to the debug ray for easy debugging in unity.
+            Debug.DrawRay(mainCamera.transform.position, attackcast * 2.25f, Color.red, 5);
+            //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
+            RaycastHit hit;
+            Ray ray = new Ray(mainCamera.transform.position, attackcast);
+
+            //if spherecast hits something, do....
+            if (Physics.SphereCast(ray, .2f, out hit, 2.25f, playerLayerMask))
+            {
+                //checks if it hit a environment object. If not, begins enemy damage work.
+                if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit)
+                    // Fall back to simple ray for narrow cages https://forums.dfworkshop.net/viewtopic.php?f=5&t=2195#p39524
+                    || Physics.Raycast(ray, out hit, 2.25f, playerLayerMask))
+                {
+                    //grab hit entity properties for ues.
+                    DaggerfallEntityBehaviour entityBehaviour = hit.transform.GetComponent<DaggerfallEntityBehaviour>();
+                    EnemyAttack targetAttack = hit.transform.GetComponent<EnemyAttack>();
+
+                    attackHit = hit.transform.gameObject;
+
+                    //if attackable entity is hit, do....
+                    if (entityBehaviour != null && targetAttack != null)
+                    {
+                        //check if hit entity was attacking, if so, do extra effects.
+                        if (targetAttack.MeleeTimer != 0)
+                        {
+                            entityBehaviour.Entity.IsParalyzed = true;
+                            entityBehaviour.Entity.IsParalyzed = false;
+                            Debug.Log("HIT DURING ATTACK");
+                        }
+
+                        if (GameManager.Instance.WeaponManager.WeaponDamage(weapon, false, hit.transform, hit.point, mainCamera.transform.forward))
+                        {
+                            hitObject = true;
+                            //bashedEnemyEntity = entityBehaviour.Entity as EnemyEntity;
+                            //DaggerfallEntity enemyEntity = entityBehaviour.Entity;
+                            //DaggerfallMobileUnit entityMobileUnit = entityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
+                        }
+                        //else, play high or low pitch swing miss randomly.
+                        else
+                        {
+                            hitObject = false;
+                            dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(105, 106), .5f, .5f);
+                        }
+                    }
+                    //check if environment object is hit and do proper work.
+                    else if (GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit))
+                        hitObject = true;
+                }
+
+            }
+
+            return hitObject;
         }
     }
 }

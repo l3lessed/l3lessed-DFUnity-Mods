@@ -54,7 +54,7 @@ namespace AmbidexterityModule
                 {
                     if (attacker == player)
                     {
-                        DaggerfallUI.Instance.PopupMessage(DaggerfallWorkshop.Game.UserInterfaceWindows.HardStrings.materialIneffective);
+                        DaggerfallUI.Instance.PopupMessage(TextManager.Instance.GetLocalizedText("materialIneffective"));
                     }
                     return 0;
                 }
