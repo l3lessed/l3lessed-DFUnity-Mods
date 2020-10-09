@@ -31,6 +31,7 @@ namespace AmbidexterityModule
 
         //initiates 2d textures for storing texture data.
         static Texture2D shieldTex;
+        AltFPSWeapon altFPSWeapon;
 
         //block activate coroutine objects.
         private IEnumerator BlockActivateCoroutine;

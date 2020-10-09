@@ -159,7 +159,7 @@ namespace AmbidexterityModule
             AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;           
 
             //binds mod settings to script properties.
-            offHandKeyString = settings.GetValue<string>("Settings", "blockKey");
+            offHandKeyString = settings.GetValue<string>("Settings", "offHandKeyString");
             BlockTimeMod = settings.GetValue<float>("Settings", "BlockTimeMod");
             BlockCostMod = settings.GetValue<float>("Settings", "BlockCostMod");
             AttackPrimerTime = settings.GetValue<float>("Settings", "AttackPrimerTime");
@@ -201,8 +201,9 @@ namespace AmbidexterityModule
             {
                 return; //show nothing.
             }
+
             //if the player has a bow equipped, do.....
-            else if(equipState == 6)
+            if (equipState == 6)
             {
                 //hide offhand weapon sprite, idle its state, and null out the equipped item.
                 OffHandFPSWeapon.OffHandWeaponShow = false;
@@ -218,66 +219,72 @@ namespace AmbidexterityModule
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = true;
                 return;
             }
-            //else, begin monitoring for key input, updating hands and all related properties, and begin monitoring for key presses and/or property/state changes.
-            else
+
+            // Do nothing if player paralyzed or is climbing
+            if (GameManager.Instance.PlayerEntity.IsParalyzed || GameManager.Instance.ClimbingMotor.IsClimbing)
             {
-                //removes default fps weapon to be replaced by my alternative script.
-                GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
-                GameManager.Instance.WeaponManager.ScreenWeapon.Reach = 0;
+                OffHandFPSWeapon.OffHandWeaponShow = false;
+                AltFPSWeapon.AltFPSWeaponShow = false;
+                return;
+            }
 
-                //small routine to check for attack key inputs and start a short delay timer if detected.
-                //this makes using parry easier by giving a .1 second time frame to click both attack buttons.
-                //it also allows players to load up a second attack and skip the .16f wind up, priming.
-                KeyPressCheck();
+            //Begin monitoring for key input, updating hands and all related properties, and begin monitoring for key presses and/or property/state changes.
 
-                // swap weapon hand.
-                if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand))
-                    ToggleHand();
+            //removes default fps weapon to be replaced by my alternative script.
+            GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
+            GameManager.Instance.WeaponManager.ScreenWeapon.Reach = 0;
 
-                //checks to ensure equipment is the same, and if so, moves on. If not, updates the players equip state to ensure all script bool triggers are properly set to handle
-                //each script and its corresponding animation systems.
-                UpdateHands();                              
+            //small routine to check for attack key inputs and start a short delay timer if detected.
+            //this makes using parry easier by giving a delay time frame to click both attack buttons.
+            //it also allows players to load up a second attack and skip the .16f wind up, priming.
+            KeyPressCheck();
 
-                //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
-                //if player is hit and they are parrying do...
-                if (isHit && attackState == 7)
+            // swap weapon hand.
+            if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand))
+                ToggleHand();
+
+            //checks to ensure equipment is the same, and if so, moves on. If not, updates the players equip state to ensure all script bool triggers are properly set to handle
+            //each script and its corresponding animation systems.
+            UpdateHands();                              
+
+            //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
+            //if player is hit and they are parrying do...
+            if (isHit && attackState == 7)
+            {
+                //go to recoil state.
+                attackState = 8;
+                //if duel wield is equipped stop offhand parry animation.
+                if (equipState == 5)
                 {
-                    //go to recoil state.
-                    attackState = 8;
-                    //if duel wield is equipped stop offhand parry animation.
-                    if (equipState == 5)
-                    {
-                        StopCoroutine(OffHandFPSWeapon.ParryCoroutine);
-                        OffHandFPSWeapon.ResetAnimation();
-                    }
-                    //if duel wield or one handed is equipped stop main hand parry animation.
-                    else if (equipState == 1 || equipState == 4)
-                    {
-                        StopCoroutine(AltFPSWeapon.ParryCoroutine);
-                        AltFPSWeapon.ResetAnimation();
-                    }
+                    StopCoroutine(OffHandFPSWeapon.ParryCoroutine);
+                    OffHandFPSWeapon.ResetAnimation();
                 }
-                //if player is in recoil state....
-                else if(attackState == 8)
+                //if duel wield or one handed is equipped stop main hand parry animation.
+                else if (equipState == 1 || equipState == 4)
                 {
-
-                    if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
-                    {
-                        //if duel wield is equipped, play right swing starting 2 frames in.
-                        attackState = 3;
-                        OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
-                        StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
-                    }
-                    //if main hand is equipped, play left swing starting 2 frames in.
-                    else if (equipState == 1 || equipState == 4)
-                    {
-                        attackState = 4;
-                        AltFPSWeapon.weaponState = (WeaponStates)attackState;
-                        StartCoroutine(AltFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
-                    }
+                    StopCoroutine(AltFPSWeapon.ParryCoroutine);
+                    AltFPSWeapon.ResetAnimation();
                 }
             }
-            
+            //if player is in recoil state....
+            else if(attackState == 8)
+            {
+
+                if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
+                {
+                    //if duel wield is equipped, play right swing starting 2 frames in.
+                    attackState = 3;
+                    OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
+                    StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                }
+                //if main hand is equipped, play left swing starting 2 frames in.
+                else if (equipState == 1 || equipState == 4)
+                {
+                    attackState = 4;
+                    AltFPSWeapon.weaponState = (WeaponStates)attackState;
+                    StartCoroutine(AltFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                }
+            }     
         }
 
         void Parry()
@@ -291,13 +298,16 @@ namespace AmbidexterityModule
                 OffHandFPSWeapon.isParrying = true;
                 OffHandFPSWeapon.ParryCoroutine = StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f));
                 OffHandFPSWeapon.PlaySwingSound();
+                return;
             }
-            else if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && AltFPSWeapon.WeaponType != WeaponTypes.Melee)
+
+            if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && AltFPSWeapon.WeaponType != WeaponTypes.Melee)
             {
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                 AltFPSWeapon.isParrying = true;
                 AltFPSWeapon.ParryCoroutine = StartCoroutine(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f));
                 OffHandFPSWeapon.PlaySwingSound();
+                return;
             }
         }
 
@@ -315,9 +325,12 @@ namespace AmbidexterityModule
                     AltFPSWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                     StartCoroutine(AltFPSWeapon.AnimationCalculator());
+                    Debug.Log(AltFPSWeapon.weaponState.ToString());
+                    return;
                 }
+
                 //if the player does not have a shield equipped, let them attack.
-                else if (!FPSShield.shieldEquipped && ParryState == 0)
+                if (!FPSShield.shieldEquipped && ParryState == 0)
                 {
                     //setup to ensure main weapon attacks can't be spammed. Delays attacking with alternate attack until last 2 frame starts.
                     //if the offhand weapon is attacking && main weapon isn't attacking, then start main weapon attack.
@@ -328,18 +341,22 @@ namespace AmbidexterityModule
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
+                        Debug.Log(AltFPSWeapon.weaponState.ToString());
+                        return;
                     }
-                    //else, both weapons are idle, then perform attack routine....
-                    else if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle)
+
+                    //both weapons are idle, then perform attack routine....
+                    if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle)
                     {
                         attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                         AltFPSWeapon.weaponState = (WeaponStates)attackState;
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
+                        Debug.Log(AltFPSWeapon.weaponState.ToString());
+                        return;
                     }
                 }
-                Debug.Log(AltFPSWeapon.weaponState.ToString());
             }
         }
 
@@ -356,9 +373,12 @@ namespace AmbidexterityModule
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
+                    Debug.Log(OffHandFPSWeapon.weaponState.ToString());
+                    return;
                 }
-                //else, both weapons are idle, then perform attack routine....
-                else if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
+
+                //both weapons are idle, then perform attack routine....
+                if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
                 {
                     //trigger offhand weapon attack animation routines.
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
@@ -366,8 +386,9 @@ namespace AmbidexterityModule
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
+                    Debug.Log(OffHandFPSWeapon.weaponState.ToString());
+                    return;
                 }
-                Debug.Log(OffHandFPSWeapon.weaponState.ToString());
             }
         }
 
@@ -661,6 +682,12 @@ namespace AmbidexterityModule
                     OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
                     OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
                     OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
+                }
+                else if(GameManager.Instance.WeaponManager.ScreenWeapon.WeaponType == WeaponTypes.Werecreature)
+                {
+                    OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
+                    OffHandFPSWeapon.MetalType = MetalTypes.None;
+                    OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
                 }
                 else
                 {
