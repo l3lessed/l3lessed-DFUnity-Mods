@@ -248,6 +248,7 @@ namespace AmbidexterityModule
                     {
                         OffHandFPSWeapon.OffHandWeaponShow = false;
                         AltFPSWeapon.AltFPSWeaponShow = false;
+                        FPSShield.shieldEquipped = false;
                         return;
                     }
                 }
@@ -659,7 +660,7 @@ namespace AmbidexterityModule
             //grabs players racial override to ensure werebeast weapons update properly.
             RacialOverrideEffect racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
 
-            if(racialOverride != null && (AltFPSWeapon.WeaponType == WeaponTypes.Melee || OffHandFPSWeapon.WeaponType == WeaponTypes.Melee))
+            if(racialOverride != null && (AltFPSWeapon.WeaponType != WeaponTypes.Werecreature|| OffHandFPSWeapon.WeaponType != WeaponTypes.Werecreature))
             {
                 AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
                 AltFPSWeapon.MetalType = MetalTypes.None;
@@ -669,6 +670,13 @@ namespace AmbidexterityModule
                 OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
                 OffHandFPSWeapon.MetalType = MetalTypes.None;
                 OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                //set to not equipped.
+
+                OffHandFPSWeapon.OffHandWeaponShow = true;
+                AltFPSWeapon.AltFPSWeaponShow = true;
+                FPSShield.shieldEquipped = false;
+                equipState = 0;
+                return;
             }
 
 
