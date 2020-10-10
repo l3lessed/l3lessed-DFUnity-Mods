@@ -231,6 +231,28 @@ namespace AmbidexterityModule
                 return;
             }
 
+            // Hide weapons and do nothing if spell is ready or cast animation in progress
+            if (GameManager.Instance.PlayerEffectManager)
+            {
+                if (GameManager.Instance.PlayerEffectManager.HasReadySpell || GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
+                {
+                    if (attackState == 0 && InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon))
+                    {
+                        GameManager.Instance.PlayerEffectManager.AbortReadySpell();
+
+                        //if currently unsheathed, then sheath it, so we can give the effect of unsheathing it again
+                        if (!GameManager.Instance.WeaponManager.Sheathed)
+                            GameManager.Instance.WeaponManager.Sheathed = true;
+                    }
+                    else
+                    {
+                        OffHandFPSWeapon.OffHandWeaponShow = false;
+                        AltFPSWeapon.AltFPSWeaponShow = false;
+                        return;
+                    }
+                }
+            }
+
             //Begin monitoring for key input, updating hands and all related properties, and begin monitoring for key presses and/or property/state changes.
 
             //removes default fps weapon to be replaced by my alternative script.
