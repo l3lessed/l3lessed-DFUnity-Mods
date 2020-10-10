@@ -1,3 +1,4 @@
+using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
@@ -6,6 +7,7 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects.MagicEffects;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
+using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System;
@@ -88,6 +90,8 @@ namespace AmbidexterityModule
         private RacialOverrideEffect racialOverride;
         private bool reset;
         public static GameObject mainCamera;
+
+        static Vector3 debugcast;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -185,7 +189,6 @@ namespace AmbidexterityModule
             //converts string key setting into valid unity keycode. Ensures mouse and keyboard inputs work properly.
             offHandKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), offHandKeyString);
 
-            //sets up render for melee combat/fist sprite render. Ensures proper weapon state loads if player loads with melee state enabled.
             OffHandFPSWeapon.WeaponType = WeaponTypes.Melee;
             OffHandFPSWeapon.MetalType = MetalTypes.None;
             AltFPSWeapon.WeaponType = WeaponTypes.Melee;
@@ -258,16 +261,20 @@ namespace AmbidexterityModule
                 {
                     StopCoroutine(OffHandFPSWeapon.ParryCoroutine);
                     OffHandFPSWeapon.ResetAnimation();
+                    return;
                 }
                 //if duel wield or one handed is equipped stop main hand parry animation.
-                else if (equipState == 1 || equipState == 4)
+
+                if (equipState == 1 || equipState == 4)
                 {
                     StopCoroutine(AltFPSWeapon.ParryCoroutine);
                     AltFPSWeapon.ResetAnimation();
+                    return;
                 }
             }
+
             //if player is in recoil state....
-            else if(attackState == 8)
+            if (attackState == 8)
             {
 
                 if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
@@ -276,17 +283,21 @@ namespace AmbidexterityModule
                     attackState = 3;
                     OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                    return;
                 }
+
                 //if main hand is equipped, play left swing starting 2 frames in.
-                else if (equipState == 1 || equipState == 4)
+                if (equipState == 1 || equipState == 4)
                 {
                     attackState = 4;
                     AltFPSWeapon.weaponState = (WeaponStates)attackState;
                     StartCoroutine(AltFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                    return;
                 }
             }     
         }
 
+        //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
             //sets weapon state to parry.
@@ -311,6 +322,7 @@ namespace AmbidexterityModule
             }
         }
 
+        //controls main hand attack and ensures it can't be spammed/bugged.
         void MainAttack()
         {
             if (AltFPSWeapon.AltFPSWeaponShow && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0)
@@ -326,25 +338,13 @@ namespace AmbidexterityModule
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                     StartCoroutine(AltFPSWeapon.AnimationCalculator());
                     Debug.Log(AltFPSWeapon.weaponState.ToString());
+                    TallyCombatSkills(currentmainHandItem);
                     return;
                 }
 
                 //if the player does not have a shield equipped, let them attack.
                 if (!FPSShield.shieldEquipped && ParryState == 0)
                 {
-                    //setup to ensure main weapon attacks can't be spammed. Delays attacking with alternate attack until last 2 frame starts.
-                    //if the offhand weapon is attacking && main weapon isn't attacking, then start main weapon attack.
-                    if (OffHandFPSWeapon.currentFrame >= 5 && AltFPSWeapon.weaponState == WeaponStates.Idle)
-                    {
-                        attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                        AltFPSWeapon.weaponState = (WeaponStates)attackState;
-                        GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
-                        GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                        StartCoroutine(AltFPSWeapon.AnimationCalculator());
-                        Debug.Log(AltFPSWeapon.weaponState.ToString());
-                        return;
-                    }
-
                     //both weapons are idle, then perform attack routine....
                     if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle)
                     {
@@ -354,29 +354,18 @@ namespace AmbidexterityModule
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
                         Debug.Log(AltFPSWeapon.weaponState.ToString());
+                        TallyCombatSkills(currentmainHandItem);
                         return;
                     }
                 }
             }
         }
 
+        //controls off hand attack and ensures it can't be spammed/bugged.
         void OffhandAttack()
         {
             if(OffHandFPSWeapon.OffHandWeaponShow && OffHandFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
-                {
-                //setup to ensure Off Hand weapon attacks can't be spammed. Delays attacking with Main attack until last 2 frames of off hand attack.
-                //does this by checking if both weapons are idled and starts off hand weapon attack.
-                if (AltFPSWeapon.currentFrame >= 5 && OffHandFPSWeapon.weaponState == WeaponStates.Idle)
-                {
-                    attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                    OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
-                    GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                    StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
-                    OffHandFPSWeapon.PlaySwingSound();
-                    Debug.Log(OffHandFPSWeapon.weaponState.ToString());
-                    return;
-                }
-
+            {
                 //both weapons are idle, then perform attack routine....
                 if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
                 {
@@ -387,9 +376,37 @@ namespace AmbidexterityModule
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
                     Debug.Log(OffHandFPSWeapon.weaponState.ToString());
+                    TallyCombatSkills(currentoffHandItem);
                     return;
                 }
             }
+        }
+
+        //tallies skills when an attack is done based on the current tallyWeapon.
+        void TallyCombatSkills(DaggerfallUnityItem tallyWeapon)
+        {
+            // Racial override can suppress optional attack voice
+            RacialOverrideEffect racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
+            bool suppressCombatVoices = racialOverride != null && racialOverride.SuppressOptionalCombatVoices;
+
+            // Chance to play attack voice
+            if (DaggerfallUnity.Settings.CombatVoices && !suppressCombatVoices && Dice100.SuccessRoll(20))
+                GameManager.Instance.WeaponManager.ScreenWeapon.PlayAttackVoice();
+
+            // Tally skills
+            if (tallyWeapon == null)
+            {
+                GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.HandToHand, 1);
+                Debug.Log("Tallied Melee");
+            }
+            else
+            {
+                GameManager.Instance.PlayerEntity.TallySkill(tallyWeapon.GetWeaponSkillID(), 1);
+                Debug.Log("Tallied" + tallyWeapon.ToString());
+            }
+
+            GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.CriticalStrike, 1);
+            Debug.Log("Tallied Critical");
         }
 
         //CONTROLS KEY INPUT TO ALLOW FOR NATURAL PARRY/ATTACK ANIMATIONS/REPONSES\\
@@ -620,6 +637,19 @@ namespace AmbidexterityModule
             //grabs players racial override to ensure werebeast weapons update properly.
             RacialOverrideEffect racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
 
+            if(racialOverride != null && (AltFPSWeapon.WeaponType == WeaponTypes.Melee || OffHandFPSWeapon.WeaponType == WeaponTypes.Melee))
+            {
+                AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
+                AltFPSWeapon.MetalType = MetalTypes.None;
+                GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
+                GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+
+                OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
+                OffHandFPSWeapon.MetalType = MetalTypes.None;
+                OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+            }
+
+
             // Right-hand item changed
             if (!DaggerfallUnityItem.CompareItems(currentmainHandItem, mainHandItem))
             {
@@ -651,7 +681,7 @@ namespace AmbidexterityModule
                 }
             }
             //if the user has not weapon in their main hand, do....
-            else if (GameManager.Instance.WeaponManager.ScreenWeapon.WeaponType == WeaponTypes.Werecreature)
+            else if (racialOverride != null)
             {
                 AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
                 AltFPSWeapon.MetalType = MetalTypes.None;
@@ -683,7 +713,7 @@ namespace AmbidexterityModule
                     OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
                     OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
                 }
-                else if(GameManager.Instance.WeaponManager.ScreenWeapon.WeaponType == WeaponTypes.Werecreature)
+                else if (racialOverride != null)
                 {
                     OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
                     OffHandFPSWeapon.MetalType = MetalTypes.None;
@@ -817,18 +847,25 @@ namespace AmbidexterityModule
             bool hitObject = false;
             attackHit = null;
             //assigns the above triggered attackcast to the debug ray for easy debugging in unity.
-            Debug.DrawRay(mainCamera.transform.position, attackcast * 2.25f, Color.red, 5);
+            Debug.DrawRay(mainCamera.transform.position, attackcast, Color.red, 5);
             //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
             RaycastHit hit;
             Ray ray = new Ray(mainCamera.transform.position, attackcast);
 
+            //reverts to raycasts when physical weapon setting is turned on.
+            //this ensures multiple sphere hits aren't registered on the same entity/object.
+            if (!physicalWeapons)
+                hitObject = Physics.SphereCast(ray, 0.25f, out hit, 2.5f, playerLayerMask);
+            else
+                hitObject = Physics.Raycast(ray, out hit, 2.5f, playerLayerMask);
+
             //if spherecast hits something, do....
-            if (Physics.SphereCast(ray, .2f, out hit, 2.25f, playerLayerMask))
+            if (hitObject)
             {
                 //checks if it hit a environment object. If not, begins enemy damage work.
                 if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit)
                     // Fall back to simple ray for narrow cages https://forums.dfworkshop.net/viewtopic.php?f=5&t=2195#p39524
-                    || Physics.Raycast(ray, out hit, 2.25f, playerLayerMask))
+                    || Physics.Raycast(ray, out hit, 2.5f, playerLayerMask))
                 {
                     //grab hit entity properties for ues.
                     DaggerfallEntityBehaviour entityBehaviour = hit.transform.GetComponent<DaggerfallEntityBehaviour>();
@@ -865,9 +902,7 @@ namespace AmbidexterityModule
                     else if (GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit))
                         hitObject = true;
                 }
-
             }
-
             return hitObject;
         }
     }

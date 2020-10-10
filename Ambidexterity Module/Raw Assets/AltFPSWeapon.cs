@@ -161,7 +161,7 @@ namespace AmbidexterityModule
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
 
-                if (percentagetime > .4f && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
+                if (currentFrame >= 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
                     Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
                     AmbidexterityManager.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
@@ -172,15 +172,15 @@ namespace AmbidexterityModule
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
                     if (weaponState == WeaponStates.StrikeRight)
-                        attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDownRight)
-                        attackcast = ArcCastCalculator(35, -35, 0, -30, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, -35, 0, -30, 35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeLeft)
-                        attackcast = ArcCastCalculator(0, 35, 0, 0, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(0, 35, 0, 0, -35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDownLeft)
-                        attackcast = ArcCastCalculator(35, 35, 0, -30, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, 35, 0, -30, -35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDown)
-                        attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeUp)
                         attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0,2.5f, percentagetime));
 
@@ -192,7 +192,7 @@ namespace AmbidexterityModule
                 }
 
 
-                if (percentagetime >= 1 || percentagetime <= 0)
+                if (percentagetime > 1 || percentagetime < 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;

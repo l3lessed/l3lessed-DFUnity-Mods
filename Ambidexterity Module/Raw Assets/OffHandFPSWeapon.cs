@@ -231,7 +231,7 @@ namespace AmbidexterityModule
                     }
                 }
 
-                    if (percentagetime >= 1 || percentagetime <= 0)
+                if (percentagetime > 1 || percentagetime < 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;
