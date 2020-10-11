@@ -15,6 +15,7 @@ using System;
 using DaggerfallWorkshop.Game.Formulas;
 using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
+using System.Diagnostics;
 
 namespace AmbidexterityModule
 {
@@ -86,6 +87,7 @@ namespace AmbidexterityModule
 
         private static float bob = .1f;
         private static bool bobSwitch = true;
+        Stopwatch AnimationTimer = new Stopwatch();
 
         public static void PlaySwingSound()
         {
@@ -149,10 +151,12 @@ namespace AmbidexterityModule
 
         public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0)
         {
+            Stopwatch AnimationTimer = new Stopwatch();
+            AnimationTimer.Start();
             while (true)
             {
                 float totalTime;
-                Debug.Log(weaponState.ToString());
+                //Debug.Log(weaponState.ToString());
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
                 //it grabs the current total animation time, amount of passed time, users fps,
@@ -231,7 +235,7 @@ namespace AmbidexterityModule
                     }
                 }
 
-                if (percentagetime > 1 || percentagetime < 0)
+                if (percentagetime >= 1 || percentagetime <= 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;
@@ -250,12 +254,13 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
+                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 UpdateWeapon();
 
                 if (lerpfinished)
                     yield break;
 
-                yield return new WaitForEndOfFrame();
+                yield return new WaitForFixedUpdate();
 
             }
         }

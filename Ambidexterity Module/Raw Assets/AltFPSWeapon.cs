@@ -15,6 +15,7 @@ using System;
 using DaggerfallWorkshop.Game.Formulas;
 using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
+using System.Diagnostics;
 
 namespace AmbidexterityModule
 {
@@ -85,6 +86,7 @@ namespace AmbidexterityModule
 
         private static float bob = .1f;
         private static bool bobSwitch = true;
+        Stopwatch AnimationTimer = new Stopwatch();
 
         //*COMBAT OVERHAUL ADDITION*//
         //switch used to set custom offset distances for each weapon.
@@ -112,6 +114,8 @@ namespace AmbidexterityModule
 
         public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0)
         {
+            Stopwatch AnimationTimer = new Stopwatch();
+            AnimationTimer.Start();
             while (true)
             {
                 float totalTime;
@@ -192,7 +196,7 @@ namespace AmbidexterityModule
                 }
 
 
-                if (percentagetime > 1 || percentagetime < 0)
+                if (percentagetime >= 1 || percentagetime <= 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;
@@ -213,14 +217,14 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
+                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 if (lerpfinished)
                 {
 
                     yield break;
-                }                    
+                }
 
-                yield return new WaitForEndOfFrame();
-
+                yield return new WaitForFixedUpdate();
             }
         }
 

@@ -195,6 +195,12 @@ namespace AmbidexterityModule
             AltFPSWeapon.MetalType = MetalTypes.None;
         }
 
+        private void Awake()
+        {
+            QualitySettings.vSyncCount = 0;  // VSync must be disabled
+            Application.targetFrameRate = 60;
+        }
+
         private void Update()
         {
 
@@ -538,9 +544,22 @@ namespace AmbidexterityModule
                     //return to ensure left hand routine isn't ran since using two handed weapon.
                     return;
                 }
-
-                //sets equip state to 1. Check declaration for equipstate listing.
-                equipState = 1;
+                //check if the equipped item is a shield
+                else if (currentmainHandItem.IsShield)
+                {
+                    //settings equipped state to shield and main weapon
+                    equipState = 3;
+                    //don't render offhand weapon since shield is being rendered instead.
+                    AltFPSWeapon.AltFPSWeaponShow = true;
+                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    //runs and checks equipped shield and sets all proper triggers for shield module, including
+                    //rendering and inputing management.
+                    FPSShield.EquippedShield();
+                    return;
+                }
+                else
+                    //sets equip state to 1. Check declaration for equipstate listing.
+                    equipState = 1;
             }
             //if right hand is empty do..
             else
@@ -583,7 +602,7 @@ namespace AmbidexterityModule
                     //rendering and inputing management.
                     FPSShield.EquippedShield();
                 }
-                else
+                else 
                 {
                     FPSShield.equippedShield = null;
                     //null out equipped shield item.
@@ -683,7 +702,7 @@ namespace AmbidexterityModule
             // Right-hand item changed
             if (!DaggerfallUnityItem.CompareItems(currentmainHandItem, mainHandItem))
             {
-                if (!GameManager.Instance.WeaponManager.UsingRightHand)
+                if (!GameManager.Instance.WeaponManager.UsingRightHand || GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                 {
                     currentmainHandItem = weaponProhibited(mainHandItem, currentmainHandItem);
                 }
@@ -696,7 +715,7 @@ namespace AmbidexterityModule
                     AltFPSWeapon.WeaponType = WeaponTypes.Melee;
                     AltFPSWeapon.MetalType = MetalTypes.None;
                 }
-                else
+                else if (!currentmainHandItem.IsShield)
                 {
                     // Must be a weapon
                     if (currentmainHandItem.ItemGroup != ItemGroups.Weapons)
@@ -709,20 +728,20 @@ namespace AmbidexterityModule
                     GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = mainHandItem.GetEquipSound();
                     GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = mainHandItem.GetSwingSound();
                 }
-            }
-            //if the user has not weapon in their main hand, do....
-            else if (racialOverride != null)
-            {
-                AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                AltFPSWeapon.MetalType = MetalTypes.None;
-                GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
-                GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                else if(currentmainHandItem.IsShield)
+                {
+                    AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(offHandItem);
+                    AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(offHandItem);
+                    AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(offHandItem);
+                    // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
+                    FPSShield.equippedShield = currentmainHandItem;
+                }
             }
 
             // Left-hand item changed
             if (!DaggerfallUnityItem.CompareItems(currentoffHandItem, offHandItem))
             {
-                if (GameManager.Instance.WeaponManager.UsingRightHand)
+                if (GameManager.Instance.WeaponManager.UsingRightHand || !GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                 {
                     currentoffHandItem = weaponProhibited(offHandItem, currentoffHandItem);
                 }
@@ -737,17 +756,15 @@ namespace AmbidexterityModule
                 }
                 else if (!currentoffHandItem.IsShield)
                 {
+                    // Must be a weapon
+                    if (currentoffHandItem.ItemGroup != ItemGroups.Weapons)
+                        return;
+
                     // Sets up weapon objects for offhand fps script. This ensures the loadatlas works properly and updates the rendered sprite.
                     OffHandFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
                     OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
                     OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
                     OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
-                }
-                else if (racialOverride != null)
-                {
-                    OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                    OffHandFPSWeapon.MetalType = MetalTypes.None;
-                    OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
                 }
                 else
                 {
@@ -877,7 +894,7 @@ namespace AmbidexterityModule
             bool hitObject = false;
             attackHit = null;
             //assigns the above triggered attackcast to the debug ray for easy debugging in unity.
-            Debug.DrawRay(mainCamera.transform.position, attackcast, Color.red, 5);
+            Debug.DrawRay(mainCamera.transform.position + (mainCamera.transform.forward * .25f), attackcast , Color.red, 5);
             //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
             RaycastHit hit;
             Ray ray = new Ray(mainCamera.transform.position, attackcast);
