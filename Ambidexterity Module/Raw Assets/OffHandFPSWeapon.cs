@@ -211,7 +211,7 @@ namespace AmbidexterityModule
                     AmbidexterityManager.AttackCast(equippedOffHandFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
-                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons)
+                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
@@ -268,6 +268,15 @@ namespace AmbidexterityModule
         //uses vector3 axis rotations to figure out starting and ending point of arc, then uses lerp to calculate where the ray is in the arc, and then returns the calculations.
         public static Vector3 ArcCastCalculator(float startposX, float startposY, float startposZ, float endposX, float endposY, float endposZ, float percentageTime, Vector3 castDirection)
         {
+            //flip raycast arc
+            if (flip)
+            {
+                startposX = startposX * -1;
+                startposY = startposY * -1;
+                endposX = endposX * -1;
+                endposY = endposY * -1;
+            }
+
             //sets up starting and ending quaternion angles for the vector3 offset/raycast.
             Quaternion startq = Quaternion.Euler(startposX, startposY, startposZ);
             Quaternion endq = Quaternion.Euler(endposX, endposY, endposZ);
@@ -328,7 +337,7 @@ namespace AmbidexterityModule
                 else
                 {
                     curAnimRect = rect;
-                }                    
+                }
 
                 if (WeaponType == WeaponTypes.Werecreature)
                 {
@@ -345,7 +354,7 @@ namespace AmbidexterityModule
                         else
                         {
                             offsetX = .5f;
-                            curAnimRect = curAnimRect = rect;
+                            curAnimRect = rect;
                         }
                     }
                     else if (weaponState == WeaponStates.StrikeDownRight)
@@ -375,7 +384,7 @@ namespace AmbidexterityModule
                 //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
                 //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying)
+                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying && false)
                 {
                     //bobbing system. Need to simplify this if then check.
                     if ((InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards)))
@@ -810,6 +819,7 @@ namespace AmbidexterityModule
             {
                 DaggerfallUnity.LogMessage("Index out of range exception for weapon animation. Probably due to weapon breaking + being unequipped during animation.");
             }
+            UnityEngine.Debug.Log(WeaponType.ToString() + " | " + curAnimRect.ToString() + " | " + weaponAnimRecordIndex.ToString());
         }
 
         public static void AlignLeft(WeaponAnimation anim, int width, int height)

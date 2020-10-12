@@ -8,8 +8,8 @@
             "Keys": [
                 {
                     "Value": "Mouse1",
-                    "Name": "blockKey",
-                    "Description": "Block Key: Accepts Mouse/Button input using the string value (Mouse0 - left click mouse | Mouse1 - Right click mouse | Mouse2 - Center click mouse | Ect.",
+                    "Name": "offHandKeyString",
+                    "Description": "Off-Hand Key: Accepts Mouse/Button input using the string value (Mouse0 - left click mouse | Mouse1 - Right click mouse | Mouse2 - Center click mouse | Ect.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
                 },
