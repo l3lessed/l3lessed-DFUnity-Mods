@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Wenzil.Console;
+using ParticleConstructorClass;
 
 namespace AmbidexterityModule
 {
@@ -93,6 +94,13 @@ namespace AmbidexterityModule
 
         static Vector3 debugcast;
 
+        //particle system empty objects.
+        public ParticleSystem system;
+        static Texture2D particleTex;
+        public Light lightPrefab;
+        private Gradient gradient = new Gradient();
+        ParticleSystem TestClassSystem;
+
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
         [Invoke(StateManager.StateTypes.Game, 0)]
@@ -141,6 +149,26 @@ namespace AmbidexterityModule
         // Use this for initialization
         void Start()
         {
+
+            //Uses particle constructor to create unique particle system object\\
+            //Sets up all the objects to be used to construct the particle system object.
+            var go = new GameObject("Particle System");
+            system = go.AddComponent<ParticleSystem>();
+            ParticleSystem.ColorOverLifetimeModule colorModule1 = system.colorOverLifetime;
+            var Sparks = new GameObject("Sparks");
+            ParticleConstructor SparkParticles = new ParticleConstructor();
+            SparkParticles = Sparks.AddComponent<ParticleConstructor>();
+            //begins using class objects to setup particle system.
+            SparkParticles.setupParticleSystem(new Vector3(45, 45, 0), colorModule1, new ParticleSystem.MinMaxGradient(Color.white, Color.yellow), ParticleSystemRenderMode.Mesh, .05f);
+            SparkParticles.setupMainSystem(Color.white, ParticleSystemEmitterVelocityMode.Transform, .3f, .003f, 1.5f, false);
+            SparkParticles.setupMaterials("Transparent/Specular", Resources.GetBuiltinResource<Mesh>("Sphere.fbx"), true, Color.white, Color.yellow);
+            SparkParticles.setupLight(Color.yellow, 1f, 8f, .75f);
+            SparkParticles.setupEmitter(ParticleSystemShapeType.Cone, new Vector3(.1f, .05f, .05f));
+            SparkParticles.setupParticleBursts(0, 10);
+            SparkParticles.setupTrails("Legacy Shaders/Particles/Alpha Blended Premultiply", .75f, .0035f, 1.5f, new GradientColorKey[] { new GradientColorKey(Color.yellow, 0.0f), new GradientColorKey(Color.white, .02f) }, new GradientAlphaKey[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(0.0f, .1f) });
+            //assigns constructed particle system to a enpty particle system object.
+            TestClassSystem = SparkParticles.ReturnConstructedParticle();
+            
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
@@ -283,7 +311,10 @@ namespace AmbidexterityModule
             //if player is hit and they are parrying do...
             if (isHit && attackState == 7)
             {
+                TestClassSystem.transform.position = attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .25f);
                 //go to recoil state.
+
+                TestClassSystem.Play();
                 attackState = 8;
                 //if duel wield is equipped stop offhand parry animation.
                 if (equipState == 5)
@@ -329,6 +360,10 @@ namespace AmbidexterityModule
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
+            TestClassSystem.transform.position = mainCamera.transform.position + (mainCamera.transform.forward * 1.25f);
+            //go to recoil state.
+
+            TestClassSystem.Play();
             //sets weapon state to parry.
             attackState = 7;
             
@@ -676,29 +711,6 @@ namespace AmbidexterityModule
                 }
             }
 
-            //grabs players racial override to ensure werebeast weapons update properly.
-            RacialOverrideEffect racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
-
-            if(racialOverride != null && (AltFPSWeapon.WeaponType != WeaponTypes.Werecreature|| OffHandFPSWeapon.WeaponType != WeaponTypes.Werecreature))
-            {
-                AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                AltFPSWeapon.MetalType = MetalTypes.None;
-                GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
-                GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
-
-                OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                OffHandFPSWeapon.MetalType = MetalTypes.None;
-                OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
-                //set to not equipped.
-
-                OffHandFPSWeapon.OffHandWeaponShow = true;
-                AltFPSWeapon.AltFPSWeaponShow = true;
-                FPSShield.shieldEquipped = false;
-                equipState = 0;
-                return;
-            }
-
-
             // Right-hand item changed
             if (!DaggerfallUnityItem.CompareItems(currentmainHandItem, mainHandItem))
             {
@@ -707,35 +719,7 @@ namespace AmbidexterityModule
                     currentmainHandItem = weaponProhibited(mainHandItem, currentmainHandItem);
                 }
                 else
-                    currentmainHandItem = mainHandItem;
-
-                if (currentmainHandItem == null)
-                {
-                    //sets up offhand render for melee combat/fist sprite render.
-                    AltFPSWeapon.WeaponType = WeaponTypes.Melee;
-                    AltFPSWeapon.MetalType = MetalTypes.None;
-                }
-                else if (!currentmainHandItem.IsShield)
-                {
-                    // Must be a weapon
-                    if (currentmainHandItem.ItemGroup != ItemGroups.Weapons)
-                        return;
-
-                    // Sets up weapon objects for replacement fps script. This ensures the loadatlas works properly and updates the rendered sprite.
-                    AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem);
-                    AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentmainHandItem);
-                    AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentmainHandItem);
-                    GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = mainHandItem.GetEquipSound();
-                    GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = mainHandItem.GetSwingSound();
-                }
-                else if(currentmainHandItem.IsShield)
-                {
-                    AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(offHandItem);
-                    AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(offHandItem);
-                    AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(offHandItem);
-                    // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
-                    FPSShield.equippedShield = currentmainHandItem;
-                }
+                    currentmainHandItem = mainHandItem;               
             }
 
             // Left-hand item changed
@@ -747,30 +731,77 @@ namespace AmbidexterityModule
                 }
                 else
                     currentoffHandItem = offHandItem;
+            }
 
-                if (currentoffHandItem == null)
+            if (currentmainHandItem == null)
+            {
+                if(GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
+                {
+                    AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
+                    AltFPSWeapon.MetalType = MetalTypes.None;
+                    GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
+                    GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                }
+                else
+                {
+                    //sets up offhand render for melee combat/fist sprite render.
+                    AltFPSWeapon.WeaponType = WeaponTypes.Melee;
+                    AltFPSWeapon.MetalType = MetalTypes.None;
+                }
+            }
+            else if (!currentmainHandItem.IsShield)
+            {
+                // Must be a weapon
+                if (currentmainHandItem.ItemGroup != ItemGroups.Weapons)
+                    return;
+
+                // Sets up weapon objects for replacement fps script. This ensures the loadatlas works properly and updates the rendered sprite.
+                AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem);
+                AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentmainHandItem);
+                AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentmainHandItem);
+                GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = mainHandItem.GetEquipSound();
+                GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = mainHandItem.GetSwingSound();
+            }
+            else if (currentmainHandItem.IsShield)
+            {
+                AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(offHandItem);
+                AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(offHandItem);
+                AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(offHandItem);
+                // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
+                FPSShield.equippedShield = currentmainHandItem;
+            }
+
+            if (currentoffHandItem == null)
+            {
+                if (GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
+                {
+                    OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
+                    OffHandFPSWeapon.MetalType = MetalTypes.None;
+                    OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                }
+                else
                 {
                     //sets up offhand render for melee combat/fist sprite render.
                     OffHandFPSWeapon.WeaponType = WeaponTypes.Melee;
                     OffHandFPSWeapon.MetalType = MetalTypes.None;
                 }
-                else if (!currentoffHandItem.IsShield)
-                {
-                    // Must be a weapon
-                    if (currentoffHandItem.ItemGroup != ItemGroups.Weapons)
-                        return;
+            }
+            else if (!currentoffHandItem.IsShield)
+            {
+                // Must be a weapon
+                if (currentoffHandItem.ItemGroup != ItemGroups.Weapons)
+                    return;
 
-                    // Sets up weapon objects for offhand fps script. This ensures the loadatlas works properly and updates the rendered sprite.
-                    OffHandFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
-                    OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
-                    OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
-                    OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
-                }
-                else
-                {
-                    // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
-                    FPSShield.equippedShield = currentoffHandItem;
-                }
+                // Sets up weapon objects for offhand fps script. This ensures the loadatlas works properly and updates the rendered sprite.
+                OffHandFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
+                OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
+                OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
+                OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
+            }
+            else
+            {
+                // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
+                FPSShield.equippedShield = currentoffHandItem;
             }
 
             //checks the differing equipped hands and sets up properties to ensure proper onscreen rendering.
@@ -807,25 +838,7 @@ namespace AmbidexterityModule
                         EquipCountdownOffHand += switchDelay / 1.7f;
                 }
 
-            ApplyWeapon();
-        }
-
-        void ApplyWeapon()
-        {
-            //if (!ScreenWeapon)
-            //return;
-
-            usingMainhand = !usingMainhand;
-
-            RacialOverrideEffect racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
-            if (racialOverride != null && racialOverride.SetFPSWeapon(GameManager.Instance.WeaponManager.ScreenWeapon))
-            {
-                return;
-            }
-            else
-            {
-                UpdateHands();
-            }
+            UpdateHands();
         }
 
         //runs all the code for when two npcs parry each other. Uses calculateattackdamage formula to help it figure this out.

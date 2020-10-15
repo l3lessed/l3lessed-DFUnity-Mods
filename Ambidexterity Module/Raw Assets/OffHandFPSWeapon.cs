@@ -110,6 +110,7 @@ namespace AmbidexterityModule
                 // Must have current weapon texture atlas
                 if (weaponAtlas == null || WeaponType != currentWeaponType || MetalType != currentMetalType)
                 {
+                    ResetAnimation();
                     LoadWeaponAtlas();
                     UpdateWeapon();
                     if (weaponAtlas == null)
@@ -290,8 +291,16 @@ namespace AmbidexterityModule
         {
             timeCovered = 0;
             currentFrame = 0;
-            lerpfinished = false;
+            isParrying = false;
+            lerpfinished = true;
             breatheTrigger = false;
+            attackCasted = false;
+            weaponState = WeaponStates.Idle;
+            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
+            AmbidexterityManager.isHit = false;
+            posi = 0;
+            offsetX = 0;
+            offsetY = 0;
         }
 
         public static void UpdateWeapon()

@@ -276,6 +276,7 @@ namespace AmbidexterityModule
                 // Must have current weapon texture atlas
                 if (weaponAtlas == null || WeaponType != currentWeaponType || MetalType != currentMetalType)
                 {
+                    ResetAnimation();
                     LoadWeaponAtlas();
                     UpdateWeapon();
                     if (weaponAtlas == null)
