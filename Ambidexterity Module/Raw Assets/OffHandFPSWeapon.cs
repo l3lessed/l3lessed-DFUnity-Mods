@@ -339,14 +339,14 @@ namespace AmbidexterityModule
                         curAnimRect = new Rect(1, 0, -1, 1);
                     else
                         curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-
-                    if (weaponState == WeaponStates.StrikeDownRight)
-                        offsetX = .09f;
                 }
                 else
                 {
                     curAnimRect = rect;
                 }
+
+                if (weaponState == WeaponStates.StrikeDownRight)
+                    offsetX = .15f;
 
                 if (WeaponType == WeaponTypes.Werecreature)
                 {

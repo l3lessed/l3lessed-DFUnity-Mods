@@ -99,7 +99,7 @@ namespace AmbidexterityModule
         static Texture2D particleTex;
         public Light lightPrefab;
         private Gradient gradient = new Gradient();
-        ParticleSystem TestClassSystem;
+        ParticleSystem SparkParticles;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -149,25 +149,12 @@ namespace AmbidexterityModule
         // Use this for initialization
         void Start()
         {
-
-            //Uses particle constructor to create unique particle system object\\
-            //Sets up all the objects to be used to construct the particle system object.
-            var go = new GameObject("Particle System");
-            system = go.AddComponent<ParticleSystem>();
-            ParticleSystem.ColorOverLifetimeModule colorModule1 = system.colorOverLifetime;
-            var Sparks = new GameObject("Sparks");
-            ParticleConstructor SparkParticles = new ParticleConstructor();
-            SparkParticles = Sparks.AddComponent<ParticleConstructor>();
-            //begins using class objects to setup particle system.
-            SparkParticles.setupParticleSystem(new Vector3(45, 45, 0), colorModule1, new ParticleSystem.MinMaxGradient(Color.white, Color.yellow), ParticleSystemRenderMode.Mesh, .05f);
-            SparkParticles.setupMainSystem(Color.white, ParticleSystemEmitterVelocityMode.Transform, .3f, .003f, 1.5f, false);
-            SparkParticles.setupMaterials("Transparent/Specular", Resources.GetBuiltinResource<Mesh>("Sphere.fbx"), true, Color.white, Color.yellow);
-            SparkParticles.setupLight(Color.yellow, 1f, 8f, .75f);
-            SparkParticles.setupEmitter(ParticleSystemShapeType.Cone, new Vector3(.1f, .05f, .05f));
-            SparkParticles.setupParticleBursts(0, 10);
-            SparkParticles.setupTrails("Legacy Shaders/Particles/Alpha Blended Premultiply", .75f, .0035f, 1.5f, new GradientColorKey[] { new GradientColorKey(Color.yellow, 0.0f), new GradientColorKey(Color.white, .02f) }, new GradientAlphaKey[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(0.0f, .1f) });
-            //assigns constructed particle system to a enpty particle system object.
-            TestClassSystem = SparkParticles.ReturnConstructedParticle();
+            //uses the Particle System Container class to setup and grab the prefab spark particle emitter constructed in the class already.
+            //then assigns it to a container particle system for later use.
+            var SparkObject = new GameObject("SparkObject");
+            ParticleSystemContainer SparkPrefab = new ParticleSystemContainer();
+            SparkPrefab = SparkObject.AddComponent<ParticleSystemContainer>();
+            SparkParticles = SparkPrefab.sparkParticles();
             
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
@@ -311,10 +298,11 @@ namespace AmbidexterityModule
             //if player is hit and they are parrying do...
             if (isHit && attackState == 7)
             {
-                TestClassSystem.transform.position = attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .25f);
-                //go to recoil state.
+                //grab the attckers position, move sparks infront of them a little, and then play store, prefabbed spark particle system.
+                SparkParticles.transform.position = attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f);        
+                SparkParticles.Play();
 
-                TestClassSystem.Play();
+                //go to recoil state...
                 attackState = 8;
                 //if duel wield is equipped stop offhand parry animation.
                 if (equipState == 5)
@@ -360,10 +348,6 @@ namespace AmbidexterityModule
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
-            TestClassSystem.transform.position = mainCamera.transform.position + (mainCamera.transform.forward * 1.25f);
-            //go to recoil state.
-
-            TestClassSystem.Play();
             //sets weapon state to parry.
             attackState = 7;
             

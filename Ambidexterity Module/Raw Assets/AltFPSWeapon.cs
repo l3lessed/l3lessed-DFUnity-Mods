@@ -332,13 +332,13 @@ namespace AmbidexterityModule
                         curAnimRect = new Rect(1, 0, -1, 1);
                     else
                         curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-
-                    if (weaponState == WeaponStates.StrikeDownRight)
-                        offsetX = .09f;
                 }
                 //if not flip, assign the current animation rect object to the just loaded rect object for further use.
                 else
                     curAnimRect = rect;
+
+                if (weaponState == WeaponStates.StrikeDownLeft)
+                    offsetX = -.09f;
 
                 if (WeaponType == WeaponTypes.Werecreature)
                 {
