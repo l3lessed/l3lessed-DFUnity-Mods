@@ -99,7 +99,10 @@ namespace AmbidexterityModule
         static Texture2D particleTex;
         public Light lightPrefab;
         private Gradient gradient = new Gradient();
-        ParticleSystem SparkParticles;
+        public GameObject SparkPreb;
+        public ParticleSystem sparkParticles;
+        UnityEngine.Object prefabReference;
+        public GameObject ParticleSystemGo;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -149,13 +152,6 @@ namespace AmbidexterityModule
         // Use this for initialization
         void Start()
         {
-            //uses the Particle System Container class to setup and grab the prefab spark particle emitter constructed in the class already.
-            //then assigns it to a container particle system for later use.
-            var SparkObject = new GameObject("SparkObject");
-            ParticleSystemContainer SparkPrefab = new ParticleSystemContainer();
-            SparkPrefab = SparkObject.AddComponent<ParticleSystemContainer>();
-            SparkParticles = SparkPrefab.sparkParticles();
-            
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
@@ -229,19 +225,14 @@ namespace AmbidexterityModule
             //if the player has a bow equipped, do.....
             if (equipState == 6)
             {
-                //hide offhand weapon sprite, idle its state, and null out the equipped item.
-                OffHandFPSWeapon.OffHandWeaponShow = false;
-                OffHandFPSWeapon.weaponState = WeaponStates.Idle;
-                OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
-
-                //hide main hand weapon sprite, idle its state, and null out the equipped item.
-                AltFPSWeapon.AltFPSWeaponShow = false;
-                AltFPSWeapon.weaponState = WeaponStates.Idle;
-                AltFPSWeapon.equippedAltFPSWeapon = null;
-
                 //show the original fps render object so the original bow code can run without issue.
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = true;
-                return;
+            }
+            else
+            {
+                //removes default fps weapon to be replaced by my alternative script.
+                GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
+                GameManager.Instance.WeaponManager.ScreenWeapon.Reach = 0;
             }
 
             // Do nothing if player paralyzed or is climbing
@@ -277,9 +268,7 @@ namespace AmbidexterityModule
 
             //Begin monitoring for key input, updating hands and all related properties, and begin monitoring for key presses and/or property/state changes.
 
-            //removes default fps weapon to be replaced by my alternative script.
-            GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
-            GameManager.Instance.WeaponManager.ScreenWeapon.Reach = 0;
+
 
             //small routine to check for attack key inputs and start a short delay timer if detected.
             //this makes using parry easier by giving a delay time frame to click both attack buttons.
@@ -298,9 +287,8 @@ namespace AmbidexterityModule
             //if player is hit and they are parrying do...
             if (isHit && attackState == 7)
             {
-                //grab the attckers position, move sparks infront of them a little, and then play store, prefabbed spark particle system.
-                SparkParticles.transform.position = attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f);        
-                SparkParticles.Play();
+                //uses the Particle System Container class to setup and grab the prefab spark particle emitter constructed in the class already.
+                //then assigns it to a container particle system for later use.
 
                 //go to recoil state...
                 attackState = 8;
@@ -348,6 +336,12 @@ namespace AmbidexterityModule
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
+            //ParticleSystemGo = mod.GetAsset<GameObject>("Spark_Particles");
+            //sparkParticles = ParticleSystemGo.GetComponent<ParticleSystem>();
+            //grab the attckers position, move sparks infront of them a little, and then play store, prefabbed spark particle system.
+            //ParticleSystemGo.transform.position = mainCamera.transform.position + (mainCamera.transform.forward * 1.25f);
+            //ParticleSystemGo.GetComponent<ParticleSystem>().Play();
+
             //sets weapon state to parry.
             attackState = 7;
             
@@ -362,7 +356,7 @@ namespace AmbidexterityModule
 
             if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && AltFPSWeapon.WeaponType != WeaponTypes.Melee)
             {
-                //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
+                //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                 AltFPSWeapon.isParrying = true;
                 AltFPSWeapon.ParryCoroutine = StartCoroutine(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f));
                 OffHandFPSWeapon.PlaySwingSound();
@@ -538,15 +532,28 @@ namespace AmbidexterityModule
         {
             AltFPSWeapon.AltFPSWeaponShow = true;
 
+            if (DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Bow)
+            {
+                //hide offhand weapon sprite, idle its state, and null out the equipped item.
+                OffHandFPSWeapon.OffHandWeaponShow = false;
+                OffHandFPSWeapon.weaponState = WeaponStates.Idle;
+                OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
+
+                //hide main hand weapon sprite, idle its state, and null out the equipped item.
+                AltFPSWeapon.AltFPSWeaponShow = false;
+                AltFPSWeapon.weaponState = WeaponStates.Idle;
+                AltFPSWeapon.equippedAltFPSWeapon = null;
+
+                FPSShield.equippedShield = null;
+                FPSShield.shieldEquipped = false;
+
+                equipState = 6;
+                return;
+            }
+
             //checks if main hand is equipped and sets proper object properties.
             if (currentmainHandItem != null)
             {
-                if (DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Bow)
-                {
-                    equipState = 6;
-                    return;
-                }
-
                 //checks if the weapon is two handed, if so do....
                 if (ItemEquipTable.GetItemHands(currentmainHandItem) == ItemHands.Both && !(DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Melee))
                 {
@@ -794,8 +801,7 @@ namespace AmbidexterityModule
 
         DaggerfallUnityItem weaponProhibited(DaggerfallUnityItem checkedWeapon, DaggerfallUnityItem replacementWeapon = null)
         {
-
-            if(checkedWeapon != null && prohibitedWeapons.Contains(checkedWeapon.ItemTemplate.index))
+            if (checkedWeapon != null && prohibitedWeapons.Contains(checkedWeapon.ItemTemplate.index))
             {
                 DaggerfallUI.Instance.PopupMessage("This weapon throws your balance off too much to use.");
 

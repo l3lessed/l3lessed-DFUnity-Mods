@@ -87,6 +87,7 @@ namespace AmbidexterityModule
         private static float bob = .1f;
         private static bool bobSwitch = true;
         Stopwatch AnimationTimer = new Stopwatch();
+        private static float timePass;
 
         //*COMBAT OVERHAUL ADDITION*//
         //switch used to set custom offset distances for each weapon.
@@ -146,6 +147,9 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
+                //calculates the current time that has passed
+                timePass += Time.deltaTime;
+
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
@@ -153,6 +157,11 @@ namespace AmbidexterityModule
                     breatheTrigger = false;
 
                 currentFrame = Mathf.FloorToInt(percentagetime * 5);
+
+                if (currentFrame != frameBeforeStepping)
+                {
+                    timePass = 0;
+                }
 
                 if (AmbidexterityManager.classicAnimations)
                 {
@@ -164,6 +173,8 @@ namespace AmbidexterityModule
                     offsetX = Mathf.Lerp(startX, endX, percentagetime);
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
+
+                //UnityEngine.Debug.Log((timePass / attackFrameTime).ToString() + " | " + posi.ToString());
 
                 if (currentFrame >= 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
@@ -199,6 +210,7 @@ namespace AmbidexterityModule
                 if (percentagetime >= 1 || percentagetime <= 0)
                 {
                     timeCovered = 0;
+                    timePass = 0;
                     currentFrame = 0;
                     isParrying = false;
                     lerpfinished = true;
@@ -217,7 +229,6 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
-                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 if (lerpfinished)
                 {
 
@@ -251,6 +262,7 @@ namespace AmbidexterityModule
         public static void ResetAnimation()
         {
             timeCovered = 0;
+            timePass = 0;
             currentFrame = 0;
             isParrying = false;
             lerpfinished = true;
@@ -381,9 +393,7 @@ namespace AmbidexterityModule
                         }
 
                     }
-                }
-
-                UnityEngine.Debug.Log(WeaponType.ToString() + " | " + curAnimRect.ToString() + " | " + weaponAnimRecordIndex.ToString());
+                }                
 
                 //*COMBAT OVERHAUL ADDITION*//
                 //added offset checks for individual attacks and weapons. Also, allows for the weapon bobbing effect.
@@ -413,7 +423,7 @@ namespace AmbidexterityModule
                         offsetY = (bob * 1.5f) - .15f;
                     }
                 }
-                else if(false && !isParrying)
+                else if(!isParrying && false)
                 {
                     if (weaponState == WeaponStates.StrikeLeft)
                     {
@@ -660,34 +670,40 @@ namespace AmbidexterityModule
                         }
                         else
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
-                                posi = posi + .006f;
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
                                 weaponAnimRecordIndex = 1;
                                 offsetX = (posi / 2) - .35f;
-                                offsetY = (posi * -1f) + .35f;
+                                offsetY = (posi * -1f) + .3f;
                             }
-                            else if (currentFrame == 2)
+                            else if (currentFrame == 1)
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .2f;
-                                offsetY = (posi * -1.1f) + .05f;
+                                offsetX = (posi / 2) - .25f;
+                                offsetY = (posi * -1f) + .1f;
+                            }
+                            else if (currentFrame == 2)
+                            {
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
+                                weaponAnimRecordIndex = 1;
+                                offsetX = (posi / 2) - .15f;
+                                offsetY = (posi * -1f);
                             }
                             else if (currentFrame == 3)
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
                                 weaponAnimRecordIndex = 1;
                                 offsetX = (posi / 3) - .1f;
-                                offsetY = (posi * -1.2f) + .2f;
+                                offsetY = (posi * -1f);
                             }
                             else
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
                                 weaponAnimRecordIndex = 1;
                                 offsetX = (posi / 3);
-                                offsetY = (posi * -1.3f) + .1f;
+                                offsetY = (posi * -1f) - .252f;
                             }
                         }
                     }
@@ -771,25 +787,29 @@ namespace AmbidexterityModule
                         }
                         else
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
-                                offsetX = .22f;
-                                offsetY = (posi * -1) * 3;
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[0].startIndex];
+                                weaponAnimRecordIndex = 0;
+                                offsetY = (posi * -1) * 2f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                weaponAnimRecordIndex = 6;
+                                offsetY = posi - 1f;
                             }
                             else if (currentFrame == 2)
                             {
-                                offsetX = .23f;
-                                offsetY = (posi * 1.25f) - .6f;
+                                weaponAnimRecordIndex = 6;
+                                offsetY = posi - .756f;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetX = .24f;
-                                offsetY = (posi * 1.25f) - .4f;
+                                offsetY = posi - .504f;
                             }
                             else if (currentFrame == 4)
                             {
-                                offsetX = .25f;
-                                offsetY = (posi * 1.25f) - .3f;
+                                offsetY = posi - .252f;
                             }
                         }
                     }
