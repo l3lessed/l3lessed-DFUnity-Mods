@@ -200,12 +200,6 @@ namespace AmbidexterityModule
             AltFPSWeapon.MetalType = MetalTypes.None;
         }
 
-        private void Awake()
-        {
-            QualitySettings.vSyncCount = 0;  // VSync must be disabled
-            Application.targetFrameRate = 60;
-        }
-
         private void Update()
         {
 
