@@ -6,17 +6,14 @@ using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects.MagicEffects;
 using DaggerfallWorkshop.Game.Serialization;
-using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Wenzil.Console;
-using ParticleConstructorClass;
 
 namespace AmbidexterityModule
 {
@@ -95,18 +92,13 @@ namespace AmbidexterityModule
         static Vector3 debugcast;
 
         //particle system empty objects.
-        public ParticleSystem system;
-        static Texture2D particleTex;
-        public Light lightPrefab;
-        private Gradient gradient = new Gradient();
         public GameObject SparkPreb;
         public ParticleSystem sparkParticles;
-        UnityEngine.Object prefabReference;
-        public GameObject ParticleSystemGo;
+        public static bool assets;
 
-        //starts mod manager on game begin. Grabs mod initializing paramaters.
-        //ensures SateTypes is set to .Start for proper save data restore values.
-        [Invoke(StateManager.StateTypes.Game, 0)]
+       //starts mod manager on game begin. Grabs mod initializing paramaters.
+       //ensures SateTypes is set to .Start for proper save data restore values.
+       [Invoke(StateManager.StateTypes.Game, 0)]
         public static void Init(InitParams initParams)
         {
             //Below code blocks set up instances of class/script/mod.\\
@@ -140,6 +132,7 @@ namespace AmbidexterityModule
             mod = initParams.Mod;
             //loads mods settings.
             settings = mod.GetSettings();
+            assets = mod.LoadAllAssetsFromBundle();
             //initiates save paramaters for class/script.
             //mod.SaveDataInterface = instance;
             //after finishing, set the mod's IsReady flag to true.
@@ -155,6 +148,8 @@ namespace AmbidexterityModule
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
+            SparkPreb = mod.GetAsset<GameObject>("Spark_Particles");
+            sparkParticles = SparkPreb.GetComponent<ParticleSystem>();
 
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.
             dfAudioSource = GameManager.Instance.PlayerObject.AddComponent<DaggerfallAudioSource>();
@@ -171,8 +166,7 @@ namespace AmbidexterityModule
 
             //*THIS NEEDS CLEANED UP. CAN USE A SINGLE INSTANCE OF THIS IN MANAGER FILE*
             OffHandFPSWeapon.dfUnity = DaggerfallUnity.Instance;
-            AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;           
-
+            AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;
             //binds mod settings to script properties.
             offHandKeyString = settings.GetValue<string>("Settings", "offHandKeyString");
             BlockTimeMod = settings.GetValue<float>("Settings", "BlockTimeMod");
@@ -289,6 +283,7 @@ namespace AmbidexterityModule
             {
                 //uses the Particle System Container class to setup and grab the prefab spark particle emitter constructed in the class already.
                 //then assigns it to a container particle system for later use.
+                Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
 
                 //go to recoil state...
                 attackState = 8;
@@ -335,13 +330,7 @@ namespace AmbidexterityModule
 
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
-        {
-            //ParticleSystemGo = mod.GetAsset<GameObject>("Spark_Particles");
-            //sparkParticles = ParticleSystemGo.GetComponent<ParticleSystem>();
-            //grab the attckers position, move sparks infront of them a little, and then play store, prefabbed spark particle system.
-            //ParticleSystemGo.transform.position = mainCamera.transform.position + (mainCamera.transform.forward * 1.25f);
-            //ParticleSystemGo.GetComponent<ParticleSystem>().Play();
-
+        {            
             //sets weapon state to parry.
             attackState = 7;
             
@@ -350,7 +339,7 @@ namespace AmbidexterityModule
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                 OffHandFPSWeapon.isParrying = true;
                 OffHandFPSWeapon.ParryCoroutine = StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f));
-                OffHandFPSWeapon.PlaySwingSound();
+                OffHandFPSWeapon.PlaySwingSound();               
                 return;
             }
 
@@ -359,7 +348,7 @@ namespace AmbidexterityModule
                 //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                 AltFPSWeapon.isParrying = true;
                 AltFPSWeapon.ParryCoroutine = StartCoroutine(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f));
-                OffHandFPSWeapon.PlaySwingSound();
+                OffHandFPSWeapon.PlaySwingSound();               
                 return;
             }
         }

@@ -835,7 +835,7 @@ namespace AmbidexterityModule
             }
 
             //yield code returns at the end of the frame.
-            yield return new WaitForEndOfFrame();
+            yield return new WaitForFixedUpdate();
         }
         #endregion
 

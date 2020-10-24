@@ -37,7 +37,7 @@ namespace AmbidexterityModule
         public static WeaponAnimation[] weaponAnims;
         public static Rect curAnimRect;
 
-        private static GameObject attackHit;
+        public static GameObject attackHit;
 
         public static int currentFrame = 0;
         static int frameBeforeStepping = 0;
