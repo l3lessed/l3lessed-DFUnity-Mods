@@ -93,7 +93,7 @@ namespace AmbidexterityModule
 
         //particle system empty objects.
         public GameObject SparkPreb;
-        public ParticleSystem sparkParticles;
+        public static ParticleSystem sparkParticles;
         public static bool assets;
 
        //starts mod manager on game begin. Grabs mod initializing paramaters.
@@ -132,7 +132,7 @@ namespace AmbidexterityModule
             mod = initParams.Mod;
             //loads mods settings.
             settings = mod.GetSettings();
-            assets = mod.LoadAllAssetsFromBundle();
+            //assets = mod.LoadAllAssetsFromBundle();
             //initiates save paramaters for class/script.
             //mod.SaveDataInterface = instance;
             //after finishing, set the mod's IsReady flag to true.
@@ -149,6 +149,7 @@ namespace AmbidexterityModule
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
             SparkPreb = mod.GetAsset<GameObject>("Spark_Particles");
+            //SparkPreb = Resources.Load("Particles/Spark_Particles") as GameObject;
             sparkParticles = SparkPreb.GetComponent<ParticleSystem>();
 
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.
@@ -817,6 +818,7 @@ namespace AmbidexterityModule
         //runs all the code for when two npcs parry each other. Uses calculateattackdamage formula to help it figure this out.
         public static void activateNPCParry(DaggerfallEntity targetEntity, DaggerfallEntity attackerEntity, int parriedDamage)
         {
+            Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
             EnemyMotor targetMotor = targetEntity.EntityBehaviour.GetComponent<EnemyMotor>();
             //grab hit entity's motor component and assign it to targetMotor object.
@@ -856,6 +858,7 @@ namespace AmbidexterityModule
         //runs all the code for when player and npc parry each other. Uses calculateattackdamage formula to help it figure this out.
         public static void activatePlayerParry(DaggerfallEntity attackerEntity, int parriedDamage)
         {
+            Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
             EnemyMotor attackMotor = attackerEntity.EntityBehaviour.GetComponent<EnemyMotor>();
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.

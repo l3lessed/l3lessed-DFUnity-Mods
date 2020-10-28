@@ -200,6 +200,7 @@ namespace AmbidexterityModule
                     //if the attack angle is 35 degree angle degrees or more (player does not have them close to center screen) don't register the parry.
                     if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
                     {
+                        AmbidexterityManager.activateNPCParry(target, attacker, damage);
                         Debug.Log("Enemy Parry!");
                         damage = 0;
                     }
@@ -246,6 +247,7 @@ namespace AmbidexterityModule
                     //if the enemy is in their primary/melee attack state and the player is on their hit frame, do ....
                     if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AltFPSWeapon.currentFrame > 2)
                     {
+                        Destroy(Instantiate(AmbidexterityManager.sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
                         damage = 0;
                     }
                 }

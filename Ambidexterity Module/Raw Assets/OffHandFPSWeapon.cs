@@ -89,6 +89,8 @@ namespace AmbidexterityModule
         private static bool bobSwitch = true;
         Stopwatch AnimationTimer = new Stopwatch();
 
+        private static float timePass;
+
         public static void PlaySwingSound()
         {
             if (AmbidexterityManager.dfAudioSource)
@@ -163,7 +165,6 @@ namespace AmbidexterityModule
                 //it grabs the current total animation time, amount of passed time, users fps,
                 //and then uses them to calculate and set the lerp value to ensure proper animation
                 //offsetting no matter users fps or attack speed.
-                frameBeforeStepping = currentFrame;
 
                 if (CustomTime != 0)
                     totalTime = CustomTime;
@@ -188,30 +189,35 @@ namespace AmbidexterityModule
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
-                else if (percentagetime <= 0 && breatheTrigger)
+                else if (percentagetime < 0 && breatheTrigger)
                     breatheTrigger = false;
 
                 //sets current frame and does it as close to classic timing by taking the percent time covered in the routine/animation and rounding down. This ensures the first frame doesn't appear without the classic update delay.
                 //this also ensures fifth animation frame has proper classic render time for proper classic appearance.
                 currentFrame = Mathf.FloorToInt(percentagetime * 5);
 
+                //If classic animations are to be used, process lerp using attacktime for each frame * the current frame then
+                //divide by total animation to get the specific place the animation would be in on specific frame.
                 if (AmbidexterityManager.classicAnimations)
                 {
                     offsetX = Mathf.Lerp(startX, endX, (attackFrameTime * currentFrame) / totalAnimationTime);
                     offsetY = Mathf.Lerp(startY, endY, (attackFrameTime * currentFrame) / totalAnimationTime);
                 }
+                //lerps continually with each tick update using the current percentage of time passed in animation.
                 else
                 {
                     offsetX = Mathf.Lerp(startX, endX, percentagetime);
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
 
-                if (percentagetime > .4f && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
+                //if not using pjysical weapons, cast single raycast to check if hit enemy on second frame.
+                if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
                     Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
                     AmbidexterityManager.AttackCast(equippedOffHandFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
+                //continually shoot out raycasts until object is hit.
                 else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
@@ -236,7 +242,7 @@ namespace AmbidexterityModule
                     }
                 }
 
-                if (percentagetime >= 1 || percentagetime <= 0)
+                if (percentagetime > 1 || percentagetime < 0)
                 {
                     timeCovered = 0;
                     currentFrame = 0;

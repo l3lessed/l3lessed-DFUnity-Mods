@@ -147,9 +147,6 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                //calculates the current time that has passed
-                timePass += Time.deltaTime;
-
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
@@ -157,11 +154,6 @@ namespace AmbidexterityModule
                     breatheTrigger = false;
 
                 currentFrame = Mathf.FloorToInt(percentagetime * 5);
-
-                if (currentFrame != frameBeforeStepping)
-                {
-                    timePass = 0;
-                }
 
                 if (AmbidexterityManager.classicAnimations)
                 {
@@ -176,7 +168,7 @@ namespace AmbidexterityModule
 
                 //UnityEngine.Debug.Log((timePass / attackFrameTime).ToString() + " | " + posi.ToString());
 
-                if (currentFrame >= 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
+                if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
                     Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
                     AmbidexterityManager.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
@@ -206,11 +198,9 @@ namespace AmbidexterityModule
                     }
                 }
 
-
-                if (percentagetime >= 1 || percentagetime <= 0)
+                if (percentagetime > 1 || percentagetime < 0)
                 {
                     timeCovered = 0;
-                    timePass = 0;
                     currentFrame = 0;
                     isParrying = false;
                     lerpfinished = true;
@@ -227,6 +217,7 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
+                                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 UpdateWeapon();
 
                 if (lerpfinished)
@@ -262,7 +253,6 @@ namespace AmbidexterityModule
         public static void ResetAnimation()
         {
             timeCovered = 0;
-            timePass = 0;
             currentFrame = 0;
             isParrying = false;
             lerpfinished = true;
