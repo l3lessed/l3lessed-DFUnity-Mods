@@ -516,28 +516,28 @@ namespace AmbidexterityModule
         {
             AltFPSWeapon.AltFPSWeaponShow = true;
 
-            if (DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Bow)
-            {
-                //hide offhand weapon sprite, idle its state, and null out the equipped item.
-                OffHandFPSWeapon.OffHandWeaponShow = false;
-                OffHandFPSWeapon.weaponState = WeaponStates.Idle;
-                OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
-
-                //hide main hand weapon sprite, idle its state, and null out the equipped item.
-                AltFPSWeapon.AltFPSWeaponShow = false;
-                AltFPSWeapon.weaponState = WeaponStates.Idle;
-                AltFPSWeapon.equippedAltFPSWeapon = null;
-
-                FPSShield.equippedShield = null;
-                FPSShield.shieldEquipped = false;
-
-                equipState = 6;
-                return;
-            }
-
             //checks if main hand is equipped and sets proper object properties.
             if (currentmainHandItem != null)
             {
+                if (DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Bow)
+                {
+                    //hide offhand weapon sprite, idle its state, and null out the equipped item.
+                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    OffHandFPSWeapon.weaponState = WeaponStates.Idle;
+                    OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
+
+                    //hide main hand weapon sprite, idle its state, and null out the equipped item.
+                    AltFPSWeapon.AltFPSWeaponShow = false;
+                    AltFPSWeapon.weaponState = WeaponStates.Idle;
+                    AltFPSWeapon.equippedAltFPSWeapon = null;
+
+                    FPSShield.equippedShield = null;
+                    FPSShield.shieldEquipped = false;
+
+                    equipState = 6;
+                    return;
+                }
+
                 //checks if the weapon is two handed, if so do....
                 if (ItemEquipTable.GetItemHands(currentmainHandItem) == ItemHands.Both && !(DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Melee))
                 {
@@ -640,6 +640,7 @@ namespace AmbidexterityModule
                 //shield isn't equipped.
                 FPSShield.shieldEquipped = false;
             }
+            Debug.Log(equipState.ToString());
         }
 
         //checks current player hands and the last equipped item. If either changed, update current equip state.
@@ -707,6 +708,8 @@ namespace AmbidexterityModule
                 else
                     currentoffHandItem = offHandItem;
             }
+
+            Debug.Log((currentmainHandItem != null ? currentmainHandItem.ItemName.ToString() : "MELEE") + " & " + (currentoffHandItem != null ? currentoffHandItem.ItemName.ToString() : "MELEE"));
 
             if (currentmainHandItem == null)
             {
@@ -906,20 +909,14 @@ namespace AmbidexterityModule
                     //grab hit entity properties for ues.
                     DaggerfallEntityBehaviour entityBehaviour = hit.transform.GetComponent<DaggerfallEntityBehaviour>();
                     EnemyAttack targetAttack = hit.transform.GetComponent<EnemyAttack>();
+                    // Check if hit a mobile NPC
+                    MobilePersonNPC mobileNpc = hit.transform.GetComponent<MobilePersonNPC>();
 
                     attackHit = hit.transform.gameObject;
 
                     //if attackable entity is hit, do....
-                    if (entityBehaviour != null && targetAttack != null)
+                    if (entityBehaviour || mobileNpc)
                     {
-                        //check if hit entity was attacking, if so, do extra effects.
-                        if (targetAttack.MeleeTimer != 0)
-                        {
-                            entityBehaviour.Entity.IsParalyzed = true;
-                            entityBehaviour.Entity.IsParalyzed = false;
-                            Debug.Log("HIT DURING ATTACK");
-                        }
-
                         if (GameManager.Instance.WeaponManager.WeaponDamage(weapon, false, hit.transform, hit.point, mainCamera.transform.forward))
                         {
                             hitObject = true;
