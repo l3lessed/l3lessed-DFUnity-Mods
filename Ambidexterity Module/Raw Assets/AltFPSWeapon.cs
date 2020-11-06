@@ -207,6 +207,7 @@ namespace AmbidexterityModule
                     breatheTrigger = false;
                     hitObject = false;
                     attackCasted = false;
+                    AmbidexterityManager.attackState = 0;
                     weaponState = WeaponStates.Idle;
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
                     AmbidexterityManager.isHit = false;
@@ -217,7 +218,7 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
-                                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
+                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 UpdateWeapon();
 
                 if (lerpfinished)

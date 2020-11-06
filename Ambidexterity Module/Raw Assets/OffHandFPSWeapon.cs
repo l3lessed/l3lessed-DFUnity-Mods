@@ -252,8 +252,8 @@ namespace AmbidexterityModule
                     breatheTrigger = false;
                     attackCasted = false;
                     weaponState = WeaponStates.Idle;
-                    GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
                     AmbidexterityManager.isHit = false;
+                    AmbidexterityManager.attackState = 0;
                     posi = 0;
                     offsetX = 0;
                     offsetY = 0;
@@ -302,7 +302,6 @@ namespace AmbidexterityModule
             breatheTrigger = false;
             attackCasted = false;
             weaponState = WeaponStates.Idle;
-            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;
             offsetX = 0;
