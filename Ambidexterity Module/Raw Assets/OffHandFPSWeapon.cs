@@ -47,7 +47,7 @@ namespace AmbidexterityModule
 
         public static IEnumerator ParryNumerator;
 
-        public static Coroutine ParryCoroutine;
+        public static Task ParryCoroutine;
 
         static bool bash;
         public static bool OffHandWeaponShow;
@@ -154,17 +154,15 @@ namespace AmbidexterityModule
 
         public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
         {
-            Stopwatch AnimationTimer = new Stopwatch();
-            AnimationTimer.Start();
             while (true)
             {
                 float totalTime;
-                //Debug.Log(weaponState.ToString());
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
                 //it grabs the current total animation time, amount of passed time, users fps,
                 //and then uses them to calculate and set the lerp value to ensure proper animation
                 //offsetting no matter users fps or attack speed.
+                frameBeforeStepping = currentFrame;
 
                 if (CustomTime != 0)
                     totalTime = CustomTime;
@@ -186,55 +184,60 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
+                if (percentagetime > 1 || percentagetime < 0)
+                {
+                    lerpfinished = true;
+                    ResetAnimation();
+                    UpdateWeapon();
+                    yield break;
+                }
+                else
+                    lerpfinished = false;
+
+                UpdateWeapon();
+
                 if (natural)
-                    percentagetime = 1f - Mathf.Cos(percentagetime * Mathf.PI * 0.5f);
+                    percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
 
                 //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime >= triggerpoint && !breatheTrigger)
+                if (percentagetime > triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
                 else if (percentagetime < 0 && breatheTrigger)
                     breatheTrigger = false;
 
-                //sets current frame and does it as close to classic timing by taking the percent time covered in the routine/animation and rounding down. This ensures the first frame doesn't appear without the classic update delay.
-                //this also ensures fifth animation frame has proper classic render time for proper classic appearance.
                 currentFrame = Mathf.FloorToInt(percentagetime * 5);
 
-                //If classic animations are to be used, process lerp using attacktime for each frame * the current frame then
-                //divide by total animation to get the specific place the animation would be in on specific frame.
                 if (AmbidexterityManager.classicAnimations)
                 {
                     offsetX = Mathf.Lerp(startX, endX, (attackFrameTime * currentFrame) / totalAnimationTime);
                     offsetY = Mathf.Lerp(startY, endY, (attackFrameTime * currentFrame) / totalAnimationTime);
                 }
-                //lerps continually with each tick update using the current percentage of time passed in animation.
                 else
                 {
                     offsetX = Mathf.Lerp(startX, endX, percentagetime);
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
 
-                //if not using pjysical weapons, cast single raycast to check if hit enemy on second frame.
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
                     Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
                     AmbidexterityManager.AttackCast(equippedOffHandFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
-                //continually shoot out raycasts until object is hit.
                 else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
                     if (weaponState == WeaponStates.StrikeRight)
-                        attackcast = ArcCastCalculator(0, 35, 0, 0, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDownRight)
-                        attackcast = ArcCastCalculator(-35, 35, 0, 30, -35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, -35, 0, -30, 35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeLeft)
-                        attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(0, 35, 0, 0, -35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDownLeft)
-                        attackcast = ArcCastCalculator(-35, -35, 0, 30, 35, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, 35, 0, -30, -35, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeDown)
-                        attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, AmbidexterityManager.mainCamera.transform.forward);
+                        attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeUp)
                         attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, 2.5f, percentagetime));
 
@@ -245,32 +248,7 @@ namespace AmbidexterityModule
                     }
                 }
 
-                if (percentagetime > 1 || percentagetime < 0)
-                {
-                    timeCovered = 0;
-                    currentFrame = 0;
-                    isParrying = false;
-                    hitObject = false;
-                    lerpfinished = true;
-                    breatheTrigger = false;
-                    attackCasted = false;
-                    weaponState = WeaponStates.Idle;
-                    AmbidexterityManager.isHit = false;
-                    AmbidexterityManager.AttackState = 0;
-                    posi = 0;
-                    offsetX = 0;
-                    offsetY = 0;
-                }
-                else
-                    lerpfinished = false;
-
-                UpdateWeapon();
-
-                if (lerpfinished)
-                    yield break;
-
                 yield return new WaitForFixedUpdate();
-
             }
         }
 
@@ -300,10 +278,12 @@ namespace AmbidexterityModule
             timeCovered = 0;
             currentFrame = 0;
             isParrying = false;
-            lerpfinished = true;
             breatheTrigger = false;
+            hitObject = false;
             attackCasted = false;
+            AmbidexterityManager.AttackState = 0;
             weaponState = WeaponStates.Idle;
+            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;
             offsetX = 0;

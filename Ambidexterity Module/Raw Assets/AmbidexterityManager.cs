@@ -284,10 +284,10 @@ namespace AmbidexterityModule
                 if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
                 {
                     //stops parry animation
-                    StopCoroutine(OffHandFPSWeapon.ParryCoroutine);
+                    OffHandFPSWeapon.ParryCoroutine.Stop();
                     OffHandFPSWeapon.ResetAnimation();
                     //assigns attack state.
-                    OffHandFPSWeapon.weaponState = (WeaponStates)3;
+                    OffHandFPSWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
                     //starts attack state two frames in.
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
                     return;
@@ -296,10 +296,10 @@ namespace AmbidexterityModule
                 if (equipState == 1 || equipState == 4)
                 {
                     //stops parry animation
-                    StopCoroutine(AltFPSWeapon.ParryCoroutine);
+                    AltFPSWeapon.ParryCoroutine.Stop();
                     AltFPSWeapon.ResetAnimation();
                     //assigns attack state.
-                    AltFPSWeapon.weaponState = (WeaponStates)4;
+                    AltFPSWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
                     //starts attack state two frames in.
                     StartCoroutine(AltFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
                     return;
@@ -310,25 +310,22 @@ namespace AmbidexterityModule
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
-            Debug.Log("1");
             //sets weapon state to parry.
+            AttackState = 7;
             if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && OffHandFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && (OffHandFPSWeapon.WeaponType != WeaponTypes.Melee || OffHandFPSWeapon.WeaponType != WeaponTypes.Bow))
             {
-                AttackState = 7;
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                 OffHandFPSWeapon.isParrying = true;
-                OffHandFPSWeapon.ParryCoroutine = StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
+                OffHandFPSWeapon.ParryCoroutine = new Task(OffHandFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
                 OffHandFPSWeapon.PlaySwingSound();               
                 return;
             }
 
             if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && (AltFPSWeapon.WeaponType != WeaponTypes.Melee || AltFPSWeapon.WeaponType != WeaponTypes.Bow))
             {
-                Debug.Log("2");
-                attackState = 7;
                 //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                 AltFPSWeapon.isParrying = true;
-                AltFPSWeapon.ParryCoroutine = StartCoroutine(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, false));
+                AltFPSWeapon.ParryCoroutine = new Task(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
                 OffHandFPSWeapon.PlaySwingSound();               
                 return;
             }
@@ -349,7 +346,6 @@ namespace AmbidexterityModule
                     AltFPSWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                     StartCoroutine(AltFPSWeapon.AnimationCalculator());
-                    Debug.Log(AltFPSWeapon.weaponState.ToString());
                     TallyCombatSkills(currentmainHandItem);
                     return;
                 }
@@ -365,7 +361,6 @@ namespace AmbidexterityModule
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                         StartCoroutine(AltFPSWeapon.AnimationCalculator());
-                        Debug.Log(AltFPSWeapon.weaponState.ToString());
                         TallyCombatSkills(currentmainHandItem);
                         return;
                     }
@@ -387,7 +382,6 @@ namespace AmbidexterityModule
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
                     OffHandFPSWeapon.PlaySwingSound();
-                    Debug.Log(OffHandFPSWeapon.weaponState.ToString());
                     TallyCombatSkills(currentoffHandItem);
                     return;
                 }
@@ -475,7 +469,7 @@ namespace AmbidexterityModule
                 attackState = (int)AltFPSWeapon.weaponState;
             if (AltFPSWeapon.weaponState != WeaponStates.Idle)
                 attackState = (int)AltFPSWeapon.weaponState;
-            if (AltFPSWeapon.isParrying || AltFPSWeapon.isParrying)
+            if (AltFPSWeapon.isParrying || OffHandFPSWeapon.isParrying)
                 attackState = 7;
             else
                 attackState = 0;

@@ -49,7 +49,7 @@ namespace AmbidexterityModule
         public static IEnumerator ParryNumerator;
 
         //public static Coroutine ParryCoroutine;
-        public static Coroutine ParryCoroutine;
+        public static Task ParryCoroutine;
 
         static bool bash;
         public static bool AltFPSWeaponShow;
@@ -118,8 +118,6 @@ namespace AmbidexterityModule
 
         public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
         {
-            Stopwatch AnimationTimer = new Stopwatch();
-            AnimationTimer.Start();
             while (true)
             {
                 float totalTime;
@@ -152,8 +150,20 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                if(natural)
-                    percentagetime = 1f - Mathf.Cos(percentagetime * Mathf.PI * 0.5f);
+                if (percentagetime > 1 || percentagetime < 0)
+                {
+                    lerpfinished = true;
+                    ResetAnimation();
+                    UpdateWeapon();
+                    yield break;
+                }
+                else
+                    lerpfinished = false;
+
+                UpdateWeapon();
+
+                if (natural)
+                    percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
 
                 framePercentage = frameTime / (totalAnimationTime / 5);
 
@@ -211,34 +221,6 @@ namespace AmbidexterityModule
                     }
                 }
 
-                if (percentagetime > 1 || percentagetime < 0)
-                {
-                    timeCovered = 0;
-                    currentFrame = 0;
-                    isParrying = false;
-                    lerpfinished = true;
-                    breatheTrigger = false;
-                    hitObject = false;
-                    attackCasted = false;
-                    AmbidexterityManager.AttackState = 0;
-                    weaponState = WeaponStates.Idle;
-                    GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
-                    AmbidexterityManager.isHit = false;
-                    posi = 0;
-                    offsetX = 0;
-                    offsetY = 0;
-                }
-                else
-                    lerpfinished = false;
-
-                UpdateWeapon();
-
-                if (lerpfinished)
-                {
-
-                    yield break;
-                }
-
                 yield return new WaitForFixedUpdate();
             }
         }
@@ -265,10 +247,13 @@ namespace AmbidexterityModule
 
         public static void ResetAnimation()
         {
+            timeCovered = 0;
+            currentFrame = 0;
             isParrying = false;
-            lerpfinished = true;
             breatheTrigger = false;
+            hitObject = false;
             attackCasted = false;
+            AmbidexterityManager.AttackState = 0;
             weaponState = WeaponStates.Idle;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
