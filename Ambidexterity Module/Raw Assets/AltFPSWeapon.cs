@@ -16,6 +16,7 @@ using DaggerfallWorkshop.Game.Formulas;
 using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace AmbidexterityModule
 {
@@ -37,7 +38,7 @@ namespace AmbidexterityModule
         public static WeaponAnimation[] weaponAnims;
         public static Rect curAnimRect;
 
-        private static GameObject attackHit;
+        public static GameObject attackHit;
 
         public static int currentFrame = 0;    
         static int frameBeforeStepping = 0;
@@ -47,6 +48,7 @@ namespace AmbidexterityModule
 
         public static IEnumerator ParryNumerator;
 
+        //public static Coroutine ParryCoroutine;
         public static Coroutine ParryCoroutine;
 
         static bool bash;
@@ -61,8 +63,8 @@ namespace AmbidexterityModule
         public static float TotalAttackTime;
         public static float weaponScaleX;
         public static float weaponScaleY;
-        static float offsetY;
-        static float offsetX;
+        public static float offsetY;
+        public static float offsetX;
         static float posi;
         private static float totalAnimationTime;
         static float timeCovered;
@@ -88,6 +90,7 @@ namespace AmbidexterityModule
         private static bool bobSwitch = true;
         Stopwatch AnimationTimer = new Stopwatch();
         private static float timePass;
+        private static float frameTime;
 
         //*COMBAT OVERHAUL ADDITION*//
         //switch used to set custom offset distances for each weapon.
@@ -113,13 +116,14 @@ namespace AmbidexterityModule
             }
         }
 
-        public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0)
+        public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
         {
             Stopwatch AnimationTimer = new Stopwatch();
             AnimationTimer.Start();
             while (true)
             {
                 float totalTime;
+                float framePercentage;
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
                 //it grabs the current total animation time, amount of passed time, users fps,
@@ -142,18 +146,29 @@ namespace AmbidexterityModule
                     // Distance moved equals elapsed time times speed.
                     timeCovered -= Time.deltaTime;
 
+                frameTime += Time.deltaTime;
                 timeCovered = (float)Math.Round(timeCovered, 2);
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
+                if(natural)
+                    percentagetime = 1f - Mathf.Cos(percentagetime * Mathf.PI * 0.5f);
+
+                framePercentage = frameTime / (totalAnimationTime / 5);
+
                 //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime >= triggerpoint && !breatheTrigger)
+                if (percentagetime > triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
                 else if (percentagetime < 0 && breatheTrigger)
                     breatheTrigger = false;
 
                 currentFrame = Mathf.FloorToInt(percentagetime * 5);
+
+                if (currentFrame != frameBeforeStepping)
+                {
+                    frameTime = 0;
+                }
 
                 if (AmbidexterityManager.classicAnimations)
                 {
@@ -165,8 +180,6 @@ namespace AmbidexterityModule
                     offsetX = Mathf.Lerp(startX, endX, percentagetime);
                     offsetY = Mathf.Lerp(startY, endY, percentagetime);
                 }
-
-                //UnityEngine.Debug.Log((timePass / attackFrameTime).ToString() + " | " + posi.ToString());
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
@@ -207,7 +220,7 @@ namespace AmbidexterityModule
                     breatheTrigger = false;
                     hitObject = false;
                     attackCasted = false;
-                    AmbidexterityManager.attackState = 0;
+                    AmbidexterityManager.AttackState = 0;
                     weaponState = WeaponStates.Idle;
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
                     AmbidexterityManager.isHit = false;
@@ -218,7 +231,6 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
-                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 UpdateWeapon();
 
                 if (lerpfinished)
@@ -253,8 +265,6 @@ namespace AmbidexterityModule
 
         public static void ResetAnimation()
         {
-            timeCovered = 0;
-            currentFrame = 0;
             isParrying = false;
             lerpfinished = true;
             breatheTrigger = false;
@@ -291,7 +301,6 @@ namespace AmbidexterityModule
                     // Draw weapon texture behind other HUD elements                    
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
-
             }
         }
 

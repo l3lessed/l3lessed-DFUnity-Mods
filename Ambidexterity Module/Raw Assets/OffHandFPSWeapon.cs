@@ -115,6 +115,7 @@ namespace AmbidexterityModule
                     ResetAnimation();
                     LoadWeaponAtlas();
                     UpdateWeapon();
+
                     if (weaponAtlas == null)
                         return;
                 }
@@ -124,7 +125,6 @@ namespace AmbidexterityModule
                     // Draw weapon texture behind other HUD elements                    
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
-
             }            
         }
 
@@ -152,7 +152,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0)
+        public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
         {
             Stopwatch AnimationTimer = new Stopwatch();
             AnimationTimer.Start();
@@ -185,6 +185,9 @@ namespace AmbidexterityModule
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
+
+                if (natural)
+                    percentagetime = 1f - Mathf.Cos(percentagetime * Mathf.PI * 0.5f);
 
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
@@ -253,7 +256,7 @@ namespace AmbidexterityModule
                     attackCasted = false;
                     weaponState = WeaponStates.Idle;
                     AmbidexterityManager.isHit = false;
-                    AmbidexterityManager.attackState = 0;
+                    AmbidexterityManager.AttackState = 0;
                     posi = 0;
                     offsetX = 0;
                     offsetY = 0;
@@ -261,7 +264,6 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
-                UnityEngine.Debug.Log(totalAnimationTime.ToString() + " | " + timeCovered.ToString() + " | " + AnimationTimer.Elapsed.ToString());
                 UpdateWeapon();
 
                 if (lerpfinished)
@@ -833,7 +835,6 @@ namespace AmbidexterityModule
             {
                 DaggerfallUnity.LogMessage("Index out of range exception for weapon animation. Probably due to weapon breaking + being unequipped during animation.");
             }
-            UnityEngine.Debug.Log(WeaponType.ToString() + " | " + curAnimRect.ToString() + " | " + weaponAnimRecordIndex.ToString());
         }
 
         public static void AlignLeft(WeaponAnimation anim, int width, int height)

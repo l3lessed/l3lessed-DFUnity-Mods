@@ -839,8 +839,6 @@ namespace AmbidexterityModule
         }
         #endregion
 
-
-
         #region CalculateAnimationValues
         //calculates x, y, and size values of the shield using lerp calculator and passthrough vars. Ensures each cordinate has its own object/instance of lerpcalculator.
         //without this, the calculations will bleed into one another.
