@@ -46,8 +46,6 @@ namespace AmbidexterityModule
         //returns current Attackstate based on each weapon state.
         //0 - Both hands idle | 7 - Either hand is parrying | (ANY OTHER NUMBER) - Normal attack state number for current swinging weapon.
         public static int AttackState { get { return checkAttackState(); } set { attackState = value; } }
-        // 0 - both hands idle/Not parrying at all | 1 - parrying with a weapon.
-        public static int ParryState { get { return checkParryState(); } }
 
         //mod setting manipulation values.
         public static float BlockTimeMod { get; private set; }
@@ -312,7 +310,7 @@ namespace AmbidexterityModule
         {
             //sets weapon state to parry.
             AttackState = 7;
-            if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && OffHandFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && (OffHandFPSWeapon.WeaponType != WeaponTypes.Melee || OffHandFPSWeapon.WeaponType != WeaponTypes.Bow))
+            if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && OffHandFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (OffHandFPSWeapon.WeaponType != WeaponTypes.Melee || OffHandFPSWeapon.WeaponType != WeaponTypes.Bow))
             {
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                 OffHandFPSWeapon.isParrying = true;
@@ -321,7 +319,7 @@ namespace AmbidexterityModule
                 return;
             }
 
-            if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0 && (AltFPSWeapon.WeaponType != WeaponTypes.Melee || AltFPSWeapon.WeaponType != WeaponTypes.Bow))
+            if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (AltFPSWeapon.WeaponType != WeaponTypes.Melee || AltFPSWeapon.WeaponType != WeaponTypes.Bow))
             {
                 //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                 AltFPSWeapon.isParrying = true;
@@ -334,7 +332,7 @@ namespace AmbidexterityModule
         //controls main hand attack and ensures it can't be spammed/bugged.
         void MainAttack()
         {
-            if (AltFPSWeapon.AltFPSWeaponShow && AltFPSWeapon.weaponState == WeaponStates.Idle && ParryState == 0)
+            if (AltFPSWeapon.AltFPSWeaponShow && AltFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7)
             {
                 //if the player has a shield equipped, and it is not being used, let them attack.
                 if (FPSShield.shieldEquipped && (FPSShield.shieldStates == 0 || FPSShield.shieldStates == 8 || !FPSShield.isBlocking))
@@ -350,8 +348,8 @@ namespace AmbidexterityModule
                     return;
                 }
 
-                //if the player does not have a shield equipped, let them attack.
-                if (!FPSShield.shieldEquipped && ParryState == 0)
+                //if the player does not have a shield equipped and aren't parrying, let them attack.
+                if (!FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //both weapons are idle, then perform attack routine....
                     if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle)
@@ -371,10 +369,10 @@ namespace AmbidexterityModule
         //controls off hand attack and ensures it can't be spammed/bugged.
         void OffhandAttack()
         {
-            if(OffHandFPSWeapon.OffHandWeaponShow && OffHandFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
+            if(OffHandFPSWeapon.OffHandWeaponShow && OffHandFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
             {
                 //both weapons are idle, then perform attack routine....
-                if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && ParryState == 0)
+                if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //trigger offhand weapon attack animation routines.
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
@@ -475,18 +473,6 @@ namespace AmbidexterityModule
                 attackState = 0;
 
             return attackState;
-        }
-
-        //CHECKS PLAYERS PARRY STATE USING BOTH HANDS:
-        //need seperate from attackState() because parry state is a sub-state of idle state.
-        //This is to deal with hijacking the old animation system and weapon states tied to it.
-        public static int checkParryState()
-        {
-            //checks if both hands are idle. If so, sets mod/player attack state to idle/0.
-            if (AltFPSWeapon.isParrying || OffHandFPSWeapon.isParrying)
-                return 1;
-            else
-                return 0;
         }
 
         //Custom bow state block to maintain classic mechanics and mod compatibility.
