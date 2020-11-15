@@ -184,7 +184,17 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                if (percentagetime > 1 || percentagetime < 0)
+                currentFrame = Mathf.FloorToInt(percentagetime * 5);
+
+                //breath trigger to allow lerp to breath naturally back and fourth.
+                if (percentagetime >= triggerpoint && !breatheTrigger)
+                    breatheTrigger = true;
+                else if (percentagetime <= 0 && breatheTrigger)
+                    breatheTrigger = false;
+
+                UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
+
+                if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                 {
                     lerpfinished = true;
                     ResetAnimation();
@@ -194,18 +204,8 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
-                UpdateWeapon();
-
                 if (natural)
                     percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
-
-                //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime > triggerpoint && !breatheTrigger)
-                    breatheTrigger = true;
-                else if (percentagetime < 0 && breatheTrigger)
-                    breatheTrigger = false;
-
-                currentFrame = Mathf.FloorToInt(percentagetime * 5);
 
                 if (AmbidexterityManager.classicAnimations)
                 {
@@ -248,6 +248,8 @@ namespace AmbidexterityModule
                     }
                 }
 
+                UpdateWeapon();
+
                 yield return new WaitForFixedUpdate();
             }
         }
@@ -282,6 +284,7 @@ namespace AmbidexterityModule
             hitObject = false;
             attackCasted = false;
             weaponState = WeaponStates.Idle;
+            AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;

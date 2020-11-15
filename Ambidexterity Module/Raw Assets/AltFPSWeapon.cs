@@ -118,7 +118,6 @@ namespace AmbidexterityModule
             while (true)
             {
                 float totalTime;
-                float framePercentage;
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
                 //it grabs the current total animation time, amount of passed time, users fps,
@@ -141,13 +140,22 @@ namespace AmbidexterityModule
                     // Distance moved equals elapsed time times speed.
                     timeCovered -= Time.deltaTime;
 
-                frameTime += Time.deltaTime;
                 timeCovered = (float)Math.Round(timeCovered, 2);
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                if (percentagetime > 1 || percentagetime < 0)
+                currentFrame = Mathf.FloorToInt(percentagetime * 5);
+
+                //breath trigger to allow lerp to breath naturally back and fourth.
+                if (percentagetime >= triggerpoint && !breatheTrigger)
+                    breatheTrigger = true;
+                else if (percentagetime <= 0 && breatheTrigger)
+                    breatheTrigger = false;
+
+                UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
+
+                if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                 {
                     lerpfinished = true;
                     ResetAnimation();
@@ -157,25 +165,8 @@ namespace AmbidexterityModule
                 else
                     lerpfinished = false;
 
-                UpdateWeapon();
-
                 if (natural)
                     percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
-
-                framePercentage = frameTime / (totalAnimationTime / 5);
-
-                //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime > triggerpoint && !breatheTrigger)
-                    breatheTrigger = true;
-                else if (percentagetime < 0 && breatheTrigger)
-                    breatheTrigger = false;
-
-                currentFrame = Mathf.FloorToInt(percentagetime * 5);
-
-                if (currentFrame != frameBeforeStepping)
-                {
-                    frameTime = 0;
-                }
 
                 if (AmbidexterityManager.classicAnimations)
                 {
@@ -194,7 +185,7 @@ namespace AmbidexterityModule
                     AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
-                else if(!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
+                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
@@ -209,7 +200,7 @@ namespace AmbidexterityModule
                     else if (weaponState == WeaponStates.StrikeDown)
                         attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeUp)
-                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0,2.5f, percentagetime));
+                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, 2.5f, percentagetime));
 
                     if (AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackcast, out attackHit))
                     {
@@ -217,6 +208,8 @@ namespace AmbidexterityModule
                         breatheTrigger = true;
                     }
                 }
+
+                UpdateWeapon();
 
                 yield return new WaitForFixedUpdate();
             }
@@ -251,6 +244,7 @@ namespace AmbidexterityModule
             hitObject = false;
             attackCasted = false;
             weaponState = WeaponStates.Idle;
+            AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;

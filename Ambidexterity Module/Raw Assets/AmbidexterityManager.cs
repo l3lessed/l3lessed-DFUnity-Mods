@@ -101,7 +101,7 @@ namespace AmbidexterityModule
         static Vector3 debugcast;
 
         //particle system empty objects.
-        public GameObject SparkPreb;
+        public GameObject SparkPrefab;
         public static ParticleSystem sparkParticles;
         public static bool assets;
 
@@ -157,9 +157,10 @@ namespace AmbidexterityModule
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
-            SparkPreb = mod.GetAsset<GameObject>("Spark_Particles");
+            //grabs a assigns the spark particle prefab from the mod system and assigns it to SparkPrefab Object.
+            SparkPrefab = mod.GetAsset<GameObject>("Spark_Particles");
             //SparkPreb = Resources.Load("Particles/Spark_Particles") as GameObject;
-            sparkParticles = SparkPreb.GetComponent<ParticleSystem>();
+            sparkParticles = SparkPrefab.GetComponent<ParticleSystem>();
 
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.
             dfAudioSource = GameManager.Instance.PlayerObject.AddComponent<DaggerfallAudioSource>();
@@ -285,7 +286,7 @@ namespace AmbidexterityModule
                 //then assigns it to a container particle system for later use.
                 Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
 
-                //if duel wield is equipped stop offhand parry animation and start swing two frames in.
+                //if two-handed is equipped in left hand or duel wield is equipped stop offhand parry animation and start swing two frames in.
                 if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
                 {
                     //stops parry animation
@@ -297,7 +298,8 @@ namespace AmbidexterityModule
                     StartCoroutine(offhandWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
                     return;
                 }
-                //if duel wield or one handed is equipped stop main hand parry animation and start swing two frames in.
+
+                //if two-handed is equipped in right hand or one handed is equipped stop main hand parry animation and start swing two frames in.
                 if (equipState == 1 || equipState == 4)
                 {
                     //stops parry animation
@@ -315,8 +317,8 @@ namespace AmbidexterityModule
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
-            //sets weapon state to parry.
             AttackState = 7;
+            //sets weapon state to parry.
             if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && offhandWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (offhandWeapon.WeaponType != WeaponTypes.Melee || offhandWeapon.WeaponType != WeaponTypes.Bow))
             {
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
@@ -933,6 +935,7 @@ namespace AmbidexterityModule
             GameManager.Instance.WeaponManager.ScreenWeapon.PlayAttackVoice();
         }
 
+        //sends out raycast and returns true of hit an object and outputs the object to attackHit.
         public bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit)
         {
             bool hitObject = false;
