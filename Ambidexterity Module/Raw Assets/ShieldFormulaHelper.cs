@@ -200,7 +200,7 @@ namespace AmbidexterityModule
                     //if the attack angle is 35 degree angle degrees or more (player does not have them close to center screen) don't register the parry.
                     if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
                     {
-                        AmbidexterityManager.activateNPCParry(target, attacker, damage);
+                        AmbidexterityManager.AmbidexterityManagerInstance.activateNPCParry(target, attacker, damage);
                         Debug.Log("Enemy Parry!");
                         damage = 0;
                     }
@@ -214,7 +214,7 @@ namespace AmbidexterityModule
                 DaggerfallMobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
 
                 //if the enemy is in their primary/melee attack state and the player is on frame 1 or 2, do ....
-                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AttackState != 7 && ((AltFPSWeapon.currentFrame > 0 && AltFPSWeapon.currentFrame < 3) || (OffHandFPSWeapon.currentFrame > 0 && OffHandFPSWeapon.currentFrame < 3)))
+                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AmbidexterityManagerInstance.AttackState != 7 && ((AltFPSWeapon.currentFrame > 0 && AltFPSWeapon.currentFrame < 3) || (OffHandFPSWeapon.currentFrame > 0 && OffHandFPSWeapon.currentFrame < 3)))
                 {
                     //grabs attackers sense object.
                     EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
@@ -234,9 +234,9 @@ namespace AmbidexterityModule
                         Debug.Log("Player Parry!");
                         AmbidexterityManager.isHit = true;
                         AmbidexterityManager.attackerDamage = damage;
-                        AmbidexterityManager.attackerEntity = attacker;
-                        AmbidexterityManager.targetEntity = target;
-                        AmbidexterityManager.activatePlayerParry(attacker, damage);
+                        AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
+                        AmbidexterityManager.AmbidexterityManagerInstance.targetEntity = target;
+                        AmbidexterityManager.AmbidexterityManagerInstance.activatePlayerParry(attacker, damage);
                         damage = 0;
                     }
                 }
@@ -256,7 +256,7 @@ namespace AmbidexterityModule
             //--SHIELD REDIRECT CODE--\\
             //checks to see if player is blocking yet and if the target is the player. If so, assign damage to attackerDamage, enemy object to enemyEntity, and
             //0 out the damage, so player doesn't take any.
-            if ((FPSShield.isBlocking || AmbidexterityManager.AttackState != 7) && target == GameManager.Instance.PlayerEntity && damage != 0)
+            if ((FPSShield.isBlocking || AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 7) && target == GameManager.Instance.PlayerEntity && damage != 0)
             {
                 //grabs attackers sense object.
                 EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
@@ -277,7 +277,7 @@ namespace AmbidexterityModule
                     AmbidexterityManager.isHit = true;
                     AmbidexterityManager.attackerDamage = damage;
                     damage = 0;
-                    AmbidexterityManager.attackerEntity = attacker;
+                    AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
                 }
             }
 

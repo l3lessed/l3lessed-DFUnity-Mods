@@ -23,6 +23,8 @@ namespace AmbidexterityModule
         //initiates mod instances for mod manager.
         public static Mod mod;
         public static AmbidexterityManager AmbidexterityManagerInstance;
+        public AltFPSWeapon mainWeapon;
+        public OffHandFPSWeapon offhandWeapon;
         static ModSettings settings;
         public static ConsoleController consoleController;
         //sets up console instances for the script to load the objects into. Used to disabled texture when consoles open.
@@ -45,7 +47,7 @@ namespace AmbidexterityModule
 
         //returns current Attackstate based on each weapon state.
         //0 - Both hands idle | 7 - Either hand is parrying | (ANY OTHER NUMBER) - Normal attack state number for current swinging weapon.
-        public static int AttackState { get { return checkAttackState(); } set { attackState = value; } }
+        public int AttackState { get { return checkAttackState(); } set { attackState = value; } }
 
         //mod setting manipulation values.
         public static float BlockTimeMod { get; private set; }
@@ -81,8 +83,8 @@ namespace AmbidexterityModule
         public static bool usingRightHand;
 
         //stores below objects for CalculateAttackFormula to ensure mod scripts register who is attacking and being attacked and trigger proper code blocks.
-        public static DaggerfallEntity attackerEntity;
-        public static DaggerfallEntity targetEntity;
+        public DaggerfallEntity attackerEntity;
+        public DaggerfallEntity targetEntity;
 
         //stores and instance of current equipped weapons.
         private DaggerfallUnityItem mainHandItem;
@@ -128,7 +130,7 @@ namespace AmbidexterityModule
             //attaches and starts the off hand weapon controller script.
             GameObject OffHandFPSWeaponObject = new GameObject("OffHandFPSWeapon");
             OffHandFPSWeapon.OffHandFPSWeaponInstance = OffHandFPSWeaponObject.AddComponent<OffHandFPSWeapon>();
-            Debug.Log("Main weapon checked.");
+            Debug.Log("Main weapon checked & equipped.");
 
             //attaches and starts the ShieldFormulaHelperObject to run the parry and shield CalculateAttackDamage mod hook adjustments
             GameObject ShieldFormulaHelperObject = new GameObject("ShieldFormulaHelper");
@@ -169,12 +171,17 @@ namespace AmbidexterityModule
 
             //assigns the main camera engine object to mainCamera general object. Used to detect shield knock back directions.
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+            //assigns altFPSWeapon script object to mainWeapon.
+            mainWeapon = AltFPSWeapon.AltFPSWeaponInstance;
+            //assigns OffhandFPSWeapon script object to offhandWeapon.
+            offhandWeapon = OffHandFPSWeapon.OffHandFPSWeaponInstance;
 
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
 
             //*THIS NEEDS CLEANED UP. CAN USE A SINGLE INSTANCE OF THIS IN MANAGER FILE*
             OffHandFPSWeapon.dfUnity = DaggerfallUnity.Instance;
             AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;
+
             //binds mod settings to script properties.
             offHandKeyString = settings.GetValue<string>("Settings", "offHandKeyString");
             BlockTimeMod = settings.GetValue<float>("Settings", "BlockTimeMod");
@@ -196,17 +203,17 @@ namespace AmbidexterityModule
 
 
             //register the formula calculate attack damage formula so can pull attack properties needed and zero out damage when player is blocking succesfully.
-            //**MODDERS: This is the formula override you need to replace within your mod to ensure the shield script works properly**\\
+            //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\
             FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, int, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);
 
             //converts string key setting into valid unity keycode. Ensures mouse and keyboard inputs work properly.
             offHandKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), offHandKeyString);
 
             //defaults both weapons to melee/null for loading safety. Weapons update on load of save.
-            OffHandFPSWeapon.WeaponType = WeaponTypes.Melee;
-            OffHandFPSWeapon.MetalType = MetalTypes.None;
-            AltFPSWeapon.WeaponType = WeaponTypes.Melee;
-            AltFPSWeapon.MetalType = MetalTypes.None;
+            offhandWeapon.WeaponType = WeaponTypes.Melee;
+            offhandWeapon.MetalType = MetalTypes.None;
+            mainWeapon.WeaponType = WeaponTypes.Melee;
+            mainWeapon.MetalType = MetalTypes.None;
         }
 
         private void Update()
@@ -220,8 +227,8 @@ namespace AmbidexterityModule
             // Do nothing if player paralyzed or is climbing
             if (GameManager.Instance.PlayerEntity.IsParalyzed || GameManager.Instance.ClimbingMotor.IsClimbing)
             {
-                OffHandFPSWeapon.OffHandWeaponShow = false;
-                AltFPSWeapon.AltFPSWeaponShow = false;
+                offhandWeapon.OffHandWeaponShow = false;
+                mainWeapon.AltFPSWeaponShow = false;
                 FPSShield.shieldEquipped = false;
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
                 return;
@@ -242,8 +249,8 @@ namespace AmbidexterityModule
                     }
                     else
                     {
-                        OffHandFPSWeapon.OffHandWeaponShow = false;
-                        AltFPSWeapon.AltFPSWeaponShow = false;
+                        offhandWeapon.OffHandWeaponShow = false;
+                        mainWeapon.AltFPSWeaponShow = false;
                         FPSShield.shieldEquipped = false;
                         return;
                     }
@@ -268,7 +275,7 @@ namespace AmbidexterityModule
             //each script and its corresponding animation systems.
             UpdateHands();
 
-            Debug.Log(isHit.ToString() + " | " + AttackState.ToString() + " | " + equipState.ToString());
+            //Debug.Log(isHit.ToString() + " | " + AttackState.ToString() + " | " + equipState.ToString());
 
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
@@ -282,24 +289,24 @@ namespace AmbidexterityModule
                 if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
                 {
                     //stops parry animation
-                    OffHandFPSWeapon.ParryCoroutine.Stop();
-                    OffHandFPSWeapon.ResetAnimation();
+                    offhandWeapon.ParryCoroutine.Stop();
+                    offhandWeapon.ResetAnimation();
                     //assigns attack state.
-                    OffHandFPSWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
+                    offhandWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
                     //starts attack state two frames in.
-                    StartCoroutine(OffHandFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                    StartCoroutine(offhandWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
                     return;
                 }
                 //if duel wield or one handed is equipped stop main hand parry animation and start swing two frames in.
                 if (equipState == 1 || equipState == 4)
                 {
                     //stops parry animation
-                    AltFPSWeapon.ParryCoroutine.Stop();
-                    AltFPSWeapon.ResetAnimation();
+                    mainWeapon.ParryCoroutine.Stop();
+                    mainWeapon.ResetAnimation();
                     //assigns attack state.
-                    AltFPSWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
+                    mainWeapon.weaponState = (WeaponStates)UnityEngine.Random.Range(3, 4);
                     //starts attack state two frames in.
-                    StartCoroutine(AltFPSWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
+                    StartCoroutine(mainWeapon.AnimationCalculator(0, 0, 0, 0, false, 1, 0, .4f));
                     return;
                 }
             }            
@@ -310,21 +317,21 @@ namespace AmbidexterityModule
         {
             //sets weapon state to parry.
             AttackState = 7;
-            if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && OffHandFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (OffHandFPSWeapon.WeaponType != WeaponTypes.Melee || OffHandFPSWeapon.WeaponType != WeaponTypes.Bow))
+            if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)) && offhandWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (offhandWeapon.WeaponType != WeaponTypes.Melee || offhandWeapon.WeaponType != WeaponTypes.Bow))
             {
                 //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
-                OffHandFPSWeapon.isParrying = true;
-                OffHandFPSWeapon.ParryCoroutine = new Task(OffHandFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
-                OffHandFPSWeapon.PlaySwingSound();               
+                offhandWeapon.isParrying = true;
+                offhandWeapon.ParryCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
+                offhandWeapon.PlaySwingSound();               
                 return;
             }
 
-            if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && AltFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (AltFPSWeapon.WeaponType != WeaponTypes.Melee || AltFPSWeapon.WeaponType != WeaponTypes.Bow))
+            if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)) && mainWeapon.weaponState == WeaponStates.Idle && AttackState != 7 && (mainWeapon.WeaponType != WeaponTypes.Melee || mainWeapon.WeaponType != WeaponTypes.Bow))
             {
                 //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
-                AltFPSWeapon.isParrying = true;
-                AltFPSWeapon.ParryCoroutine = new Task(AltFPSWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
-                OffHandFPSWeapon.PlaySwingSound();               
+                mainWeapon.isParrying = true;
+                mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
+                GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                 return;
             }
         }
@@ -332,7 +339,7 @@ namespace AmbidexterityModule
         //controls main hand attack and ensures it can't be spammed/bugged.
         void MainAttack()
         {
-            if (AltFPSWeapon.AltFPSWeaponShow && AltFPSWeapon.weaponState == WeaponStates.Idle && AttackState != 7)
+            if (mainWeapon.AltFPSWeaponShow && mainWeapon.weaponState == WeaponStates.Idle && AttackState != 7)
             {
                 //if the player has a shield equipped, and it is not being used, let them attack.
                 if (FPSShield.shieldEquipped && (FPSShield.shieldStates == 0 || FPSShield.shieldStates == 8 || !FPSShield.isBlocking))
@@ -341,9 +348,9 @@ namespace AmbidexterityModule
                     FPSShield.shieldStates = 7;
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                    AltFPSWeapon.weaponState = (WeaponStates)attackState;
+                    mainWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
-                    StartCoroutine(AltFPSWeapon.AnimationCalculator());
+                    StartCoroutine(mainWeapon.AnimationCalculator());
                     TallyCombatSkills(currentmainHandItem);
                     return;
                 }
@@ -352,13 +359,13 @@ namespace AmbidexterityModule
                 if (!FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //both weapons are idle, then perform attack routine....
-                    if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle)
+                    if (offhandWeapon.weaponState == WeaponStates.Idle && mainWeapon.weaponState == WeaponStates.Idle)
                     {
                         attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                        AltFPSWeapon.weaponState = (WeaponStates)attackState;
+                        mainWeapon.weaponState = (WeaponStates)attackState;
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                        StartCoroutine(AltFPSWeapon.AnimationCalculator());
+                        StartCoroutine(mainWeapon.AnimationCalculator());
                         TallyCombatSkills(currentmainHandItem);
                         return;
                     }
@@ -369,17 +376,17 @@ namespace AmbidexterityModule
         //controls off hand attack and ensures it can't be spammed/bugged.
         void OffhandAttack()
         {
-            if(OffHandFPSWeapon.OffHandWeaponShow && OffHandFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
+            if(offhandWeapon.OffHandWeaponShow && offhandWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
             {
                 //both weapons are idle, then perform attack routine....
-                if (OffHandFPSWeapon.weaponState == WeaponStates.Idle && AltFPSWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
+                if (offhandWeapon.weaponState == WeaponStates.Idle && mainWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //trigger offhand weapon attack animation routines.
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                    OffHandFPSWeapon.weaponState = (WeaponStates)attackState;
+                    offhandWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                    StartCoroutine(OffHandFPSWeapon.AnimationCalculator());
-                    OffHandFPSWeapon.PlaySwingSound();
+                    StartCoroutine(offhandWeapon.AnimationCalculator());
+                    offhandWeapon.PlaySwingSound();
                     TallyCombatSkills(currentoffHandItem);
                     return;
                 }
@@ -461,13 +468,13 @@ namespace AmbidexterityModule
         }
 
         //CHECKS PLAYERS ATTACK STATE USING BOTH HANDS.
-        public static int checkAttackState()
+        public int checkAttackState()
         {
-            if(AltFPSWeapon.weaponState != WeaponStates.Idle)
-                attackState = (int)AltFPSWeapon.weaponState;
-            if (AltFPSWeapon.weaponState != WeaponStates.Idle)
-                attackState = (int)AltFPSWeapon.weaponState;
-            if (AltFPSWeapon.isParrying || OffHandFPSWeapon.isParrying)
+            if(mainWeapon.weaponState != WeaponStates.Idle)
+                attackState = (int)mainWeapon.weaponState;
+            if (mainWeapon.weaponState != WeaponStates.Idle)
+                attackState = (int)mainWeapon.weaponState;
+            if (mainWeapon.isParrying || offhandWeapon.isParrying)
                 attackState = 7;
             else
                 attackState = 0;
@@ -510,24 +517,24 @@ namespace AmbidexterityModule
 
                 //hide offhand weapon sprite, idle its state, and null out the equipped item.
                 if(false)
-                    OffHandFPSWeapon.OffHandWeaponShow = true;
+                    offhandWeapon.OffHandWeaponShow = true;
                 else
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
 
-                OffHandFPSWeapon.equippedOffHandFPSWeapon = currentoffHandItem;
+                offhandWeapon.equippedOffHandFPSWeapon = currentoffHandItem;
 
                 if (currentoffHandItem != null)
                 {
-                    OffHandFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
-                    OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
-                    OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
-                    OffHandFPSWeapon.SwingWeaponSound = currentoffHandItem.GetSwingSound();
+                    offhandWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
+                    offhandWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
+                    offhandWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
+                    offhandWeapon.SwingWeaponSound = currentoffHandItem.GetSwingSound();
                 }
 
                 OffHandFPSWeapon.currentFrame = 6;
 
                 //hide main hand weapon sprite, idle its state, and null out the equipped item.
-                AltFPSWeapon.AltFPSWeaponShow = true;
+                mainWeapon.AltFPSWeaponShow = true;
 
                 FPSShield.equippedShield = null;
                 FPSShield.shieldEquipped = false;
@@ -536,12 +543,12 @@ namespace AmbidexterityModule
             {
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = true;
                 //hide offhand weapon sprite, idle its state, and null out the equipped item.
-                OffHandFPSWeapon.OffHandWeaponShow = false;
-                AltFPSWeapon.weaponState = WeaponStates.Idle;
+                offhandWeapon.OffHandWeaponShow = false;
+                mainWeapon.weaponState = WeaponStates.Idle;
 
                 //hide main hand weapon sprite, idle its state, and null out the equipped item.
-                AltFPSWeapon.AltFPSWeaponShow = false;
-                AltFPSWeapon.weaponState = WeaponStates.Idle;
+                mainWeapon.AltFPSWeaponShow = false;
+                mainWeapon.weaponState = WeaponStates.Idle;
 
                 FPSShield.equippedShield = null;
                 FPSShield.shieldEquipped = false;
@@ -568,17 +575,16 @@ namespace AmbidexterityModule
             //checks if main hand is equipped and sets proper object properties.
             if (currentmainHandItem != null)
             {
-                AltFPSWeapon.AltFPSWeaponShow = true;
+                mainWeapon.AltFPSWeaponShow = true;
                 //checks if the weapon is two handed, if so do....
                 if (ItemEquipTable.GetItemHands(currentmainHandItem) == ItemHands.Both && !(DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem) == WeaponTypes.Melee))
                 {
                     //set equip state to two handed.
                     equipState = 4;
                     //turn off offhand weapon rendering.
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
                     //null out offhand equipped weapon.
-                    OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
-                    //
+                    offhandWeapon.equippedOffHandFPSWeapon = null;
                     //turn off equipped shield.
                     FPSShield.equippedShield = null;
                     //null out equipped shield item.
@@ -592,7 +598,7 @@ namespace AmbidexterityModule
                     //settings equipped state to shield and main weapon
                     equipState = 3;
                     //don't render offhand weapon since shield is being rendered instead.
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
                     //runs and checks equipped shield and sets all proper triggers for shield module, including
                     //rendering and inputing management.
                     FPSShield.EquippedShield();
@@ -606,8 +612,8 @@ namespace AmbidexterityModule
                 //set to not equipped.
                 equipState = 0;
                 //set equipped item to nothing since using fist/melee now.
-                AltFPSWeapon.equippedAltFPSWeapon = null;
-                AltFPSWeapon.AltFPSWeaponShow = true;
+                mainWeapon.equippedAltFPSWeapon = null;
+                mainWeapon.AltFPSWeaponShow = true;
             }
 
             //checks if main hand is equipped and sets proper object properties.
@@ -619,9 +625,9 @@ namespace AmbidexterityModule
                     //set equip state to two handed.
                     equipState = 4;
                     //turn off offhand weapon rendering.
-                    AltFPSWeapon.AltFPSWeaponShow = false;
+                    mainWeapon.AltFPSWeaponShow = false;
                     //don't render off hand weapon.
-                    OffHandFPSWeapon.OffHandWeaponShow = true;
+                    offhandWeapon.OffHandWeaponShow = true;
                     //turn off equipped shield.
                     FPSShield.equippedShield = null;
                     //null out equipped shield item.
@@ -635,9 +641,9 @@ namespace AmbidexterityModule
                     //settings equipped state to shield and main weapon
                     equipState = 3;
                     //don't render offhand weapon since shield is being rendered instead.
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
                     //make offhand item null.
-                    OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
+                    offhandWeapon.equippedOffHandFPSWeapon = null;
                     //runs and checks equipped shield and sets all proper triggers for shield module, including
                     //rendering and inputing management.
                     FPSShield.EquippedShield();
@@ -655,16 +661,16 @@ namespace AmbidexterityModule
                         equipState = 2;
 
                     //render offhand weapon.
-                    OffHandFPSWeapon.OffHandWeaponShow = true;
+                    offhandWeapon.OffHandWeaponShow = true;
                 }
             }
             //if offhand isn't equipped at all, turn of below object properties. Keep equip state 0 for nothing equipped.
             else
             {
                 //offhand item is null.
-                OffHandFPSWeapon.equippedOffHandFPSWeapon = null;
+                offhandWeapon.equippedOffHandFPSWeapon = null;
                 //don't render off hand weapon.
-                OffHandFPSWeapon.OffHandWeaponShow = true;
+                offhandWeapon.OffHandWeaponShow = true;
                 //equipped shield item is null.
                 FPSShield.equippedShield = null;
                 //shield isn't equipped.
@@ -697,9 +703,9 @@ namespace AmbidexterityModule
                     //disable vanilla render weapon.
                     GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
                     //remove offhand weapon.
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
                     //remove altfps weapon.
-                    AltFPSWeapon.AltFPSWeaponShow = false;
+                    mainWeapon.AltFPSWeaponShow = false;
                     //remove shield render.
                     FPSShield.shieldEquipped = false;
                     return;
@@ -749,15 +755,15 @@ namespace AmbidexterityModule
             {
                 if (GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
                 {
-                    OffHandFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                    OffHandFPSWeapon.MetalType = MetalTypes.None;
-                    OffHandFPSWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                    offhandWeapon.WeaponType = WeaponTypes.Werecreature;
+                    offhandWeapon.MetalType = MetalTypes.None;
+                    offhandWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
                 }
                 else
                 {
                     //sets up offhand render for melee combat/fist sprite render.
-                    OffHandFPSWeapon.WeaponType = WeaponTypes.Melee;
-                    OffHandFPSWeapon.MetalType = MetalTypes.None;
+                    offhandWeapon.WeaponType = WeaponTypes.Melee;
+                    offhandWeapon.MetalType = MetalTypes.None;
                 }
             }
             else if (!currentoffHandItem.IsShield)
@@ -767,10 +773,10 @@ namespace AmbidexterityModule
                     return;
 
                 // Sets up weapon objects for offhand fps script. This ensures the loadatlas works properly and updates the rendered sprite.
-                OffHandFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
-                OffHandFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
-                OffHandFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
-                OffHandFPSWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
+                offhandWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentoffHandItem);
+                offhandWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentoffHandItem);
+                offhandWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentoffHandItem);
+                offhandWeapon.SwingWeaponSound = offHandItem.GetSwingSound();
             }
             else
             {
@@ -796,16 +802,16 @@ namespace AmbidexterityModule
             {
                 if (GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
                 {
-                    AltFPSWeapon.WeaponType = WeaponTypes.Werecreature;
-                    AltFPSWeapon.MetalType = MetalTypes.None;
+                    mainWeapon.WeaponType = WeaponTypes.Werecreature;
+                    mainWeapon.MetalType = MetalTypes.None;
                     GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
                     GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
                 }
                 else
                 {
                     //sets up offhand render for melee combat/fist sprite render.
-                    AltFPSWeapon.WeaponType = WeaponTypes.Melee;
-                    AltFPSWeapon.MetalType = MetalTypes.None;
+                    mainWeapon.WeaponType = WeaponTypes.Melee;
+                    mainWeapon.MetalType = MetalTypes.None;
                 }
             }
             else if (!currentmainHandItem.IsShield)
@@ -815,17 +821,17 @@ namespace AmbidexterityModule
                     return;
 
                 // Sets up weapon objects for replacement fps script. This ensures the loadatlas works properly and updates the rendered sprite.
-                AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem);
-                AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentmainHandItem);
-                AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentmainHandItem);
+                mainWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(currentmainHandItem);
+                mainWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(currentmainHandItem);
+                mainWeapon.WeaponHands = ItemEquipTable.GetItemHands(currentmainHandItem);
                 GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = mainHandItem.GetEquipSound();
                 GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = mainHandItem.GetSwingSound();
             }
             else if (currentmainHandItem.IsShield)
             {
-                AltFPSWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(offHandItem);
-                AltFPSWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(offHandItem);
-                AltFPSWeapon.WeaponHands = ItemEquipTable.GetItemHands(offHandItem);
+                mainWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(offHandItem);
+                mainWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(offHandItem);
+                mainWeapon.WeaponHands = ItemEquipTable.GetItemHands(offHandItem);
                 // Sets up shield object for FPSShield script. This ensures the equippedshield routine runs currectly.
                 FPSShield.equippedShield = currentmainHandItem;
             }
@@ -858,14 +864,14 @@ namespace AmbidexterityModule
                 {
                     EquipCountdownMainHand += switchDelay / 1.7f;
                     EquipCountdownOffHand += switchDelay / 1.7f;
-                    OffHandFPSWeapon.OffHandWeaponShow = false;
-                    AltFPSWeapon.AltFPSWeaponShow = false;
+                    offhandWeapon.OffHandWeaponShow = false;
+                    mainWeapon.AltFPSWeaponShow = false;
                 }
             }
         }
 
         //runs all the code for when two npcs parry each other. Uses calculateattackdamage formula to help it figure this out.
-        public static void activateNPCParry(DaggerfallEntity targetEntity, DaggerfallEntity attackerEntity, int parriedDamage)
+        public void activateNPCParry(DaggerfallEntity targetEntity, DaggerfallEntity attackerEntity, int parriedDamage)
         {
             Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
@@ -905,7 +911,7 @@ namespace AmbidexterityModule
         }
 
         //runs all the code for when player and npc parry each other. Uses calculateattackdamage formula to help it figure this out.
-        public static void activatePlayerParry(DaggerfallEntity attackerEntity, int parriedDamage)
+        public void activatePlayerParry(DaggerfallEntity attackerEntity, int parriedDamage)
         {
             Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
@@ -927,7 +933,7 @@ namespace AmbidexterityModule
             GameManager.Instance.WeaponManager.ScreenWeapon.PlayAttackVoice();
         }
 
-        public static bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit)
+        public bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit)
         {
             bool hitObject = false;
             attackHit = null;

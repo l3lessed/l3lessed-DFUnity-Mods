@@ -119,6 +119,8 @@ namespace AmbidexterityModule
             smallTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/buckler.png";
             largeTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/heater.png";
 
+            altFPSWeapon = AltFPSWeapon.AltFPSWeaponInstance;
+
             // Get weapon scale
             shieldScaleX = (float)Screen.width / 320;
             shieldScaleY = (float)Screen.height / 200;
@@ -532,7 +534,7 @@ namespace AmbidexterityModule
                 moving = false;
 
             //when player pushes down block key do....
-            if (Input.GetKeyDown(AmbidexterityManager.offHandKeyCode) && AltFPSWeapon.weaponState == WeaponStates.Idle)
+            if (Input.GetKeyDown(AmbidexterityManager.offHandKeyCode) && altFPSWeapon.weaponState == WeaponStates.Idle)
             {
                 totalTime = 0;
                 isBlocking = false;
@@ -648,7 +650,7 @@ namespace AmbidexterityModule
                         //resets trigger
                         AmbidexterityManager.isHit = false;
                         //grabs motor function from enemy entity behavior object and assigns it.
-                        EnemyMotor targetMotor = AmbidexterityManager.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                        EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                         //how far enemy will push back after succesful block.
                         targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .75f, 2f, 5f);
                         //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
@@ -671,7 +673,7 @@ namespace AmbidexterityModule
                         //resets trigger
                         AmbidexterityManager.isHit = false;
                         //grabs motor function from enemy entity behavior object and assigns it.
-                        EnemyMotor targetMotor = AmbidexterityManager.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                        EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                         //how far enemy will push back after succesful block.
                         targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage, 4f, 8f);
                         //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
@@ -703,7 +705,7 @@ namespace AmbidexterityModule
 
                             float deflectedDamage = (int)(AmbidexterityManager.attackerDamage * fractionOfJourney);
                             Debug.Log("Deflected:" + deflectedDamage.ToString());
-                            AmbidexterityManager.attackerEntity.DecreaseHealth((int)deflectedDamage);
+                            AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
                         }
                         //plays hit animation.
                         AnimationManager(hitCoroutine, 0, true);
@@ -726,7 +728,7 @@ namespace AmbidexterityModule
                             AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436));
                             AmbidexterityManager.isHit = false;
                             //grabs motor function from enemy entity behavior object and assigns it.
-                            EnemyMotor targetMotor = AmbidexterityManager.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                            EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                             //how far enemy will push back after succesful block.
                             targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .5f, 2f, 5f);
                             //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
@@ -756,7 +758,7 @@ namespace AmbidexterityModule
                             yield return new WaitForSeconds(.2f);
                             Vector3 bashCast = AmbidexterityManager.mainCamera.transform.forward * 1.8f;
                             GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                            AmbidexterityManager.AttackCast(null, bashCast, out attackHit);
+                            AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(null, bashCast, out attackHit);
                         }
                     }
                     else if((shieldTypes == 109 || shieldTypes == 110))
@@ -772,7 +774,7 @@ namespace AmbidexterityModule
                             //resets trigger
                             AmbidexterityManager.isHit = false;
                             //grabs motor function from enemy entity behavior object and assigns it.
-                            EnemyMotor targetMotor = AmbidexterityManager.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                            EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                             //how far enemy will push back after succesful block.
                             targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * 2, 8f, 12f);
                             //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
@@ -804,7 +806,7 @@ namespace AmbidexterityModule
 
                                 float deflectedDamage = (int)(AmbidexterityManager.attackerDamage * (fractionOfJourney + .1f));
                                 Debug.Log("Deflected:" + deflectedDamage.ToString());
-                                AmbidexterityManager.attackerEntity.DecreaseHealth((int)deflectedDamage);
+                                AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
                             }
                             //plays hit animation.
                             AnimationManager(hitCoroutine, 0, true);

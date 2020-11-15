@@ -25,10 +25,10 @@ namespace AmbidexterityModule
         public static AltFPSWeapon AltFPSWeaponInstance;
 
         //formula helper entities.
-        public static DaggerfallEntity targetEntity;
-        public static DaggerfallEntity attackerEntity;
+        public DaggerfallEntity targetEntity;
+        public DaggerfallEntity attackerEntity;
         public static DaggerfallUnity dfUnity;
-        public static DaggerfallUnityItem equippedAltFPSWeapon;
+        public DaggerfallUnityItem equippedAltFPSWeapon;
         private static CifRciFile cifFile;
         public static Texture2D weaponAtlas;
 
@@ -46,19 +46,16 @@ namespace AmbidexterityModule
         const int nativeScreenHeight = 200;
         int leftUnarmedAnimIndex = 0;
 
-        public static IEnumerator ParryNumerator;
-
         //public static Coroutine ParryCoroutine;
-        public static Task ParryCoroutine;
+        public Task ParryCoroutine;
 
-        static bool bash;
-        public static bool AltFPSWeaponShow;
+        public bool AltFPSWeaponShow;
         public static bool flip;
-        public static bool isParrying;
-        private static bool lerpfinished;
-        private static bool breatheTrigger;
-        private static bool attackCasted;
-        private static bool hitObject;
+        public bool isParrying;
+        private bool lerpfinished;
+        private bool breatheTrigger;
+        private bool attackCasted;
+        private bool hitObject;
 
         public static float TotalAttackTime;
         public static float weaponScaleX;
@@ -66,20 +63,20 @@ namespace AmbidexterityModule
         public static float offsetY;
         public static float offsetX;
         static float posi;
-        private static float totalAnimationTime;
+        private float totalAnimationTime;
         static float timeCovered;
         static float percentagetime;
-        private static float avgFrameRate;
-        private static float attackFrameTime;
-        public static float animTickTime;
-        private static float lerpRange;
+        private float avgFrameRate;
+        private float attackFrameTime;
+        private float animTickTime;
+        private float lerpRange;
 
-        public static WeaponTypes currentWeaponType;
-        public static MetalTypes currentMetalType;
-        public static WeaponStates weaponState = WeaponStates.Idle;
-        public static WeaponTypes WeaponType = WeaponTypes.None;
-        public static MetalTypes MetalType = MetalTypes.None;
-        public static ItemHands WeaponHands;
+        public WeaponTypes currentWeaponType;
+        public MetalTypes currentMetalType;
+        public WeaponStates weaponState = WeaponStates.Idle;
+        public WeaponTypes WeaponType = WeaponTypes.None;
+        public MetalTypes MetalType = MetalTypes.None;
+        public ItemHands WeaponHands;
 
         readonly byte[] leftUnarmedAnims = { 0, 1, 2, 3, 4, 2, 1, 0 };
 
@@ -96,7 +93,7 @@ namespace AmbidexterityModule
         //switch used to set custom offset distances for each weapon.
         //because each weapon has its own sprites, each one needs slight
         //adjustments to ensure sprites seem as seemless as possible in transition.
-        private static float GetAnimationOffset()
+        private float GetAnimationOffset()
         {
             WeaponTypes weapon = currentWeaponType;
             switch (weapon)
@@ -116,7 +113,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public static IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
+        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
         {
             while (true)
             {
@@ -194,7 +191,7 @@ namespace AmbidexterityModule
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
                     Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
-                    AmbidexterityManager.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
+                    AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
                 else if(!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
@@ -214,7 +211,7 @@ namespace AmbidexterityModule
                     else if (weaponState == WeaponStates.StrikeUp)
                         attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0,2.5f, percentagetime));
 
-                    if (AmbidexterityManager.AttackCast(equippedAltFPSWeapon, attackcast, out attackHit))
+                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackcast, out attackHit))
                     {
                         hitObject = true;
                         breatheTrigger = true;
@@ -226,7 +223,7 @@ namespace AmbidexterityModule
         }
 
         //uses vector3 axis rotations to figure out starting and ending point of arc, then uses lerp to calculate where the ray is in the arc, and then returns the calculations.
-        public static Vector3 ArcCastCalculator(float startposX, float startposY, float startposZ, float endposX, float endposY, float endposZ, float percentageTime, Vector3 castDirection)
+        public Vector3 ArcCastCalculator(float startposX, float startposY, float startposZ, float endposX, float endposY, float endposZ, float percentageTime, Vector3 castDirection)
         {
             if (flip)
             {
@@ -245,7 +242,7 @@ namespace AmbidexterityModule
             return attackcast;
         }
 
-        public static void ResetAnimation()
+        public void ResetAnimation()
         {
             timeCovered = 0;
             currentFrame = 0;
@@ -253,7 +250,6 @@ namespace AmbidexterityModule
             breatheTrigger = false;
             hitObject = false;
             attackCasted = false;
-            AmbidexterityManager.AttackState = 0;
             weaponState = WeaponStates.Idle;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
@@ -289,7 +285,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public static void UpdateWeapon()
+        public void UpdateWeapon()
         {
             int frameBeforeStepping = currentFrame;
             // Do nothing if weapon not ready
@@ -840,7 +836,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public static void AlignLeft(WeaponAnimation anim, int width, int height)
+        private void AlignLeft(WeaponAnimation anim, int width, int height)
         {
             weaponPosition = new Rect(
                 Screen.width * offsetX,
@@ -849,7 +845,7 @@ namespace AmbidexterityModule
                 height * weaponScaleY);
         }
 
-        public static void AlignCenter(WeaponAnimation anim, int width, int height)
+        private void AlignCenter(WeaponAnimation anim, int width, int height)
         {
             weaponPosition = new Rect(
                 (((Screen.width * (1f - offsetX)) / 2f) - (width * weaponScaleX) / 2f),
@@ -858,7 +854,7 @@ namespace AmbidexterityModule
                 height * weaponScaleY);
         }
 
-        public static void AlignRight(WeaponAnimation anim, int width, int height)
+        private void AlignRight(WeaponAnimation anim, int width, int height)
         {
             if (flip)
             {
@@ -874,7 +870,7 @@ namespace AmbidexterityModule
                 height * weaponScaleY);
         }
 
-        public static void LoadWeaponAtlas()
+        public void LoadWeaponAtlas()
         {
             string filename = WeaponBasics.GetWeaponFilename(WeaponType);
 
@@ -896,7 +892,7 @@ namespace AmbidexterityModule
 
         #region Texture Loading
 
-        private static Texture2D GetWeaponTextureAtlas(
+        private Texture2D GetWeaponTextureAtlas(
             string filename,
             MetalTypes metalType,
             out Rect[] rectsOut,
@@ -962,7 +958,7 @@ namespace AmbidexterityModule
             return atlas;
         }
 
-        private static Texture2D GetWeaponTexture2D(
+        private Texture2D GetWeaponTexture2D(
             string filename,
             int record,
             int frame,
