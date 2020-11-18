@@ -214,7 +214,7 @@ namespace AmbidexterityModule
                 DaggerfallMobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
 
                 //if the enemy is in their primary/melee attack state and the player is on frame 1 or 2, do ....
-                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AmbidexterityManagerInstance.AttackState != 7 && ((AltFPSWeapon.currentFrame > 0 && AltFPSWeapon.currentFrame < 3) || (OffHandFPSWeapon.currentFrame > 0 && OffHandFPSWeapon.currentFrame < 3)))
+                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AmbidexterityManagerInstance.AttackState != 0 && (AltFPSWeapon.currentFrame == 2 || OffHandFPSWeapon.currentFrame == 2))
                 {
                     //grabs attackers sense object.
                     EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();

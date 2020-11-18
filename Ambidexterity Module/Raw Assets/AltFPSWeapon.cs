@@ -185,7 +185,7 @@ namespace AmbidexterityModule
                     AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
-                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
+                else if (!hitObject && currentFrame > 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 

@@ -1,0 +1,13 @@
+{
+    "ModTitle": "Dodge Mod",
+    "ModVersion": "1.42",
+    "ModAuthor": "l3lessed",
+    "DFUnity_Version": "0.10.24",
+    "ModDescription": "Dodge Module for Upcoming Combat Overhaul Release",
+    "GUID": "9644e58f-5e43-42c5-a084-563bd3a480eb",
+    "Files": [
+        "Assets/Scripts/Game/DodgeMod.cs",
+        "Assets/Game/Mods/Dodge Module/modsettings.json",
+        "Assets/Game/Mods/Dodge Module/Dodge Module.dfmod.json"
+    ]
+}
