@@ -17,6 +17,7 @@ using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using static DaggerfallWorkshop.Game.WeaponManager;
 
 namespace AmbidexterityModule
 {
@@ -48,6 +49,7 @@ namespace AmbidexterityModule
 
         //public static Coroutine ParryCoroutine;
         public Task ParryCoroutine;
+        public Task PrimerCoroutine;
 
         public bool AltFPSWeaponShow;
         public static bool flip;
@@ -113,7 +115,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
+        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false)
         {
             while (true)
             {
@@ -133,19 +135,32 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if (!breatheTrigger)
-                    // Distance moved equals elapsed time times speed.
-                    timeCovered += Time.deltaTime;
-                else if (breatheTrigger)
-                    // Distance moved equals elapsed time times speed.
-                    timeCovered -= Time.deltaTime;
+                if (!AmbidexterityManager.classicAnimations)
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered += Time.deltaTime;
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered -= Time.deltaTime;
+                }
+                else
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered + (totalTime / 5);
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered - (totalTime / 5);
+                }
 
                 timeCovered = (float)Math.Round(timeCovered, 2);
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                currentFrame = Mathf.FloorToInt(percentagetime * 5);
+                if (!frameLock)
+                    currentFrame = Mathf.FloorToInt(percentagetime * 5);
 
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
@@ -168,16 +183,8 @@ namespace AmbidexterityModule
                 if (natural)
                     percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
 
-                if (AmbidexterityManager.classicAnimations)
-                {
-                    offsetX = Mathf.Lerp(startX, endX, (attackFrameTime * currentFrame) / totalAnimationTime);
-                    offsetY = Mathf.Lerp(startY, endY, (attackFrameTime * currentFrame) / totalAnimationTime);
-                }
-                else
-                {
-                    offsetX = Mathf.Lerp(startX, endX, percentagetime);
-                    offsetY = Mathf.Lerp(startY, endY, percentagetime);
-                }
+                offsetX = Mathf.Lerp(startX, endX, percentagetime);
+                offsetY = Mathf.Lerp(startY, endY, percentagetime);
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
@@ -185,7 +192,7 @@ namespace AmbidexterityModule
                     AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
-                else if (!hitObject && currentFrame > 1 && AmbidexterityManager.physicalWeapons && !isParrying)
+                else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
                     Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
 
@@ -211,7 +218,11 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
-                yield return new WaitForFixedUpdate();
+                if (!AmbidexterityManager.classicAnimations)
+                    yield return new WaitForFixedUpdate();
+                else
+                    yield return new WaitForSecondsRealtime(totalTime / 5);
+
             }
         }
 
@@ -245,7 +256,8 @@ namespace AmbidexterityModule
             attackCasted = false;
             weaponState = WeaponStates.Idle;
             AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
-            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
+            AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = false;
+           GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;
             offsetX = 0;
@@ -991,6 +1003,30 @@ namespace AmbidexterityModule
         }
 
         #endregion
+
+        public WeaponStates OnAttackDirection(MouseDirections direction)
+        {
+            // Get state based on attack direction
+            //WeaponStates state;
+
+            switch (direction)
+            {
+                case MouseDirections.Down:
+                    return WeaponStates.StrikeDown;
+                case MouseDirections.DownLeft:
+                    return WeaponStates.StrikeDownLeft;
+                case MouseDirections.Left:
+                    return WeaponStates.StrikeLeft;
+                case MouseDirections.Right:
+                    return WeaponStates.StrikeRight;
+                case MouseDirections.DownRight:
+                    return WeaponStates.StrikeDownRight;
+                case MouseDirections.Up:
+                    return WeaponStates.StrikeUp;
+                default:
+                    return WeaponStates.Idle;
+            }
+        }
 
     }
 }

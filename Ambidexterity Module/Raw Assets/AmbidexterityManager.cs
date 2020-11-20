@@ -15,6 +15,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using Wenzil.Console;
+using static DaggerfallWorkshop.Game.WeaponManager;
 
 namespace AmbidexterityModule
 {
@@ -38,12 +39,14 @@ namespace AmbidexterityModule
 
         //block key.
         public static string offHandKeyString;
+        private string toggleAttackIndicator;
 
         //sets current equipment state based on whats equipped in what hands.
         public static int equipState; //0 - nothing equipped | 1 - Main hand equipped + melee | 2 - Off hand equipped + melee | 3 - Weapon + Shield | 4 - two-handed | 5 - duel wield | 6 - Bow.
         private static int attackState;
         public static int attackerDamage;
         public int[] prohibitedWeapons = { 120, 121, 122, 123, 125, 126, 128 };
+        public float AttackThreshold = 0.05f;
 
         //returns current Attackstate based on each weapon state.
         //0 - Both hands idle | 7 - Either hand is parrying | (ANY OTHER NUMBER) - Normal attack state number for current swinging weapon.
@@ -53,16 +56,28 @@ namespace AmbidexterityModule
         public static float BlockTimeMod { get; private set; }
         public static float BlockCostMod { get; private set; }
         public float AttackPrimerTime { get; private set; }
+        public float LookDirectionAttackThreshold { get; private set; }
+
         private float EquipCountdownMainHand;
         private float EquipCountdownOffHand;
 
         float cooldownTime;
-        private bool arrowLoading;
+        public bool arrowLoading;
+        public static Texture2D arrowLoadingTex;
+        public Rect pos;
 
         //Use for keyinput routine. Stores how long since an attack key was pressed last.
         private float timePass;
 
         Queue<int> playerInput = new Queue<int>();
+
+        private Gesture _gesture;
+        // Max time-length of a trail of mouse positions for attack gestures
+        private const float MaxGestureSeconds = 1.0f;
+        private const float resetJoystickSwingRadius = 0.4f;
+        bool joystickSwungOnce = false;
+        MouseDirections direction;
+        private int _longestDim;
 
         //mode setting triggers.
         public static bool toggleBob;
@@ -79,6 +94,7 @@ namespace AmbidexterityModule
         private bool offHandKeyPressed;
         private bool handKeyPressed;
         private bool mainHandKeyPressed;
+        private bool classicDrag;
         //stores an instance of usingRightHand for checking if left or right hand is being used/set.
         public static bool usingRightHand;
 
@@ -104,10 +120,18 @@ namespace AmbidexterityModule
         public GameObject SparkPrefab;
         public static ParticleSystem sparkParticles;
         public static bool assets;
+        private MouseDirections attackDirection;
+        public bool isAttacking;
+        private bool lookDirAttack;
+        private bool movementDirAttack;
+        public float offsetY = 0f;
+        public float offsetX = 0f;
+        public float size = 4f;
+        private bool attackIndicator = true;
 
-       //starts mod manager on game begin. Grabs mod initializing paramaters.
-       //ensures SateTypes is set to .Start for proper save data restore values.
-       [Invoke(StateManager.StateTypes.Game, 0)]
+        //starts mod manager on game begin. Grabs mod initializing paramaters.
+        //ensures SateTypes is set to .Start for proper save data restore values.
+        [Invoke(StateManager.StateTypes.Game, 0)]
         public static void Init(InitParams initParams)
         {
             //Below code blocks set up instances of class/script/mod.\\
@@ -184,14 +208,19 @@ namespace AmbidexterityModule
             AltFPSWeapon.dfUnity = DaggerfallUnity.Instance;
 
             //binds mod settings to script properties.
-            offHandKeyString = settings.GetValue<string>("Settings", "offHandKeyString");
-            BlockTimeMod = settings.GetValue<float>("Settings", "BlockTimeMod");
-            BlockCostMod = settings.GetValue<float>("Settings", "BlockCostMod");
-            AttackPrimerTime = settings.GetValue<float>("Settings", "AttackPrimerTime");
-            toggleBob = settings.GetValue<bool>("Settings", "ToggleBob");
-            bucklerMechanics = settings.GetValue<bool>("Settings", "BucklerMechanics");
-            classicAnimations = settings.GetValue<bool>("Settings", "ClassicAnimations");
-            physicalWeapons = settings.GetValue<bool>("Settings", "PhysicalWeapons");
+            offHandKeyString = settings.GetValue<string>("GeneralSettings", "offHandKeyString");
+            toggleAttackIndicator = settings.GetValue<string>("GeneralSettings", "toggleAttackIndicator");
+            BlockTimeMod = settings.GetValue<float>("ShieldSettings", "BlockTimeMod");
+            BlockCostMod = settings.GetValue<float>("ShieldSettings", "BlockCostMod");
+            AttackPrimerTime = settings.GetValue<float>("AnimationSettings", "AttackPrimerTime");
+            toggleBob = settings.GetValue<bool>("AnimationSettings", "ToggleBob");
+            bucklerMechanics = settings.GetValue<bool>("ShieldSettings", "BucklerMechanics");
+            classicAnimations = settings.GetValue<bool>("AnimationSettings", "ClassicAnimations");
+            physicalWeapons = settings.GetValue<bool>("GeneralSettings", "PhysicalWeapons");
+            movementDirAttack = settings.GetValue<bool>("AttackSettings", "MovementAttacking");
+            lookDirAttack = settings.GetValue<bool>("AttackSettings", "LookDirectionAttacking");
+            LookDirectionAttackThreshold = settings.GetValue<float>("AttackSettings", "LookDirectionAttackThreshold");
+            size = settings.GetValue<float>("AttackSettings", "IndicatorSize");
 
             Debug.Log("You're equipment is setup, and you feel limber and ready for anything.");
 
@@ -202,6 +231,10 @@ namespace AmbidexterityModule
             else
                 randomattack = new int[] { 1, 2, 3, 4, 5, 6};
 
+            _gesture = new Gesture();
+            _longestDim = Math.Max(Screen.width, Screen.height);
+
+            AttackThreshold = DaggerfallUnity.Settings.WeaponAttackThreshold;
 
             //register the formula calculate attack damage formula so can pull attack properties needed and zero out damage when player is blocking succesfully.
             //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\
@@ -217,6 +250,58 @@ namespace AmbidexterityModule
             mainWeapon.MetalType = MetalTypes.None;
         }
 
+
+        private void OnGUI()
+        {
+            GUI.depth = 1;
+            if (Event.current.type.Equals(EventType.Repaint) && attackIndicator)
+            {
+                Rect pos = new Rect();
+
+                if (direction == MouseDirections.Up)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowU.png");
+                    pos = new Rect(Screen.width * .493f, Screen.height * .481f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if (direction == MouseDirections.Down)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowD.png");
+                    pos = new Rect(Screen.width * .493f, Screen.height * .499f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if (direction == MouseDirections.Left)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowL.png");
+                    pos = new Rect(Screen.width * .488f, Screen.height * 0.489f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if (direction == MouseDirections.Right)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowR.png");
+                    pos = new Rect(Screen.width * 0.499f, Screen.height * 0.489f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if (direction == MouseDirections.DownLeft)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBL.png");
+                    pos = new Rect(Screen.width * 0.49f, Screen.height * 0.498f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if (direction == MouseDirections.DownRight)
+                {
+                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBR.png");
+                    pos = new Rect(Screen.width * 0.498f, Screen.height * 0.498f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                }
+
+                if(offsetY != 0 && offsetX != 0)
+                    pos = new Rect(Screen.width * offsetX, Screen.height * offsetY, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+
+                if(arrowLoadingTex != null)
+                    GUI.DrawTextureWithTexCoords(pos, arrowLoadingTex, new Rect(0.0f, 0.0f, .99f, .99f));
+            }
+        }
+
         private void Update()
         {
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
@@ -224,6 +309,14 @@ namespace AmbidexterityModule
             {
                 return; //show nothing.
             }
+
+            if (lookDirAttack)
+                Debug.Log(TrackMouseAttack().ToString());
+
+            if (Input.GetKeyDown(toggleAttackIndicator) && attackIndicator)
+                attackIndicator = false;
+            else if (Input.GetKeyDown(toggleAttackIndicator) && !attackIndicator)
+                attackIndicator = true;
 
             // Do nothing if player paralyzed or is climbing
             if (GameManager.Instance.PlayerEntity.IsParalyzed || GameManager.Instance.ClimbingMotor.IsClimbing)
@@ -271,6 +364,18 @@ namespace AmbidexterityModule
             // if weapons are idle, swap weapon hand.
             if (AttackState == 0 && InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand))
                 ToggleHand();
+
+            if(!DaggerfallUnity.Settings.ClickToAttack)
+            {
+                if (!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) && !Input.GetKey(offHandKeyCode))
+                {
+                    isAttacking = false;
+                    _gesture.Clear();
+                }
+                else
+                    isAttacking = true;
+            }
+
 
             //checks to ensure equipment is the same, and if so, moves on. If not, updates the players equip state to ensure all script bool triggers are properly set to handle
             //each script and its corresponding animation systems.
@@ -323,6 +428,7 @@ namespace AmbidexterityModule
                 if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
                     AttackState = 7;
+                    mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, AltFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                     offhandWeapon.isParrying = true;
                     offhandWeapon.ParryCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -333,6 +439,7 @@ namespace AmbidexterityModule
                 if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
                     AttackState = 7;
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, OffHandFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                     mainWeapon.isParrying = true;
                     mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -352,6 +459,7 @@ namespace AmbidexterityModule
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
                     FPSShield.shieldStates = 7;
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, OffHandFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     mainWeapon.weaponState = (WeaponStates)attackState;
@@ -366,10 +474,21 @@ namespace AmbidexterityModule
                 if (!FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //both weapons are idle, then perform attack routine....
-                    if (offhandWeapon.weaponState == WeaponStates.Idle && mainWeapon.weaponState == WeaponStates.Idle)
+                    if (offhandWeapon.weaponState == WeaponStates.Idle && DaggerfallUnity.Settings.ClickToAttack)
                     {
-                        attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                        mainWeapon.weaponState = (WeaponStates)attackState;
+                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, OffHandFPSWeapon.TotalAttackTime * .75f, 0, true, true));
+                        mainWeapon.weaponState = WeaponStateController();
+                        GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
+                        GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
+                        GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
+                        StartCoroutine(mainWeapon.AnimationCalculator());
+                        TallyCombatSkills(currentmainHandItem);
+                        return;
+                    }
+                    else if(!DaggerfallUnity.Settings.ClickToAttack && offhandWeapon.weaponState != WeaponStates.Idle)
+                    {
+                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, OffHandFPSWeapon.TotalAttackTime * .75f, 0, true, true));
+                        mainWeapon.weaponState = WeaponStateController();
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
@@ -390,6 +509,7 @@ namespace AmbidexterityModule
                 if (offhandWeapon.weaponState == WeaponStates.Idle && mainWeapon.weaponState == WeaponStates.Idle && !FPSShield.shieldEquipped && AttackState != 7)
                 {
                     //trigger offhand weapon attack animation routines.
+                    mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, AltFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     offhandWeapon.weaponState = (WeaponStates)attackState;
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
@@ -402,6 +522,33 @@ namespace AmbidexterityModule
             }
         }
 
+        WeaponStates WeaponStateController()
+        {
+            WeaponStates state = (WeaponStates)randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
+
+            if (!DaggerfallUnity.Settings.ClickToAttack && (Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKey(offHandKeyCode)))
+            {
+                return mainWeapon.OnAttackDirection(TrackMouseAttack());
+            }           
+
+            if (movementDirAttack)
+            {
+                if (InputManager.Instance.HasAction(InputManager.Actions.MoveLeft))
+                    return WeaponStates.StrikeLeft;
+                if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight))
+                    return WeaponStates.StrikeRight;
+                if (InputManager.Instance.HasAction(InputManager.Actions.MoveForwards))
+                    return WeaponStates.StrikeUp;
+                if (InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
+                    return WeaponStates.StrikeDown;
+            }
+                
+            if (lookDirAttack)
+                return mainWeapon.OnAttackDirection(direction);
+
+            return state;
+        }
+        
         //tallies skills when an attack is done based on the current tallyWeapon.
         void TallyCombatSkills(DaggerfallUnityItem tallyWeapon)
         {
@@ -1048,6 +1195,177 @@ namespace AmbidexterityModule
                 }
             }
             return hitObject;
+        }
+
+        /// <summary>
+        /// Tracks mouse gestures. Auto trims the list of mouse x/ys based on time.
+        /// </summary>
+        private class Gesture
+        {
+            // The cursor is auto-centered every frame so the x/y becomes delta x/y
+            private readonly List<TimestampedMotion> _points;
+            // The result of the sum of all points in the gesture trail
+            private Vector2 _sum;
+            // The total travel distance of the gesture trail
+            // This isn't equal to the magnitude of the sum because the trail may bend
+            public float TravelDist { get; private set; }
+
+            public Gesture()
+            {
+                _points = new List<TimestampedMotion>();
+                _sum = new Vector2();
+                TravelDist = 0f;
+            }
+
+            // Trims old gesture points & keeps the sum and travel variables up to date
+            private void TrimOld()
+            {
+                var old = 0;
+                foreach (var point in _points)
+                {
+                    if (Time.time - point.Time <= MaxGestureSeconds)
+                        continue;
+                    old++;
+                    _sum -= point.Delta;
+                    TravelDist -= point.Delta.magnitude;
+                }
+                _points.RemoveRange(0, old);
+            }
+
+            /// <summary>
+            /// Adds the given delta mouse x/ys top the gesture trail
+            /// </summary>
+            /// <param name="dx">Mouse delta x</param>
+            /// <param name="dy">Mouse delta y</param>
+            /// <returns>The summed vector of the gesture (not the trail itself)</returns>
+            public Vector2 Add(float dx, float dy)
+            {
+                TrimOld();
+
+                _points.Add(new TimestampedMotion
+                {
+                    Time = Time.time,
+                    Delta = new Vector2 { x = dx, y = dy }
+                });
+                _sum += _points.Last().Delta;
+                TravelDist += _points.Last().Delta.magnitude;
+
+                return new Vector2 { x = _sum.x, y = _sum.y };
+            }
+
+            /// <summary>
+            /// Clears the gesture
+            /// </summary>
+            public void Clear()
+            {
+                _points.Clear();
+                _sum *= 0;
+                TravelDist = 0f;
+            }
+        }
+
+        /// <summary>
+        /// A timestamped motion point
+        /// </summary>
+        private struct TimestampedMotion
+        {
+            public float Time;
+            public Vector2 Delta;
+
+            public override string ToString()
+            {
+                return string.Format("t={0}s, dx={1}, dy={2}", Time, Delta.x, Delta.y);
+            }
+        }
+
+        MouseDirections TrackMouseAttack()
+        {
+            // Track action for idle plus all eight mouse directions
+            var sum = _gesture.Add(InputManager.Instance.MouseX, InputManager.Instance.MouseY) * 1f;
+
+            if (InputManager.Instance.UsingController)
+            {
+                float x = InputManager.Instance.MouseX;
+                float y = InputManager.Instance.MouseY;
+
+                bool inResetJoystickSwingRadius = (x >= -resetJoystickSwingRadius && x <= resetJoystickSwingRadius && y >= -resetJoystickSwingRadius && y <= resetJoystickSwingRadius);
+
+                if (joystickSwungOnce || inResetJoystickSwingRadius)
+                {
+                    if (inResetJoystickSwingRadius)
+                        joystickSwungOnce = false;
+
+                    return MouseDirections.None;
+                }
+            }
+            else if (!DaggerfallUnity.Settings.ClickToAttack && _gesture.TravelDist / _longestDim < AttackThreshold)
+            {
+                return MouseDirections.None;
+            }
+            else if (lookDirAttack && _gesture.TravelDist / _longestDim < (AttackThreshold/LookDirectionAttackThreshold))
+                return direction;
+
+            joystickSwungOnce = true;
+
+            // Treat mouse movement as a vector from the origin
+            // The angle of the vector will be used to determine the angle of attack/swing
+            var angle = Mathf.Atan2(sum.y, sum.x) * Mathf.Rad2Deg;
+            // Put angle into 0 - 360 deg range
+            if (angle < 0f) angle += 360f;
+            // The swing gestures are divided into radial segments
+            // Up-down and left-right attacks are in a 30 deg cone about the x/y axes
+            // Up-right and up-left aren't valid so the up range is expanded to fill the range
+            // The remaining 60 deg quadrants trigger the diagonal attacks
+            var radialSection = Mathf.CeilToInt(angle / 15f);
+            Debug.Log(angle.ToString());
+            switch (radialSection)
+            {
+                case 0: // 0 - 15 deg
+                case 1:
+                case 24: // 345 - 365 deg
+                    direction = MouseDirections.Right;
+                    break;
+                case 2: // 15 - 75 deg
+                case 3:
+                case 4:
+                case 5:
+                case 6: // 75 - 105 deg
+                case 7: //90
+                case 8: // 105 - 165 deg
+                case 9:
+                case 10:
+                case 11:
+                    direction = MouseDirections.Up;
+                    break;
+                case 12: // 165 - 195 deg
+                case 13:
+                    direction = MouseDirections.Left;
+                    break;
+                case 14: // 195 - 255 deg
+                case 15:
+                case 16:
+                case 17:
+                    direction = MouseDirections.DownLeft;
+                    break;
+                case 18: // 255 - 285 deg
+                case 19:
+                    direction = MouseDirections.Down;
+                    break;
+                case 20: // 285 - 345 deg
+                case 21:
+                case 22:
+                case 23:
+                    direction = MouseDirections.DownRight;
+                    break;
+                default: // Won't happen
+                    direction = MouseDirections.None;
+                    break;
+            }
+
+            if(AttackState != 0)
+                _gesture.Clear();
+
+            return direction;
         }
     }
 }

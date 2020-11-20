@@ -116,8 +116,8 @@ namespace AmbidexterityModule
         void Start()
         {
             //sets shield texture path, using the application base directory.
-            smallTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/buckler.png";
-            largeTexture_Path = Application.dataPath + "/StreamingAssets/Textures/shields/heater.png";
+            smallTexture_Path = Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/shields/buckler.png";
+            largeTexture_Path = Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/shields/heater.png";
 
             altFPSWeapon = AltFPSWeapon.AltFPSWeaponInstance;
 

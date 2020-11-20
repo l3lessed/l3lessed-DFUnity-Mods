@@ -16,6 +16,7 @@ using DaggerfallWorkshop.Game.Formulas;
 using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
 using System.Diagnostics;
+using static DaggerfallWorkshop.Game.WeaponManager;
 
 namespace AmbidexterityModule
 {
@@ -48,6 +49,7 @@ namespace AmbidexterityModule
         public static IEnumerator ParryNumerator;
 
         public Task ParryCoroutine;
+        public Task PrimerCoroutine;
 
         static bool bash;
         public bool OffHandWeaponShow;
@@ -152,7 +154,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false)
+        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false)
         {
             while (true)
             {
@@ -172,19 +174,32 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if (!breatheTrigger)
-                    // Distance moved equals elapsed time times speed.
-                    timeCovered += Time.deltaTime;
-                else if (breatheTrigger)
-                    // Distance moved equals elapsed time times speed.
-                    timeCovered -= Time.deltaTime;
+                if(!AmbidexterityManager.classicAnimations)
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered += Time.deltaTime;
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered -= Time.deltaTime;
+                }
+                else
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered + (totalTime / 5);
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered - (totalTime / 5);
+                }
 
                 timeCovered = (float)Math.Round(timeCovered, 2);
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
 
-                currentFrame = Mathf.FloorToInt(percentagetime * 5);
+                if(!frameLock)
+                    currentFrame = Mathf.FloorToInt(percentagetime * 5);
 
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
@@ -207,16 +222,8 @@ namespace AmbidexterityModule
                 if (natural)
                     percentagetime = percentagetime * percentagetime * percentagetime * (percentagetime * (6f * percentagetime - 15f) + 10f);
 
-                if (AmbidexterityManager.classicAnimations)
-                {
-                    offsetX = Mathf.Lerp(startX, endX, (attackFrameTime * currentFrame) / totalAnimationTime);
-                    offsetY = Mathf.Lerp(startY, endY, (attackFrameTime * currentFrame) / totalAnimationTime);
-                }
-                else
-                {
-                    offsetX = Mathf.Lerp(startX, endX, percentagetime);
-                    offsetY = Mathf.Lerp(startY, endY, percentagetime);
-                }
+                offsetX = Mathf.Lerp(startX, endX, percentagetime);
+                offsetY = Mathf.Lerp(startY, endY, percentagetime);
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
@@ -250,7 +257,11 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
-                yield return new WaitForFixedUpdate();
+                if (!AmbidexterityManager.classicAnimations)
+                    yield return new WaitForFixedUpdate();
+                else
+                    yield return new WaitForSecondsRealtime(totalTime/5);
+
             }
         }
 
@@ -285,6 +296,7 @@ namespace AmbidexterityModule
             attackCasted = false;
             weaponState = WeaponStates.Idle;
             AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
+            AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = false;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;
@@ -980,6 +992,36 @@ namespace AmbidexterityModule
         }
 
         #endregion
+
+        public void OnAttackDirection(MouseDirections direction)
+        {
+            // Get state based on attack direction
+            WeaponStates state;
+
+            switch (direction)
+            {
+                case MouseDirections.Down:
+                    state = WeaponStates.StrikeDown;
+                    break;
+                case MouseDirections.DownLeft:
+                    state = WeaponStates.StrikeDownLeft;
+                    break;
+                case MouseDirections.Left:
+                    state = WeaponStates.StrikeLeft;
+                    break;
+                case MouseDirections.Right:
+                    state = WeaponStates.StrikeRight;
+                    break;
+                case MouseDirections.DownRight:
+                    state = WeaponStates.StrikeDownRight;
+                    break;
+                case MouseDirections.Up:
+                    state = WeaponStates.StrikeUp;
+                    break;
+                default:
+                    return;
+            }
+        }
 
     }
 }
