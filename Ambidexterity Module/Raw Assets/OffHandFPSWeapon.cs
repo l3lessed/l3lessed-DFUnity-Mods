@@ -81,6 +81,12 @@ namespace AmbidexterityModule
         public MetalTypes MetalType = MetalTypes.None;
         public ItemHands WeaponHands;
         public SoundClips SwingWeaponSound = SoundClips.SwingMediumPitch;
+        public float weaponReach = 2.25f;
+
+        public float UnsheathedMoveMod;
+        public float AttackMoveMod;
+        public float AttackSpeedMod;
+        public float OffhandProhibited;
 
         readonly byte[] leftUnarmedAnims = { 0, 1, 2, 3, 4, 2, 1, 0 };
 
@@ -207,7 +213,7 @@ namespace AmbidexterityModule
                 else if (percentagetime <= 0 && breatheTrigger)
                     breatheTrigger = false;
 
-                UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
+                //UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
 
                 if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                 {
@@ -227,13 +233,13 @@ namespace AmbidexterityModule
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
-                    Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
+                    Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
                     AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
                 else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
-                    Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
+                    Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
 
                     if (weaponState == WeaponStates.StrikeRight)
                         attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, attackcast);
@@ -246,7 +252,7 @@ namespace AmbidexterityModule
                     else if (weaponState == WeaponStates.StrikeDown)
                         attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeUp)
-                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, 2.5f, percentagetime));
+                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, weaponReach, percentagetime));
 
                     if (AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, out attackHit))
                     {
@@ -868,6 +874,7 @@ namespace AmbidexterityModule
         private void LoadWeaponAtlas()
         {
             string filename = WeaponBasics.GetWeaponFilename(WeaponType);
+            List<float> Properties = AmbidexterityManager.AmbidexterityManagerInstance.WeaponProperty(equippedOffHandFPSWeapon);
 
             // Load the weapon texture atlas
             // Texture is dilated into a transparent coloured border to remove dark edges when filtered
@@ -882,12 +889,14 @@ namespace AmbidexterityModule
             currentWeaponType = WeaponType;
             currentMetalType = MetalType;
             attackFrameTime = FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, WeaponType, WeaponHands);
-            totalAnimationTime = attackFrameTime * 5;
+            totalAnimationTime = attackFrameTime * 5 * AttackSpeedMod;
         }
+                        //unload next qued item, running the below input routine.
+                
 
-        #region Texture Loading
+    #region Texture Loading
 
-        private Texture2D GetWeaponTextureAtlas(
+    private Texture2D GetWeaponTextureAtlas(
             string filename,
             MetalTypes metalType,
             out Rect[] rectsOut,

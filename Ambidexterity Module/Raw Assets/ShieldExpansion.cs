@@ -188,15 +188,15 @@ public class ShieldExpansion : MonoBehaviour
               //loads shield texture if weapon is showing & shield is equipped.
         else if (GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon == true && FPSShield.equippedShield.shortName == "Spellbreaker")
         {
-            wardPos = new Rect(Screen.width / 2f - (width * FPSShield.shieldScaleX) / 2f,
-                Screen.height - (width + 200) * FPSShield.shieldScaleY / 2f,
-                width * FPSShield.shieldScaleX,
-                width * FPSShield.shieldScaleY);
+            wardPos = new Rect(Screen.width / 2f - (width * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX) / 2f,
+                Screen.height - (width + 200) * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY / 2f,
+                width * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX,
+                width * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY);
 
-            wardPos2 = new Rect(Screen.width / 2f - (width2 * FPSShield.shieldScaleX) / 2f,
-                Screen.height - (width2 + 200) * FPSShield.shieldScaleY / 2f,
-                width2 * FPSShield.shieldScaleX,
-                width2 * FPSShield.shieldScaleY);
+            wardPos2 = new Rect(Screen.width / 2f - (width2 * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX) / 2f,
+                Screen.height - (width2 + 200) * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY / 2f,
+                width2 * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX,
+                width2 * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY);
 
             Debug.Log(FPSShield.shieldPos.size.ToString() + " | " + wardPos.size.ToString());
 

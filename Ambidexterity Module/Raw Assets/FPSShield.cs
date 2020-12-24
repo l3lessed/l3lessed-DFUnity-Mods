@@ -76,10 +76,6 @@ namespace AmbidexterityModule
         static float totalTime;
         static float fractionOfJourney;
 
-        //Get weapon scale
-        public static float shieldScaleX;
-        public static float shieldScaleY;
-
         //values for actual weapon texture.
         float xPos = 0;
         float yPos = 0;
@@ -120,10 +116,6 @@ namespace AmbidexterityModule
             largeTexture_Path = Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/shields/heater.png";
 
             altFPSWeapon = AltFPSWeapon.AltFPSWeaponInstance;
-
-            // Get weapon scale
-            shieldScaleX = (float)Screen.width / 320;
-            shieldScaleY = (float)Screen.height / 200;
 
             //set default shield texture properties.
             xPos = 0;
@@ -190,12 +182,12 @@ namespace AmbidexterityModule
             {
                 if (flip)
                 {
-                    shieldPos = new Rect(Screen.width * (.825f + xPos), Screen.height * (1.275f - yPos) - size * shieldScaleY, size * shieldScaleX, size * shieldScaleY);
+                    shieldPos = new Rect(Screen.width * (.825f + xPos), Screen.height * (1.275f - yPos) - size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY);
                     //flips the image 180 degrees.
                     shieldPos = new Rect(shieldPos.xMax, shieldPos.yMin, -shieldPos.width, shieldPos.height);
                 }
                 else
-                    shieldPos = new Rect(Screen.width * (-.175f - xPos), Screen.height * (1.275f - yPos) - size * shieldScaleY, size * shieldScaleX, size * shieldScaleY);
+                    shieldPos = new Rect(Screen.width * (-.175f - xPos), Screen.height * (1.275f - yPos) - size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY);
             }
             yield return new WaitForEndOfFrame();
         }
@@ -209,7 +201,14 @@ namespace AmbidexterityModule
             //checks to see if a current animation has been loaded yet by the manager. If not, load  player selected animation coroutine
             //to the current global static animation var.
             if (currentAnimation == null)
+            {
+                TimeCovered = 0;
+                totalTime = 0;
+                currentxPos = xPos;
+                currentyPos = yPos;
+                currentSize = size;
                 currentAnimation = StartCoroutine(loadAnimation);
+            }
 
             if (currentAnimationNumerator == null)
                 currentAnimationNumerator = loadAnimation;
@@ -218,16 +217,17 @@ namespace AmbidexterityModule
             if (currentAnimationNumerator.ToString() != loadAnimation.ToString())
             {
                 Debug.Log(currentAnimationNumerator + " || " + loadAnimation);
-                StopCoroutine(currentAnimation);
                 TimeCovered = 0;
                 totalTime = 0;
                 currentxPos = xPos;
                 currentyPos = yPos;
                 currentSize = size;
+                StopCoroutine(currentAnimation);
                 currentAnimation = StartCoroutine(loadAnimation);
                 currentAnimationNumerator = loadAnimation;
             }
-            else if (lerpfinished && reset)
+
+            if (currentAnimationNumerator.ToString() == loadAnimation.ToString() && reset)
             {
                 Debug.Log("RESET:" + currentAnimationNumerator + " || " + loadAnimation);
                 TimeCovered = 0;
@@ -237,10 +237,10 @@ namespace AmbidexterityModule
                 currentSize = size;
                 StopCoroutine(currentAnimation);
                 currentAnimation = StartCoroutine(loadAnimation);
-                return true;
             }
             //if animation/lerp calculator is finished reset animation/lerp calculator below and return a true for this bool.
-            else if (lerpfinished)
+
+            if (lerpfinished)
             {
                 StopCoroutine(currentAnimation);
                 TimeCovered = 0;
@@ -886,6 +886,7 @@ namespace AmbidexterityModule
             else if (totalTime > totalDuration)
             {
                 lerpfinished = true;
+                breatheTrigger = breathe;
                 if (!breathe)
                     return endValue;
                 else

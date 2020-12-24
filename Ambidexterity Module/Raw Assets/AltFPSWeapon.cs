@@ -66,6 +66,12 @@ namespace AmbidexterityModule
         public static float offsetX;
         static float posi;
         private float totalAnimationTime;
+
+        public float weaponReach;
+        public float AttackSpeedMod;
+        public float AttackMoveMod;
+        public float UnsheathedMoveMod;
+
         static float timeCovered;
         static float percentagetime;
         private float avgFrameRate;
@@ -135,7 +141,7 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if (!AmbidexterityManager.classicAnimations)
+                if (!AmbidexterityManager.classicAnimations )
                 {
                     if (!breatheTrigger)
                         // Distance moved equals elapsed time times speed.
@@ -168,7 +174,7 @@ namespace AmbidexterityModule
                 else if (percentagetime <= 0 && breatheTrigger)
                     breatheTrigger = false;
 
-                UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
+                //UnityEngine.Debug.Log(breatheTrigger.ToString() + " | " + AmbidexterityManager.AmbidexterityManagerInstance.AttackState.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString());
 
                 if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                 {
@@ -188,13 +194,13 @@ namespace AmbidexterityModule
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
-                    Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
+                    Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
                     AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackCast, out attackHit);
                     attackCasted = true;
                 }
                 else if (!hitObject && currentFrame >= 1 && AmbidexterityManager.physicalWeapons && !isParrying)
                 {
-                    Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * 2.5f;
+                    Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
 
                     if (weaponState == WeaponStates.StrikeRight)
                         attackcast = ArcCastCalculator(0, -35, 0, 0, 35, 0, percentagetime, attackcast);
@@ -207,7 +213,7 @@ namespace AmbidexterityModule
                     else if (weaponState == WeaponStates.StrikeDown)
                         attackcast = ArcCastCalculator(35, 0, 0, -30, 0, 0, percentagetime, attackcast);
                     else if (weaponState == WeaponStates.StrikeUp)
-                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, 2.5f, percentagetime));
+                        attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, weaponReach, percentagetime));
 
                     if (AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedAltFPSWeapon, attackcast, out attackHit))
                     {
@@ -257,7 +263,7 @@ namespace AmbidexterityModule
             weaponState = WeaponStates.Idle;
             AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
             AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = false;
-           GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
+            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
             posi = 0;
             offsetX = 0;
@@ -893,7 +899,7 @@ namespace AmbidexterityModule
             currentWeaponType = WeaponType;
             currentMetalType = MetalType;
             attackFrameTime = FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, WeaponType, WeaponHands);
-            totalAnimationTime = attackFrameTime * 5;
+            totalAnimationTime = attackFrameTime * 5 * AttackSpeedMod;
         }
 
         #region Texture Loading

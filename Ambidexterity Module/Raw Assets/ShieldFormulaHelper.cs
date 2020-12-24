@@ -16,7 +16,7 @@ namespace AmbidexterityModule
         public static ShieldFormulaHelper ShieldFormulaHelperInstance;
 
         #region BaseformulaOverwrite
-        public static int CalculateAttackDamage(DaggerfallEntity attacker, DaggerfallEntity target, int enemyAnimStateRecord, int weaponAnimTime, DaggerfallUnityItem weapon)
+        public static int CalculateAttackDamage(DaggerfallEntity attacker, DaggerfallEntity target, bool enemyAnimStateRecord, int weaponAnimTime, DaggerfallUnityItem weapon)
         {
             if (attacker == null || target == null)
                 return 0;

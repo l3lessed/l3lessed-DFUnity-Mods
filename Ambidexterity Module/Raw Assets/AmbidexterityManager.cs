@@ -11,6 +11,7 @@ using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -32,6 +33,7 @@ namespace AmbidexterityModule
         static GameObject console;
         //sets up dfAudioSource object to attach objects to and play sound from said object.
         public static DaggerfallAudioSource dfAudioSource;
+        private PlayerSpeedChanger playerSpeedChanger;
 
         public static int playerLayerMask;
 
@@ -61,9 +63,20 @@ namespace AmbidexterityModule
         private float EquipCountdownMainHand;
         private float EquipCountdownOffHand;
 
+        public float screenScaleX;
+        public float screenScaleY;
+
         float cooldownTime;
         public bool arrowLoading;
         public static Texture2D arrowLoadingTex;
+        public static Texture2D arrowUTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowU.png");
+        public static Texture2D arrowDTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowD.png");
+        public static Texture2D arrowLTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowL.png");
+        public static Texture2D arrowRTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowR.png");
+        public static Texture2D arrowBRTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBR.png");
+        public static Texture2D arrowBLTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBL.png");
+        public static Texture2D arrowTRTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowTR.png");
+        public static Texture2D arrowTLTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowTL.png");
         public Rect pos;
 
         //Use for keyinput routine. Stores how long since an attack key was pressed last.
@@ -103,8 +116,8 @@ namespace AmbidexterityModule
         public DaggerfallEntity targetEntity;
 
         //stores and instance of current equipped weapons.
-        private DaggerfallUnityItem mainHandItem;
-        private DaggerfallUnityItem offHandItem;
+        public DaggerfallUnityItem mainHandItem;
+        public DaggerfallUnityItem offHandItem;
         public DaggerfallUnityItem currentmainHandItem;
         public DaggerfallUnityItem currentoffHandItem;
 
@@ -124,10 +137,12 @@ namespace AmbidexterityModule
         public bool isAttacking;
         private bool lookDirAttack;
         private bool movementDirAttack;
-        public float offsetY = 0f;
-        public float offsetX = 0f;
-        public float size = 4f;
+        //public float offsetY = .495f;
+        //public float offsetX = .495f;
+        public int size = 22;
         private bool attackIndicator = true;
+        private float walkspeed;
+        private float runspeed;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -188,7 +203,7 @@ namespace AmbidexterityModule
 
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.
             dfAudioSource = GameManager.Instance.PlayerObject.AddComponent<DaggerfallAudioSource>();
-
+            playerSpeedChanger = GameManager.Instance.SpeedChanger;
             //check if player has left handed enabled and set in scripts.
             FPSShield.flip = GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal;
             OffHandFPSWeapon.flip = GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal;
@@ -220,12 +235,26 @@ namespace AmbidexterityModule
             movementDirAttack = settings.GetValue<bool>("AttackSettings", "MovementAttacking");
             lookDirAttack = settings.GetValue<bool>("AttackSettings", "LookDirectionAttacking");
             LookDirectionAttackThreshold = settings.GetValue<float>("AttackSettings", "LookDirectionAttackThreshold");
-            size = settings.GetValue<float>("AttackSettings", "IndicatorSize");
+            size = settings.GetValue<int>("IndicatorSettings", "IndicatorSize");
+            //offsetX = float.Parse(settings.GetValue<string>("IndicatorSettings", "offsetX"));
+            //offsetY = float.Parse(settings.GetValue<string>("IndicatorSettings", "offsetY"));
 
             Debug.Log("You're equipment is setup, and you feel limber and ready for anything.");
 
+            // Get weapon scale
+            screenScaleX = (float)Screen.width / 320f;
+            screenScaleY = (float)Screen.height / 200f;
+
+            // Adjust scale to be slightly larger when not using point filtering
+            // This reduces the effect of filter shrink at edge of display
+            if (DaggerfallUnity.Instance.MaterialReader.MainFilterMode != FilterMode.Point)
+            {
+                screenScaleX *= 1.01f;
+                screenScaleY *= 1.01f;
+            }
+
             //If not using classic animations, this limits the types of attacks and is central to ensuring the smooth animation system I'm working on can function correctly.
-            if(!classicAnimations)
+            if (!classicAnimations)
                 randomattack = new int[] { 1, 3, 4, 6 };
             //else revert to normal attack range.
             else
@@ -238,7 +267,7 @@ namespace AmbidexterityModule
 
             //register the formula calculate attack damage formula so can pull attack properties needed and zero out damage when player is blocking succesfully.
             //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\
-            FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, int, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);
+            FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);
 
             //converts string key setting into valid unity keycode. Ensures mouse and keyboard inputs work properly.
             offHandKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), offHandKeyString);
@@ -248,71 +277,63 @@ namespace AmbidexterityModule
             offhandWeapon.MetalType = MetalTypes.None;
             mainWeapon.WeaponType = WeaponTypes.Melee;
             mainWeapon.MetalType = MetalTypes.None;
-        }
 
+            pos = new Rect((Screen.width * 0.49999f) - (size * 0.49999f), (Screen.height * 0.5f) - (size * 0.5f), size, size);
+        }
 
         private void OnGUI()
         {
             GUI.depth = 1;
             if (Event.current.type.Equals(EventType.Repaint) && attackIndicator)
             {
-                Rect pos = new Rect();
-
                 if (direction == MouseDirections.Up)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowU.png");
-                    pos = new Rect(Screen.width * .493f, Screen.height * .481f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowUTex;                    
                 }
 
                 if (direction == MouseDirections.Down)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowD.png");
-                    pos = new Rect(Screen.width * .493f, Screen.height * .499f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowDTex;                   
                 }
 
                 if (direction == MouseDirections.Left)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowL.png");
-                    pos = new Rect(Screen.width * .488f, Screen.height * 0.489f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowLTex;                   
                 }
 
                 if (direction == MouseDirections.Right)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowR.png");
-                    pos = new Rect(Screen.width * 0.499f, Screen.height * 0.489f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowRTex;                    
                 }
 
                 if (direction == MouseDirections.DownLeft)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBL.png");
-                    pos = new Rect(Screen.width * 0.49f, Screen.height * 0.498f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowBLTex;                    
                 }
 
                 if (direction == MouseDirections.DownRight)
                 {
-                    arrowLoadingTex = FPSShield.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Ambidexterity Module/attackIcons/arrowBR.png");
-                    pos = new Rect(Screen.width * 0.498f, Screen.height * 0.498f, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
+                    arrowLoadingTex = arrowBRTex;                    
                 }
 
-                if(offsetY != 0 && offsetX != 0)
-                    pos = new Rect(Screen.width * offsetX, Screen.height * offsetY, size * ((float)Screen.width / 320), size * ((float)Screen.height / 200));
-
                 if(arrowLoadingTex != null)
-                    GUI.DrawTextureWithTexCoords(pos, arrowLoadingTex, new Rect(0.0f, 0.0f, .99f, .99f));
+                    GUI.DrawTextureWithTexCoords(pos, arrowLoadingTex, new Rect(0.0f, 0.0f, 1f, 1f));
             }
         }
 
         private void Update()
         {
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
-            if (GameManager.Instance.WeaponManager.Sheathed || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
             {
                 return; //show nothing.
             }
 
+            //if player has look direaction attack enabled, monitors the mouse and outputs the current moust duration.
             if (lookDirAttack)
-                Debug.Log(TrackMouseAttack().ToString());
+                TrackMouseAttack();
 
+            //attack indicator gui key switch monitoring. Allows player to flip on/off attack indicator.
             if (Input.GetKeyDown(toggleAttackIndicator) && attackIndicator)
                 attackIndicator = false;
             else if (Input.GetKeyDown(toggleAttackIndicator) && !attackIndicator)
@@ -365,7 +386,8 @@ namespace AmbidexterityModule
             if (AttackState == 0 && InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand))
                 ToggleHand();
 
-            if(!DaggerfallUnity.Settings.ClickToAttack)
+            //catches drag atack clicks to initiate classic drag attack mechanisms.
+            if (!DaggerfallUnity.Settings.ClickToAttack)
             {
                 if (!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) && !Input.GetKey(offHandKeyCode))
                 {
@@ -376,13 +398,13 @@ namespace AmbidexterityModule
                     isAttacking = true;
             }
 
-
             //checks to ensure equipment is the same, and if so, moves on. If not, updates the players equip state to ensure all script bool triggers are properly set to handle
             //each script and its corresponding animation systems.
             UpdateHands();
+            Debug.Log(AttackState.ToString());
+            //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
 
-            //Debug.Log(isHit.ToString() + " | " + AttackState.ToString() + " | " + equipState.ToString());
-
+            movementModifier();
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
             if (isHit && AttackState == 7)
@@ -419,15 +441,56 @@ namespace AmbidexterityModule
             }            
         }
 
+        //sets players current movement using overrides and override float values. Ensures triggered only once when setting values to save update cycles.
+        void movementModifier()
+        {
+            //if using override speeds and player is sheathed, flip off override and return to default/classic speeds.
+            if (playerSpeedChanger.useRunSpeedOverride && GameManager.Instance.WeaponManager.Sheathed)
+            {
+                playerSpeedChanger.useRunSpeedOverride = false;
+                playerSpeedChanger.useWalkSpeedOverride = false;
+                playerSpeedChanger.walkSpeedOverride = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
+                playerSpeedChanger.runSpeedOverride = playerSpeedChanger.GetRunSpeed(walkspeed);
+                return;
+            }
+
+            //the player isn't sheathed, idle, and player unsheathed override don't match current unsheathed movement calculated number, set unsheathed movement speed.
+            if(!GameManager.Instance.WeaponManager.Sheathed && AttackState == 0 && playerSpeedChanger.walkSpeedOverride != walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod))
+            {
+                playerSpeedChanger.useRunSpeedOverride = false;
+                playerSpeedChanger.useWalkSpeedOverride = false;
+                walkspeed = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
+                runspeed = playerSpeedChanger.GetRunSpeed(walkspeed);
+                playerSpeedChanger.walkSpeedOverride = walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod);
+                playerSpeedChanger.runSpeedOverride = runspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod);
+                playerSpeedChanger.useRunSpeedOverride = true;
+                playerSpeedChanger.useWalkSpeedOverride = true;
+                return;
+            }
+
+            //if the player is attacking, and has unsheathed movement speed already set in override, set to attack movement speed.
+            if (AttackState != 0 && playerSpeedChanger.walkSpeedOverride == walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod))
+            {
+                playerSpeedChanger.useRunSpeedOverride = false;
+                playerSpeedChanger.useWalkSpeedOverride = false;
+                walkspeed = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
+                runspeed = playerSpeedChanger.GetRunSpeed(walkspeed);
+                playerSpeedChanger.walkSpeedOverride = walkspeed * Math.Min(mainWeapon.AttackMoveMod, offhandWeapon.AttackMoveMod);
+                playerSpeedChanger.runSpeedOverride = runspeed * Math.Min(mainWeapon.AttackMoveMod, offhandWeapon.AttackMoveMod);
+                playerSpeedChanger.useRunSpeedOverride = true;
+                playerSpeedChanger.useWalkSpeedOverride = true;
+                return;
+            }
+        }
+
         //controls the parry and its related animations. Ensures proper parry animation is ran.
         void Parry()
         {
-            //sets weapon state to parry.
-            if(mainWeapon.WeaponType != WeaponTypes.Melee || mainWeapon.WeaponType != WeaponTypes.Bow)
+            //sets weapon state to parry if the player doesn't have a weapon that shouldn't be about to parry.
+            if((mainWeapon.WeaponType != WeaponTypes.Melee || mainWeapon.WeaponType != WeaponTypes.Bow) && AttackState == 0)
             {
                 if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    AttackState = 7;
                     mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, AltFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                     offhandWeapon.isParrying = true;
@@ -438,7 +501,6 @@ namespace AmbidexterityModule
 
                 if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    AttackState = 7;
                     offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, OffHandFPSWeapon.TotalAttackTime * .75f, 0, true, true));
                     //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                     mainWeapon.isParrying = true;
@@ -510,8 +572,7 @@ namespace AmbidexterityModule
                 {
                     //trigger offhand weapon attack animation routines.
                     mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, AltFPSWeapon.TotalAttackTime * .75f, 0, true, true));
-                    attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                    offhandWeapon.weaponState = (WeaponStates)attackState;
+                    offhandWeapon.weaponState = WeaponStateController();
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     StartCoroutine(offhandWeapon.AnimationCalculator());
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(offhandWeapon.weaponState);
@@ -524,13 +585,16 @@ namespace AmbidexterityModule
 
         WeaponStates WeaponStateController()
         {
+            //defaults to random attack select like classic if nothing overrides it.
             WeaponStates state = (WeaponStates)randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
 
+            //if player has drag attack selected, and either weapon attack key is pressed, then return the attack direction based on mouse drag,
             if (!DaggerfallUnity.Settings.ClickToAttack && (Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKey(offHandKeyCode)))
             {
                 return mainWeapon.OnAttackDirection(TrackMouseAttack());
             }           
 
+            //if movement based is selected, return one of four attacks based on movement direction.
             if (movementDirAttack)
             {
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveLeft))
@@ -542,9 +606,17 @@ namespace AmbidexterityModule
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                     return WeaponStates.StrikeDown;
             }
-                
+
+            //if using look direction setting, grab the current mouse direction.
             if (lookDirAttack)
-                return mainWeapon.OnAttackDirection(direction);
+            {
+                //if a mouse direction is active, activate proper attack for it.
+                if (direction != MouseDirections.None)
+                    return mainWeapon.OnAttackDirection(direction);
+                //if not, return a random attack.
+                else
+                    return state;
+            }
 
             return state;
         }
@@ -630,8 +702,8 @@ namespace AmbidexterityModule
         {
             if(mainWeapon.weaponState != WeaponStates.Idle)
                 return attackState = (int)mainWeapon.weaponState;
-            if (mainWeapon.weaponState != WeaponStates.Idle)
-                return attackState = (int)mainWeapon.weaponState;
+            if (offhandWeapon.weaponState != WeaponStates.Idle)
+                return attackState = (int)offhandWeapon.weaponState;
             if (mainWeapon.isParrying || offhandWeapon.isParrying)
                 return attackState = 7;
             if(mainWeapon.weaponState == WeaponStates.Idle && offhandWeapon.weaponState == WeaponStates.Idle && !mainWeapon.isParrying && !offhandWeapon.isParrying)
@@ -657,7 +729,7 @@ namespace AmbidexterityModule
 
             if (arrowLoading)
             {
-                Debug.Log(cooldownTime.ToString());
+                //Debug.Log(cooldownTime.ToString());
                 cooldownTime -= Time.deltaTime;
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
 
@@ -669,6 +741,7 @@ namespace AmbidexterityModule
                 return;
             }
 
+            //ensures proper bow fps weapon rendering no matter the players equip state.
             if(!DaggerfallUnity.Settings.BowLeftHandWithSwitching && !GameManager.Instance.WeaponManager.UsingRightHand)
             {
                 GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
@@ -972,18 +1045,26 @@ namespace AmbidexterityModule
 
             if (mainWeapon != null)
             {
+                List<float> Properties = WeaponProperty(null);
+                mainWeapon.weaponReach = Properties[0];
+                mainWeapon.AttackMoveMod = Properties[2];
+                mainWeapon.AttackSpeedMod = Properties[3];
+                mainWeapon.UnsheathedMoveMod = Properties[1];
+
                 if (GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
                 {
                     mainWeapon.WeaponType = WeaponTypes.Werecreature;
                     mainWeapon.MetalType = MetalTypes.None;
                     GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = SoundClips.None;
                     GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                    mainWeapon.equippedAltFPSWeapon = null;
                 }
                 else
                 {
                     //sets up offhand render for melee combat/fist sprite render.
                     mainWeapon.WeaponType = WeaponTypes.Melee;
                     mainWeapon.MetalType = MetalTypes.None;
+                    mainWeapon.equippedAltFPSWeapon = null;
                 }
 
                 setMelee = true;
@@ -991,17 +1072,25 @@ namespace AmbidexterityModule
 
             if (offhandWeapon != null)
             {
+                List<float> Properties = WeaponProperty(null);
+                offhandWeapon.weaponReach = Properties[0];
+                offhandWeapon.AttackMoveMod = Properties[2];
+                offhandWeapon.AttackSpeedMod = Properties[3];
+                offhandWeapon.UnsheathedMoveMod = Properties[1];
+
                 if (GameManager.Instance.PlayerEffectManager.IsTransformedLycanthrope())
                 {
                     offhandWeapon.WeaponType = WeaponTypes.Werecreature;
                     offhandWeapon.MetalType = MetalTypes.None;
                     offhandWeapon.SwingWeaponSound = SoundClips.SwingHighPitch;
+                    offhandWeapon.equippedOffHandFPSWeapon = null;
                 }
                 else
                 {
                     //sets up offhand render for melee combat/fist sprite render.
                     offhandWeapon.WeaponType = WeaponTypes.Melee;
                     offhandWeapon.MetalType = MetalTypes.None;
+                    offhandWeapon.equippedOffHandFPSWeapon = null;
                 }
 
                 setMelee = true;
@@ -1019,22 +1108,34 @@ namespace AmbidexterityModule
 
             if (mainWeapon != null)
             {
+                List<float> Properties = WeaponProperty(replacementWeapon);
                 mainWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(replacementWeapon);
                 mainWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(replacementWeapon);
+                mainWeapon.weaponReach = Properties[0];
+                mainWeapon.AttackMoveMod = Properties[2];
+                mainWeapon.AttackSpeedMod = Properties[3];
+                mainWeapon.UnsheathedMoveMod = Properties[1];
                 mainWeapon.WeaponHands = ItemEquipTable.GetItemHands(replacementWeapon);
                 GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = replacementWeapon.GetEquipSound();
                 GameManager.Instance.WeaponManager.ScreenWeapon.SwingWeaponSound = replacementWeapon.GetSwingSound();
+                mainWeapon.equippedAltFPSWeapon = replacementWeapon;
                 equippedWeapon = true;
             }
 
             if(offhandWeapon != null)
             {
+                List<float> Properties = WeaponProperty(replacementWeapon);
                 offhandWeapon.WeaponType = DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(replacementWeapon);
                 offhandWeapon.MetalType = DaggerfallUnity.Instance.ItemHelper.ConvertItemMaterialToAPIMetalType(replacementWeapon);
+                offhandWeapon.weaponReach = Properties[0];
+                offhandWeapon.AttackMoveMod = Properties[2];
+                offhandWeapon.AttackSpeedMod = Properties[3];
+                offhandWeapon.OffhandProhibited = Properties[4];
+                offhandWeapon.UnsheathedMoveMod = Properties[1];
                 offhandWeapon.WeaponHands = ItemEquipTable.GetItemHands(replacementWeapon);
                 offhandWeapon.SwingWeaponSound = replacementWeapon.GetSwingSound();
                 GameManager.Instance.WeaponManager.ScreenWeapon.DrawWeaponSound = replacementWeapon.GetEquipSound();
-
+                offhandWeapon.equippedOffHandFPSWeapon = replacementWeapon;
                 equippedWeapon = true;
             }
 
@@ -1043,14 +1144,15 @@ namespace AmbidexterityModule
 
         DaggerfallUnityItem weaponProhibited(DaggerfallUnityItem checkedWeapon, DaggerfallUnityItem replacementWeapon = null)
         {
+            List<float> Properties = WeaponProperty(checkedWeapon);
             //replacementWeapon weapon doesn't work curently because of issue with equipping and unequipping updating.
-            if (checkedWeapon != null && prohibitedWeapons.Contains(checkedWeapon.ItemTemplate.index))
+            if (checkedWeapon != null && Properties[4] == 0)
             {
                 DaggerfallUI.Instance.PopupMessage("This weapon throws your balance off too much to use.");
 
                 GameManager.Instance.PlayerEntity.ItemEquipTable.UnequipItem(checkedWeapon);
 
-                 return null;
+                return null;
             }                
             else
                 return checkedWeapon;
@@ -1139,7 +1241,7 @@ namespace AmbidexterityModule
         }
 
         //sends out raycast and returns true of hit an object and outputs the object to attackHit.
-        public bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit)
+        public bool AttackCast(DaggerfallUnityItem weapon, Vector3 attackcast, out GameObject attackHit, float reach = 2.25f)
         {
             bool hitObject = false;
             attackHit = null;
@@ -1152,9 +1254,9 @@ namespace AmbidexterityModule
             //reverts to raycasts when physical weapon setting is turned on.
             //this ensures multiple sphere hits aren't registered on the same entity/object.
             if (!physicalWeapons)
-                hitObject = Physics.SphereCast(ray, 0.25f, out hit, 2.5f, playerLayerMask);
+                hitObject = Physics.SphereCast(ray, 0.25f, out hit, reach, playerLayerMask);
             else
-                hitObject = Physics.Raycast(ray, out hit, 2.5f, playerLayerMask);
+                hitObject = Physics.Raycast(ray, out hit, reach, playerLayerMask);
 
             //if spherecast hits something, do....
             if (hitObject)
@@ -1162,9 +1264,9 @@ namespace AmbidexterityModule
                 //checks if it hit a environment object. If not, begins enemy damage work.
                 if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(weapon, hit)
                     // Fall back to simple ray for narrow cages https://forums.dfworkshop.net/viewtopic.php?f=5&t=2195#p39524
-                    || Physics.Raycast(ray, out hit, 2.5f, playerLayerMask))
+                    || Physics.Raycast(ray, out hit, reach, playerLayerMask))
                 {
-                    //grab hit entity properties for ues.
+                    //grab hit entity properties for use.
                     DaggerfallEntityBehaviour entityBehaviour = hit.transform.GetComponent<DaggerfallEntityBehaviour>();
                     EnemyAttack targetAttack = hit.transform.GetComponent<EnemyAttack>();
                     // Check if hit a mobile NPC
@@ -1182,7 +1284,7 @@ namespace AmbidexterityModule
                             //DaggerfallEntity enemyEntity = entityBehaviour.Entity;
                             //DaggerfallMobileUnit entityMobileUnit = entityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
                         }
-                        //else, play high or low pitch swing miss randomly.
+                        //else, play high or low pitch swing miss randomly. Used to stop crashes from hitting things like billboard npcs.
                         else
                         {
                             hitObject = false;
@@ -1195,6 +1297,82 @@ namespace AmbidexterityModule
                 }
             }
             return hitObject;
+        }
+
+        //input a weapon and return a list of a custom property values.
+        public List<float> WeaponProperty(DaggerfallUnityItem weapon, bool classicProperties = false)
+        {
+            //setup empty list to hold property values.
+            List<float> weaponProperty = new List<float>();
+
+            //check weapon to see if it isn't melee and doesn't contain weaponID and defaults to classic values if so.
+            if (classicProperties)
+            {
+                weaponProperty.Add(2.25f);
+                weaponProperty.Add(1);
+                weaponProperty.Add(1);
+                weaponProperty.Add(1);
+                weaponProperty.Add(1);
+                return weaponProperty;
+            }
+            //return custom property values.
+            else
+            {
+                //default to melee id.
+                int weaponID = 0;
+                //if it isn't melee weapon, pull id from template.
+                if (weapon != null)
+                    weaponID = weapon.ItemTemplate.index;
+                //dump stored properties into a new list.
+                weaponPropertyList("WeaponProperties.txt").TryGetValue(weaponID, out weaponProperty);
+                //grab the second item on the list, as that is weapon reach value.
+                return weaponProperty;
+            }
+        }
+
+        //sets up and outputs a dictionary that contains a float list of each custom weapon property, and stores those properties by item index number.
+        public Dictionary<int, List<float>> weaponPropertyList(string fileName)
+        {
+            //setup dictionaries and list to store values.
+            //master dictionary to store/index weapon property values based on the item index #.
+            Dictionary<int, List<float>> weaponPropertyList = new Dictionary<int,List<float>>();
+            //stores each txt line as a list item.
+            List<string> eachLine = new List<string>();
+            //stores each weapon property on each line in the txt file, which is used to convert to a float list and store in master dictionary.
+            List<string> eachWeaponProperty;
+
+            //dump the text file object data into a unassigned var for reading.
+            var sr = new StreamReader(Application.dataPath + "/StreamingAssets/Mods/" + fileName);
+            //read the dump contents from begginning to end and dump them into random var.
+            var fileContents = sr.ReadToEnd();
+            //destroy/close text file object.
+            sr.Close();
+            //reach contents of file, split on every new line, and dump new line into a list.
+            eachLine.AddRange(fileContents.Split("\n"[0]));
+            //use for loop to process each stored line to get individual content/weapon properies.
+            foreach (string line in eachLine)
+            {
+                //checks for - and skips to next itteration. Used for adding notes for players to text file.
+                if (line.Contains("-"))
+                    continue;
+                //create blank string list to store each string value/weapon property before float conversion.
+                eachWeaponProperty = new List<string>();
+                //split each line by the comma and add it to the new eachWeaponProperty list for reading below.
+                eachWeaponProperty.AddRange(line.Split(","[0]));
+                //create float list to store converted string values/weapon properties from eachWeaponProperty List.
+                List<float> weaponProperties = new List<float>();
+                //use for loop to go through string list
+                foreach (string weaponProperty in eachWeaponProperty)
+                {
+                    //add each convert weapon property string value to newly created float list.
+                    weaponProperties.Add(float.Parse(weaponProperty));
+                }
+                //add the weapon properties, using the created float list, to add the weapon properties to the dictionary.
+                weaponPropertyList.Add((int)weaponProperties[0], weaponProperties.GetRange(1,5));
+            }
+
+            //return created dictionary.
+            return weaponPropertyList;
         }
 
         /// <summary>
@@ -1317,7 +1495,7 @@ namespace AmbidexterityModule
             // Up-right and up-left aren't valid so the up range is expanded to fill the range
             // The remaining 60 deg quadrants trigger the diagonal attacks
             var radialSection = Mathf.CeilToInt(angle / 15f);
-            Debug.Log(angle.ToString());
+            //Debug.Log(angle.ToString());
             switch (radialSection)
             {
                 case 0: // 0 - 15 deg
