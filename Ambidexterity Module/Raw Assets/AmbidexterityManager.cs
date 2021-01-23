@@ -1146,7 +1146,7 @@ namespace AmbidexterityModule
         {
             List<float> Properties = WeaponProperty(checkedWeapon);
             //replacementWeapon weapon doesn't work curently because of issue with equipping and unequipping updating.
-            if (checkedWeapon != null && Properties[4] == 0)
+            if (Properties != null && Properties[4] == 0)
             {
                 DaggerfallUI.Instance.PopupMessage("This weapon throws your balance off too much to use.");
 
@@ -1302,27 +1302,29 @@ namespace AmbidexterityModule
         //input a weapon and return a list of a custom property values.
         public List<float> WeaponProperty(DaggerfallUnityItem weapon, bool classicProperties = false)
         {
-            //setup empty list to hold property values.
-            List<float> weaponProperty = new List<float>();
+            //setup empty list to hold property values and weaponid holder.
+            List<float> weaponProperty;
+            int weaponID;
+            //if no-weapon/melee set it to 0 for grabbing melee properties. If not, grabe weapon id from template.
+            if (weapon == null)
+                weaponID = 0;
+            else
+                weaponID = weapon.ItemTemplate.index;
 
-            //check weapon to see if it isn't melee and doesn't contain weaponID and defaults to classic values if so.
-            if (classicProperties)
+            //check weapon to see if it isn't melee OR doesn't contain weaponID then defaults to classic values if so.
+            if (classicProperties || !weaponPropertyList("WeaponProperties.txt").TryGetValue(weaponID, out weaponProperty))
             {
+                weaponProperty = new List<float>();
                 weaponProperty.Add(2.25f);
-                weaponProperty.Add(1);
-                weaponProperty.Add(1);
-                weaponProperty.Add(1);
-                weaponProperty.Add(1);
+                weaponProperty.Add(1f);
+                weaponProperty.Add(1f);
+                weaponProperty.Add(1f);
+                weaponProperty.Add(1f);
                 return weaponProperty;
             }
             //return custom property values.
             else
-            {
-                //default to melee id.
-                int weaponID = 0;
-                //if it isn't melee weapon, pull id from template.
-                if (weapon != null)
-                    weaponID = weapon.ItemTemplate.index;
+            {                
                 //dump stored properties into a new list.
                 weaponPropertyList("WeaponProperties.txt").TryGetValue(weaponID, out weaponProperty);
                 //grab the second item on the list, as that is weapon reach value.
