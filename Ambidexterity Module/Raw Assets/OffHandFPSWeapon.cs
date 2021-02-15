@@ -60,13 +60,12 @@ namespace AmbidexterityModule
         private bool breatheTrigger;
         private bool attackCasted;
 
-        public static float TotalAttackTime;
         public static float weaponScaleX;
         public static float weaponScaleY;
         static float offsetY;
         static float offsetX;
         static float posi;
-        private float totalAnimationTime;
+        public float totalAnimationTime;
         static float timeCovered;
         static float percentagetime;
         private float avgFrameRate;

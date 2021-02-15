@@ -46,6 +46,7 @@ namespace AmbidexterityModule
         const int nativeScreenWidth = 320;
         const int nativeScreenHeight = 200;
         int leftUnarmedAnimIndex = 0;
+        int[] totalfames = new int[] { 0, 1, 2, 3, 4 };
 
         //public static Coroutine ParryCoroutine;
         public Task ParryCoroutine;
@@ -59,14 +60,13 @@ namespace AmbidexterityModule
         private bool attackCasted;
         private bool hitObject;
 
-        public static float TotalAttackTime;
         public static float weaponScaleX;
         public static float weaponScaleY;
         public static float offsetY;
         public static float offsetX;
         static float posi;
-        private float totalAnimationTime;
-
+        public float totalAnimationTime;
+        private float smoothingRange;
         public float weaponReach;
         public float AttackSpeedMod;
         public float AttackMoveMod;
@@ -74,6 +74,7 @@ namespace AmbidexterityModule
 
         static float timeCovered;
         static float percentagetime;
+        private float framepercentage;
         private float avgFrameRate;
         private float attackFrameTime;
         private float animTickTime;
@@ -96,6 +97,7 @@ namespace AmbidexterityModule
         Stopwatch AnimationTimer = new Stopwatch();
         private static float timePass;
         private static float frameTime;
+        private float frametime;
 
         //*COMBAT OVERHAUL ADDITION*//
         //switch used to set custom offset distances for each weapon.
@@ -126,6 +128,9 @@ namespace AmbidexterityModule
             while (true)
             {
                 float totalTime;
+
+                frametime += Time.deltaTime;
+
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
                 //it grabs the current total animation time, amount of passed time, users fps,
@@ -138,6 +143,7 @@ namespace AmbidexterityModule
                 else
                     totalTime = totalAnimationTime;
 
+                //if there is a start time for the animation, then start the animation timer there.
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
@@ -161,9 +167,11 @@ namespace AmbidexterityModule
                 }
 
                 timeCovered = (float)Math.Round(timeCovered, 2);
+                frametime = (float)Math.Round(frametime, 2);
 
                 //how much time has passed in the animation
                 percentagetime = timeCovered / totalTime;
+                framepercentage = frametime / attackFrameTime;
 
                 if (!frameLock)
                     currentFrame = Mathf.FloorToInt(percentagetime * 5);
@@ -191,6 +199,7 @@ namespace AmbidexterityModule
 
                 offsetX = Mathf.Lerp(startX, endX, percentagetime);
                 offsetY = Mathf.Lerp(startY, endY, percentagetime);
+                posi = Mathf.Lerp(0, smoothingRange, framepercentage);
 
                 if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
                 {
@@ -220,6 +229,12 @@ namespace AmbidexterityModule
                         hitObject = true;
                         breatheTrigger = true;
                     }
+                }
+
+                if (frameBeforeStepping != currentFrame)
+                {
+                    frametime = 0;
+                    posi = 0;
                 }
 
                 UpdateWeapon();
@@ -256,6 +271,7 @@ namespace AmbidexterityModule
         {
             timeCovered = 0;
             currentFrame = 0;
+            frametime = 0;
             isParrying = false;
             breatheTrigger = false;
             hitObject = false;
@@ -386,14 +402,14 @@ namespace AmbidexterityModule
                         }
 
                     }
-                }                
+                }
 
                 //*COMBAT OVERHAUL ADDITION*//
                 //added offset checks for individual attacks and weapons. Also, allows for the weapon bobbing effect.
                 //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
                 //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying && false)
+                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying)
                 {
                     //bobbing system. Need to simplify this if then check.
                     if ((InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards)))
@@ -416,17 +432,23 @@ namespace AmbidexterityModule
                         offsetY = (bob * 1.5f) - .15f;
                     }
                 }
-                else if(!isParrying && false)
+                else if (!isParrying)
                 {
                     if (weaponState == WeaponStates.StrikeLeft)
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
                                 weaponAnimRecordIndex = 3;
-                                offsetX = posi - .65f;
+                                offsetX = posi - .95f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
+                                weaponAnimRecordIndex = 3;
+                                offsetX = posi - .66f;
                             }
                             else if (currentFrame == 2)
                             {
@@ -444,46 +466,52 @@ namespace AmbidexterityModule
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
+                            {
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 1];
+                                weaponAnimRecordIndex = 2;
+                                offsetX = posi - .55f;
+                                offsetY = -.18f;
+                            }
+                            else if (currentFrame == 1)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 2];
                                 weaponAnimRecordIndex = 2;
-                                offsetX = posi - .25f;
+                                offsetX = posi - .33f;
                             }
                             else
                             {
                                 offsetX = posi;
                             }
+
                         }
                         else if (WeaponType == WeaponTypes.Melee)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[2].startIndex + currentFrame];
-                            weaponAnimRecordIndex = 2;
-                            if (currentFrame <= 2)
-                            {
-                                offsetX = -.5f;
-                                offsetY = posi - .165f;
-                            }
-                            else if (currentFrame == 3)
-                            {
-                                offsetX = -.5f;
-                                offsetY = posi * -1;
-                            }
-                            else if (currentFrame == 4)
-                            {
-                                offsetX = -.5f;
-                                offsetY = posi - .165f;
-                            }
-                            else if (currentFrame == 5)
-                            {
-                                offsetX = -.5f;
-                                offsetY = posi * -1;
-                            }
+                            
+                        }
+                        else if (WeaponType == WeaponTypes.Staff)
+                        {
+                            if (currentFrame == 0)
+                                offsetX = posi - .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = posi - .33f + (.125f * currentFrame);
+                        }
+                        else if (WeaponType == WeaponTypes.LongBlade)
+                        {
+                            if (currentFrame == 0)
+                                offsetX = posi - .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = posi - .35f + (.1f * currentFrame);
                         }
                         else
                         {
-                            offsetX = posi;
-                            offsetY = (posi / 6) * -1;
+                            if (currentFrame == 0)
+                                offsetX = posi - .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = posi - .33f + (.11f * currentFrame);
                         }
 
                     }
@@ -491,11 +519,17 @@ namespace AmbidexterityModule
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
+                            {
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
+                                weaponAnimRecordIndex = 3;
+                                offsetX = posi - .95f;
+                            }
+                            else if (currentFrame == 1)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[4].startIndex + 3];
-                                weaponAnimRecordIndex = 4;
-                                offsetX = posi - .65f;
+                                weaponAnimRecordIndex = 3;
+                                offsetX = posi - .7f;
                             }
                             else if (currentFrame == 2)
                             {
@@ -508,16 +542,23 @@ namespace AmbidexterityModule
                             else
                             {
                                 offsetX = posi;
-                                offsetY = posi / 2;
+                                offsetY = (posi / 2) - .1f;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
+                            {
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + 1];
+                                weaponAnimRecordIndex = 2;
+                                offsetX = posi - .55f;
+                                offsetY = -.3f;
+                            }
+                            else if (currentFrame == 1)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + 2];
-                                weaponAnimRecordIndex = 5;
-                                offsetX = posi - .25f;
+                                weaponAnimRecordIndex = 2;
+                                offsetX = posi - .33f;
                             }
                             else
                             {
@@ -528,7 +569,6 @@ namespace AmbidexterityModule
                         {
                             if (currentFrame <= 1)
                             {
-                                lerpRange = .03f;
                                 offsetX = posi - .15f;
                                 offsetY = (posi / 2) - .15f;
                             }
@@ -545,7 +585,6 @@ namespace AmbidexterityModule
                             else if (currentFrame == 4)
                             {
                                 offsetX = (posi - .45f);
-                                //posi = posi + .004f;
                                 offsetY = ((posi / 2) * -1);
                             }
                         }
@@ -557,88 +596,125 @@ namespace AmbidexterityModule
                                 offsetY = (posi / 3) * -1;
                             offsetX = (posi * -1) + .3f;
                         }
+                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        {
+                            if (currentFrame == 0)
+                                offsetX = (posi * -1) + .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = (posi * -1) + .25f - (.1f * currentFrame);
+                        }
+                        else if (WeaponType == WeaponTypes.LongBlade)
+                        {
+                            if (currentFrame == 0)
+                                offsetX = posi - .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = posi - .35f + (.1f * currentFrame);
+                        }
                         else
                         {
-                            offsetX = posi;
-                            offsetY = (posi / 6) * -1;
+                            if (currentFrame == 0)
+                                offsetX = posi - .33f;
+
+                            if (currentFrame != 0)
+                                offsetX = posi - .33f + (.11f * currentFrame);
                         }
                     }
                     else if (weaponState == WeaponStates.StrikeDown)
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + 2];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi) - .25f;
-                                offsetY = (posi / 2) * -1;
+                                offsetX = (posi) - .4f;
+                                offsetY = ((posi / 2) * -1) + .1f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 2];
+                                weaponAnimRecordIndex = 2;
+                                offsetX = (posi) - .28f;
+                                offsetY = ((posi / 2) * -1) + .035f;
                             }
                             else if (currentFrame == 2)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) - .05f;
-                                offsetY = posi * -1;
+                                offsetX = (posi / 3) + .19f;
+                                offsetY = (posi * -1) - .15f;
                             }
                             else if (currentFrame == 3)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) - .05f;
-                                offsetY = (posi * -1) - .05f;
+                                offsetX = (posi / 3) + .2f;
+                                offsetY = (posi * -1) - .275f;
                             }
                             else
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 1];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) - .05f;
-                                offsetY = (posi * -1) - .1f;
+                                offsetX = (posi / 3) + .2f;
+                                offsetY = (posi * -1) - .375f;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 2];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 2;
-                                offsetX = (posi / 2) - .2f;
+                                offsetX = (posi / 2) - .33f;
                                 offsetY = ((posi) * -1) + .05f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                offsetX = (posi / 2) - .23f;
+                                offsetY = ((posi) * -1) - .2f;
                             }
                             else
                             {
-                                offsetX = posi / 4;
+                                offsetX = (posi / 4) - .15f;
                                 offsetY = (posi) * -1;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Battleaxe || WeaponType == WeaponTypes.Battleaxe_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, curAnimRect.width * 1.2f, curAnimRect.height * 1.2f);
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .05f;
-                                offsetY = (posi * -1.1f) + .1f;
+                                offsetX = (posi / 2) - .5f;
+                                offsetY = (posi * -1f) + .53f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
+                                weaponAnimRecordIndex = 6;
+                                offsetX = (posi / 2) - .34f;
+                                offsetY = (posi * -1f) + .23f;
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, curAnimRect.width * 1.2f, curAnimRect.height * 1.2f);
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .1f;
-                                offsetY = (posi * -1.1f) - .2f;
+                                offsetX = (posi / 2) - .18f;
+                                offsetY = (posi * -1f) - .13f;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetX = (posi / 3) + .1f;
-                                offsetY = (posi * -1.2f);
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
+                                weaponAnimRecordIndex = 1;
+                                offsetX = (posi / 2) + .2f;
+                                offsetY = (posi * -1f) - .33f;
                             }
                             else
                             {
-                                offsetX = (posi / 3) + .05f;
-                                offsetY = (posi * -1.3f) + .2f;
+                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
+                                weaponAnimRecordIndex = 1;
+                                offsetX = (posi / 2) + .28f;
+                                offsetY = (posi * -1f) - .28f;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
@@ -667,79 +743,67 @@ namespace AmbidexterityModule
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .35f;
+                                offsetX = (posi / 2) - .33f;
                                 offsetY = (posi * -1f) + .3f;
                             }
                             else if (currentFrame == 1)
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .25f;
-                                offsetY = (posi * -1f) + .1f;
+                                offsetX = (posi / 2) - .17f;
+                                offsetY = (posi * -1f) - .05f;
                             }
                             else if (currentFrame == 2)
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .15f;
-                                offsetY = (posi * -1f);
+                                offsetX = (posi / 2) - .05f;
+                                offsetY = (posi * -1f) - .15f;
                             }
                             else if (currentFrame == 3)
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3) - .1f;
-                                offsetY = (posi * -1f);
+                                offsetX = (posi / 3) + .1f;
+                                offsetY = (posi * -1f) - .17F;
                             }
                             else
                             {
                                 curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3);
-                                offsetY = (posi * -1f) - .252f;
+                                offsetX = (posi / 3) + .2f;
+                                offsetY = (posi * -1f) - .23F;
                             }
                         }
                     }
                     else if (weaponState == WeaponStates.StrikeUp)
                     {
-                        if ((WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic) && currentFrame < 4)
+                        if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            offsetY = (posi / 2) - .22f;
-                        }
-                        else if ((WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic) && currentFrame == 4)
-                        {
-                            curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
-                            offsetY = (posi / 2) - .11f;
-                        }
-                        else if (WeaponType == WeaponTypes.Melee)
-                        {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
-                                weaponAnimRecordIndex = 5;
-                                offsetX = posi;
-                                offsetY = posi - .14f;
+                                offsetY = (posi / 2) - .20f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                offsetX = (posi / 7) * -1;
+                                offsetY = (posi / 2) - .17f;
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
-                                weaponAnimRecordIndex = 5;
-                                offsetX = posi;
-                                offsetY = posi - .14f;
+                                offsetX = (posi / 6) * -1 - .05f;
+                                offsetY = (posi / 2) - .13f;
                             }
-                            else if (currentFrame == 3)
+                            if (currentFrame == 3)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
-                                weaponAnimRecordIndex = 5;
-                                offsetX = posi;
-                                offsetY = (posi * -1);
+                                offsetX = (posi / 5) * -1 - .12f;
+                                offsetY = (posi / 2) - .07f;
                             }
                             else if (currentFrame == 4)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
-                                weaponAnimRecordIndex = 5;
-                                offsetX = posi;
-                                offsetY = (posi * -1);
+                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + 2];
+                                offsetX = (posi / 4) * -1 - .12f;
+                                offsetY = (posi / 3) - .105f;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
@@ -753,29 +817,29 @@ namespace AmbidexterityModule
                         }
                         else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
                         {
-                            if (currentFrame <= 1)
+                            if (currentFrame == 0)
                             {
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[0].startIndex];
                                 weaponAnimRecordIndex = 0;
-                                offsetX = .25f;
-                                offsetY = (posi * -1) * 2.2f;
+                                offsetY = (posi * -1) * 2f;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                weaponAnimRecordIndex = 6;
+                                offsetY = posi - 1f;
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + currentFrame];
                                 weaponAnimRecordIndex = 6;
-                                offsetX = .25f;
-                                offsetY = posi - .65f;
+                                offsetY = posi - .816f;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetX = .25f;
-                                offsetY = posi - .45f;
+                                offsetY = posi - .614f;
                             }
                             else if (currentFrame == 4)
                             {
-                                offsetX = .25f;
-                                offsetY = posi - .25f;
+                                offsetY = posi - .312f;
                             }
                         }
                         else
@@ -794,17 +858,21 @@ namespace AmbidexterityModule
                             else if (currentFrame == 2)
                             {
                                 weaponAnimRecordIndex = 6;
-                                offsetY = posi - .756f;
+                                offsetY = posi - .816f;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetY = posi - .504f;
+                                offsetY = posi - .614f;
                             }
                             else if (currentFrame == 4)
                             {
-                                offsetY = posi - .252f;
+                                offsetY = posi - .312f;
                             }
                         }
+                    }
+                    else if (weaponState == WeaponStates.StrikeDownRight)
+                    {
+                        offsetY = posi - .14f;
                     }
                 }
 
@@ -898,8 +966,13 @@ namespace AmbidexterityModule
             // Store current weapon
             currentWeaponType = WeaponType;
             currentMetalType = MetalType;
-            attackFrameTime = FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, WeaponType, WeaponHands);
-            totalAnimationTime = attackFrameTime * 5 * AttackSpeedMod;
+            attackFrameTime = (FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, WeaponType, WeaponHands)) * AttackSpeedMod;
+            totalAnimationTime = attackFrameTime * 5;
+
+            if(WeaponType == WeaponTypes.Melee)
+                smoothingRange = .14f;
+            else
+                smoothingRange = .33f;
         }
 
         #region Texture Loading
