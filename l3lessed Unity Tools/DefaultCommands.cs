@@ -648,12 +648,13 @@ namespace Wenzil.Console
             public static string Execute(params string[] args)
             {
                 float speed;
+                string UID;
                 PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;
 
                 if (speedChanger == null)
                     return error;
 
-                if (args == null || args.Length > 4 || args.Length < 1)
+                if (args == null || args.Length < 1)
                 {
                     try
                     {
@@ -669,7 +670,10 @@ namespace Wenzil.Console
                 }
                 else if (!float.TryParse(args[0], out speed))
                 {
-                    return error;
+                    if (speedChanger.RemoveSpeedMod(args[0].ToString()))
+                        return string.Format("Walk speed modifier" + speed + " removed");
+                    else
+                        return error;
                 }
                 else if (speed != -1 && speed != -2 && speed < 0)
                 {
@@ -687,8 +691,8 @@ namespace Wenzil.Console
                 }
                 else
                 {
-                    speedChanger.AddWalkSpeedMod(speed);
-                    return string.Format("Walk speed set to: {0}", speed);
+                    speedChanger.AddWalkSpeedMod(out UID,speed);
+                    return string.Format("Walk speed " + UID + " set to: {0}", speed);
                 }
 
             }
@@ -704,12 +708,13 @@ namespace Wenzil.Console
             public static string Execute(params string[] args)
             {
                 float speed;
+                string UID;
                 PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;
 
                 if (speedChanger == null)
                     return error;
 
-                if (args == null || args.Length > 4 || args.Length < 1)
+                if (args == null || args.Length < 1)
                 {
                     try
                     {
@@ -726,7 +731,10 @@ namespace Wenzil.Console
                 }
                 else if (!float.TryParse(args[0], out speed))
                 {
-                    return error;
+                    if (speedChanger.RemoveSpeedMod(args[0].ToString(), true))
+                        return string.Format("Run speed modifier" + speed + " removed", speedChanger.runSpeedOverride);
+                    else
+                        return error;
                 }
                 else if(speed != -1 && speed != -2 && speed < 0)
                 {
@@ -744,8 +752,8 @@ namespace Wenzil.Console
                 }
                 else
                 {
-                    speedChanger.AddRunSpeedMod(speed);
-                    return string.Format("Run speed set to: {0}", speed);
+                    speedChanger.AddRunSpeedMod(out UID, speed);
+                    return string.Format("Run speed " + UID + " set to: {0}", speed);
                 }
             }
         }

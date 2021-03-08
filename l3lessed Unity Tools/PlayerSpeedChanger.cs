@@ -165,20 +165,22 @@ namespace DaggerfallWorkshop.Game
         /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.</param>
         /// <param name="refreshWalkSpeed">will cause routine to also update the player speed using the list to sequentially multiply the current base value by the list modifier values.</param>
         /// <returns></returns>        
-        public string AddWalkSpeedMod(float walkSpeedModifier = 0, bool refreshWalkSpeed = true)
+        public bool AddWalkSpeedMod(out string UUID, float walkSpeedModifier = 0, bool refreshWalkSpeed = true)
         {
-            string UUID = null;
+            bool added = false;
+            UUID = null;
 
             //if they set a speed modifier greater than 0, grab the list index using count, and add item (which will be at the lastID index spot).
             if (walkSpeedModifier > 0)
             {
                 UUID = System.Guid.NewGuid().ToString();
                 walkSpeedModifierList.Add(UUID, walkSpeedModifier);
+                added = true;
             }
             //trigger an update to the walk speed loop to push updated walk speed value.
             updateWalkSpeed = refreshWalkSpeed;
 
-            return UUID;
+            return added;
         }
 
         /// <summary>
@@ -187,21 +189,23 @@ namespace DaggerfallWorkshop.Game
         /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.</param>
         /// <param name="refreshWalkSpeed">will cause routine to also update the player speed using the list to sequentially multiply the current base value by the list modifier values.</param>
         /// <returns></returns>        
-        public string AddRunSpeedMod(float speedModifier = 0, bool refreshRunSpeed = true)
+        public bool AddRunSpeedMod(out string UUID, float speedModifier = 0, bool refreshRunSpeed = true)
         {
-            string UUID = null;
+            bool added = false;
+            UUID = null;
 
             //if they set a speed modifier greater than 0, grab the list index using count, and add item (which will be at the lastID index spot).
             if (speedModifier > 0)
             {
                 UUID = System.Guid.NewGuid().ToString();
                 runSpeedModifierList.Add(UUID, speedModifier);
+                added = true;
             }
 
             //trigger an update to the walk speed loop to push updated walk speed value.
             updateRunSpeed = refreshRunSpeed;
 
-            return UUID;
+            return added;
         }
 
         /// <summary>
