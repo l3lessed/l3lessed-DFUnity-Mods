@@ -162,7 +162,7 @@ namespace DaggerfallWorkshop.Game
         /// <summary>
         /// Add custom walk speed modifier to speed modifer dictionary. Returns unique ID for referencing of custom speedModifier for future manipulation.
         /// </summary>
-        /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.
+        /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.</param>
         /// <param name="refreshWalkSpeed">will cause routine to also update the player speed using the list to sequentially multiply the current base value by the list modifier values.</param>
         /// <returns></returns>        
         public string AddWalkSpeedMod(float walkSpeedModifier = 0, bool refreshWalkSpeed = true)
@@ -184,7 +184,7 @@ namespace DaggerfallWorkshop.Game
         /// <summary>
         /// Add custom walk speed modifier to speed modifer dictionary. Returns unique ID for referencing of custom speedModifier for future manipulation.
         /// </summary>
-        /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.
+        /// <param name="speedModifier">the amount to change players base walk speed by percentages. AKA, .75 will lower player movement by 25%. Using 0 or negatives will do nothing but return null.</param>
         /// <param name="refreshWalkSpeed">will cause routine to also update the player speed using the list to sequentially multiply the current base value by the list modifier values.</param>
         /// <returns></returns>        
         public string AddRunSpeedMod(float speedModifier = 0, bool refreshRunSpeed = true)
@@ -205,9 +205,9 @@ namespace DaggerfallWorkshop.Game
         }
 
         /// <summary>
-        /// remove custom walk speed modifier from speed modifer dictionary using stored UID. Returns true if removed, false if not found.
+        /// remove custom speed modifier from speed modifer dictionary using stored UID. Returns true if removed, false if not found. Ensure to set if it is a run or walk speed modifier being removed.
         /// </summary>
-        /// <param name="UUID">The Unique Universal ID created and provided when original value was added to dictionary.
+        /// <param name="UUID">The Unique Universal ID created and provided when original value was added to dictionary.</param>
         /// <param name="refreshWalkSpeed">will cause routine to also update the player speed using the list to sequentially multiply the current base value by the list modifier values.</param>
         /// <returns></returns>   
         public bool RemoveSpeedMod(string UUID, bool removeRunSpeed = false, bool refresSpeed = true)
@@ -224,7 +224,6 @@ namespace DaggerfallWorkshop.Game
             {
                 walkSpeedModifierList.Remove(UUID);
                 removed = true;
-                Debug.Log("removed: " + UUID);
             }
 
             //if there is a modifier put in, see if dictionary contains it in the unique keys, and then remove and return true.
@@ -232,7 +231,6 @@ namespace DaggerfallWorkshop.Game
             {
                 runSpeedModifierList.Remove(UUID);
                 removed = true;
-                Debug.Log("removed: " + UUID);
             }
 
             //trigger an update to the walk speed loop to push updated walk speed value.
@@ -242,17 +240,24 @@ namespace DaggerfallWorkshop.Game
             return removed;
         }
 
+        /// <summary>
+        /// Clears our associated modifier list of all values. default to clearing out both run and walk speed modifier list.
+        /// </summary>
+        /// <param name="walkSpeedReset">clear out walk speed modifier list.</param>
+        /// <param name="runSpeedReset">clear out run speed modifier list</param>
         public bool ResetSpeed(bool walkSpeedReset = true, bool runSpeedReset = true)
         {
             bool reset = false;
 
+            //if walk speed is reset, reset all needed properties to reset walk speed.
             if(walkSpeedReset)
             {
                 walkSpeedModifierList.Clear();
                 reset = true;
                 updateWalkSpeed = true;
-            }                
+            }
 
+            //if run speed is reset, reset all needed properties to reset run speed.
             if (runSpeedReset)
             {
                 runSpeedModifierList.Clear();
@@ -292,7 +297,6 @@ namespace DaggerfallWorkshop.Game
                         //once first move next is done to get speed from base value, start while loop to sequentally calculate subsequent values.
                         while (modifierValue.MoveNext())
                         {
-                            Debug.Log(modifierValue.Current.Key.ToString() + " Modified: " + overrideSpeed);
                             overrideSpeed = overrideSpeed * modifierValue.Current.Value;
                         }
                     }
@@ -336,7 +340,6 @@ namespace DaggerfallWorkshop.Game
                         //once first move next is done to get speed from base value, start while loop to sequentally calculate subsequent values.
                         while (modifierValue.MoveNext())
                         {
-                            Debug.Log(modifierValue.Current.Key.ToString() + " Modified: " + overrideSpeed);
                             overrideSpeed = overrideSpeed * modifierValue.Current.Value;
                         }
                     }

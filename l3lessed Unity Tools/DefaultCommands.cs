@@ -653,7 +653,7 @@ namespace Wenzil.Console
                 if (speedChanger == null)
                     return error;
 
-                if (args == null || args.Length < 3)
+                if (args == null || args.Length > 4 || args.Length < 1)
                 {
                     try
                     {
@@ -677,8 +677,8 @@ namespace Wenzil.Console
                 }
                 else if (speed == -1)
                 {
-                    speedChanger.walkSpeedOverride = false;
-                    return string.Format("Walk speed modifiers disabled.");
+                    speedChanger.walkSpeedOverride = !speedChanger.walkSpeedOverride;
+                    return string.Format("Walk speed override set to: {0}", speedChanger.walkSpeedOverride);
                 }
                 else if (speed == -2)
                 {
@@ -704,16 +704,16 @@ namespace Wenzil.Console
             public static string Execute(params string[] args)
             {
                 float speed;
-                PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;//GameObject.FindObjectOfType<PlayerMotor>();
+                PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;
 
                 if (speedChanger == null)
                     return error;
 
-                if (args == null || args.Length < 4)
+                if (args == null || args.Length > 4 || args.Length < 1)
                 {
                     try
                     {
-                        Console.Log(string.Format("Current RunSpeed: {0}", speedChanger.currentRunSpeed));
+                        Console.Log(string.Format("Current Run Speed: {0}", speedChanger.currentRunSpeed));
                         return HelpCommand.Execute(SetRunSpeed.name);
 
                     }
@@ -734,8 +734,8 @@ namespace Wenzil.Console
                 }
                 else if (speed == -1)
                 {
-                    speedChanger.runSpeedOverride = false;
-                    return string.Format("Run speed modifiers disabled.");
+                    speedChanger.runSpeedOverride = !speedChanger.runSpeedOverride;
+                    return string.Format("Run speed override set to: {0}", speedChanger.runSpeedOverride);
                 }
                 else if (speed == -2)
                 {
