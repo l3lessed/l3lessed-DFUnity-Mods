@@ -1,0 +1,5 @@
+--This text file contains the custom terrain tile properties.--
+--As an example, the current terrain ID in the text file is the general snow wilderness tile & reduces the users speed by 25%--
+--It can be configured by adding to or editing the current values using the below formatting standard--
+--TerrainTileID,SpeedModifier
+2,.75
