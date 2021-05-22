@@ -31,11 +31,11 @@ namespace DaggerfallWorkshop.Game.Minimap
         public Marker marker = new Marker();
 
         //object general properties.
-        private GameObject npcMarkerObject;
-        private Material material;
-        private Vector3 markerScale;
-        private IEnumerator updateMarkerRoutine;
-        private float frameTime;
+        public GameObject npcMarkerObject;
+        public Material material;
+        public Vector3 markerScale;
+        public IEnumerator updateMarkerRoutine;
+        public float frameTime;
 
         private void Start()
         {

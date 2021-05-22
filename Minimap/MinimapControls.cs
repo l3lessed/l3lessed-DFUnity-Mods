@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,31 +19,31 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         public Color lastColor;
 
-        public float redValue = 1;
-        public float blueValue = 0;
-        public float greenValue = .25f;
+        public float redValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].r;
+        public float blueValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].b;
+        public float greenValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].g;
         public float alphaValue = 1f;
-        public float blendValue = .4f;
-        public static Color colorSelector = new Color(1, .25f, 0);
+        public float blendValue;
+        public static Color colorSelector = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops];
         public float lastBlend;
         public float lastAlphaValue;
         public float minimapRotationValue;
 
         private int selectedIconInt = 0;
 
-        public bool lastIconGroupActive = true;
-        public bool lastLabelActive = true;
-        public bool lastIndicatorActive = true;
+        public bool lastIconGroupActive;
+        public bool lastLabelActive;
+        public bool lastIndicatorActive;
         public bool labelIndicatorActive = true;
         public bool iconsIndicatorActive = true;
         public bool smartViewActive = true;
-        public bool autoRotateActive = false;
+        public bool autoRotateActive;
         public bool minimapMenuEnabled;
         public bool updateMinimap;
         public bool fullScreenMinimap;
 
         private string selectedIcon = "Shops";
-        public bool realDetectionEnabled = true;
+        public bool realDetectionEnabled;
         public bool cameraDetectionEnabled;
         private string viewType;
 
@@ -67,7 +68,6 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             // Register the window. We create two windows that use the same function
             // Notice that their IDs differ
-            Debug.Log(Screen.width);
             
             minimapControlsRect = GUI.Window(0, new Rect(Screen.width * .4f, Screen.height * .25f, 270, 350), MinimapControls, "Enchantment Adjustments", currentStyle);
         }
@@ -228,10 +228,12 @@ namespace DaggerfallWorkshop.Game.Minimap
             Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
             Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt] = blendValue;
 
+            Debug.Log(Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt]);
+
             //sets minimap transperency level.
-            Minimap.MinimapInstance.minimapMask.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, .01f);
-            Minimap.MinimapInstance.minimapCanvas.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
-            Minimap.MinimapInstance.minimapInterface.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, .01f);
+            Minimap.MinimapInstance.publicMinimapRender.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicCompass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
 
             //sets stores current values to check for changes as update loops.
             lastColor = colorSelector;
@@ -243,13 +245,11 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             //runs indicator code, which destroys and rebuilds indicators to refresh them.
             //need to add a refresh routine, so don't have to keep rebuilding anytime we want to refresh.
-            Minimap.MinimapInstance.SetupBuildingIndicators();
+            Minimap.MinimapInstance.UpdateBuildingMarkers();
             Minimap.MinimapInstance.SetupPlayerIndicator();
             Minimap.MinimapInstance.SetupNPCIndicators();
-            Minimap.MinimapInstance.SetupMinimapCameras();
-
-            if ((Minimap.MarkerGroups)selectedIconInt == Minimap.MarkerGroups.Resident || (Minimap.MarkerGroups)selectedIconInt == Minimap.MarkerGroups.Enemies || (Minimap.MarkerGroups)selectedIconInt == Minimap.MarkerGroups.Friendlies)
-                Minimap.MinimapInstance.UpdateNpcMarkers();
+            Minimap.MinimapInstance.SetupMinimapCameras();            
+            Minimap.MinimapInstance.UpdateNpcMarkers();
         }
     }
 }
