@@ -43,7 +43,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public bool fullScreenMinimap;
 
         private string selectedIcon = "Shops";
-        public bool realDetectionEnabled;
+        public bool realDetectionEnabled = true;
         public bool cameraDetectionEnabled;
         private string viewType;
 

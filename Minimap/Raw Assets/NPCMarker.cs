@@ -12,8 +12,10 @@ namespace DaggerfallWorkshop.Game.Minimap
             public float markerDistance;
             public bool isActive;
             public bool inVision;
+            public bool inLOS;
             public LayerMask markerLayerMask;
             public Material npcMarkerMaterial;
+            public EnemySenses enemySenses;
 
             public Marker()
             {
@@ -21,9 +23,11 @@ namespace DaggerfallWorkshop.Game.Minimap
                 markerType = Minimap.MarkerGroups.None;
                 isActive = false;
                 inVision = false;
+                inLOS = false;
                 markerLayerMask = 10;
                 markerDistance = 0;
-                npcMarkerMaterial = Minimap.minimapMarkerMaterial;
+                npcMarkerMaterial = Minimap.buildingMarkerMaterial;
+                enemySenses = null;
             }
         }
 
@@ -36,6 +40,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public Vector3 markerScale;
         public IEnumerator updateMarkerRoutine;
         public float frameTime;
+        private bool startMarkerUpdates;
 
         private void Start()
         {
@@ -69,6 +74,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 marker.markerType = Minimap.MarkerGroups.Friendlies;
                 marker.npcMarkerMaterial.color = Color.green;
                 npcMarkerObject.SetActive(false);
+                npcMarkerObject.name = npcMarkerObject.name + " " + mobileNPC.NameNPC;
             }
             //if enemy npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             else if (mobileEnemy != null)
@@ -76,6 +82,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 marker.npcMarkerMaterial.color = Color.red;
                 marker.markerType = Minimap.MarkerGroups.Enemies;
                 npcMarkerObject.SetActive(false);
+                marker.enemySenses = GetComponentInParent<DaggerfallEnemy>().GetComponent<EnemySenses>();
             }
             //if static npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             else if (flatNPC != null)
@@ -87,56 +94,90 @@ namespace DaggerfallWorkshop.Game.Minimap
             else
             {
                 marker.isActive = false;
-            }
-
-            //start efficient update routine to update markers.
-            updateMarkerRoutine = UpdateMarker();
-            StartCoroutine(updateMarkerRoutine);
+            }      
         }
 
-        public IEnumerator UpdateMarker()
+        void Update()
         {
-            while (true)
-            {
-                //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
-                if (Minimap.fps > 60)
-                    frameTime = .017f;
-                else
-                    frameTime = .034f;
+            UnityEngine.Profiling.Profiler.BeginSample("NPC Scripts");
+            float timePass =+ Time.deltaTime;
 
+            //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
+
+            if (timePass > .1f)
+            {
+                timePass = 0;
                 //if the marker is turned off compleetly, turn off marker object and stop any further updates.
                 if (!marker.isActive)
                 {
-                    yield return new WaitForSecondsRealtime(.017f);
+                    Debug.Log(npcMarkerObject.name + " | " + ObjectInView() + " | " + NPCinLOS());
+                    marker.markerObject.SetActive(false);
+                    return;
                 }
                 //if player has camera detect and realistic detection off, enable npc marker. This setting turns on all markers.
                 else if (!Minimap.minimapControls.cameraDetectionEnabled && !Minimap.minimapControls.realDetectionEnabled)
                 {
                     marker.markerObject.SetActive(true);
-                    yield return new WaitForSecondsRealtime(frameTime);
+                    return;
                 }
                 //if marker is active, check if it is in view, and if so, turn on. If not, turn off.
                 else if (Minimap.minimapControls.cameraDetectionEnabled && !Minimap.minimapControls.realDetectionEnabled)
                 {
                     if (!ObjectInView() && marker.markerObject.activeSelf)
-                            marker.markerObject.SetActive(false);
+                        marker.markerObject.SetActive(false);
                     else if (ObjectInView() && !marker.markerObject.activeSelf)
-                            marker.markerObject.SetActive(true);
-                    yield return new WaitForSecondsRealtime(frameTime);
+                        marker.markerObject.SetActive(true);
+                    return;
                 }
                 //if marker is active, check if it is in view and within detection radius, and if so, turn on.
                 //If not and more than half the distance away, turn off marker.
                 else if (Minimap.minimapControls.realDetectionEnabled)
                 {
-                    if (marker.markerObject.activeSelf && !ObjectInView() && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2)
-                        marker.markerObject.SetActive(false);
-                    else if(!marker.markerObject.activeSelf && ObjectInView() && MarkerDistanceFromPlayer() < Minimap.minimapSensingRadius)
-                        marker.markerObject.SetActive(true);
-                }
+                    //if it is an active enemy, only show their icon when they are in actual line of sight of player.
+                    //a hostile would actively try to mask their position until seen.                
+                    if (marker.markerType == Minimap.MarkerGroups.Enemies)
+                    {
+                        if (marker.enemySenses.TargetInSight)
+                            marker.markerObject.SetActive(true);
+                        else
+                            marker.markerObject.SetActive(false);
+                    }
+                    //else if friendly, show within radius.
+                    else
+                    {
+                        if (NPCinLOS() && ObjectInView())
+                        {
+                            marker.markerObject.SetActive(true);
+                        }
+                        else if ((MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2) || !NPCinLOS())
+                            marker.markerObject.SetActive(false);
 
-                //return and restart loop based on optimized frameTime value.
-                yield return new WaitForSecondsRealtime(frameTime);
+                        //if (marker.markerObject.activeSelf && !ObjectInView() && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2)
+                        //marker.markerObject.SetActive(false);
+                        //else if(!marker.markerObject.activeSelf && ObjectInView() && MarkerDistanceFromPlayer() < Minimap.minimapSensingRadius)
+                        //marker.markerObject.SetActive(true);
+                    }
+                }
             }
+
+            UnityEngine.Profiling.Profiler.EndSample();
+        }       
+
+        public bool NPCinLOS()
+        {
+            RaycastHit hit;
+            Ray ray = new Ray(transform.position, GameManager.Instance.PlayerController.transform.position - transform.position);
+            if (Physics.Raycast(ray, out hit, Minimap.minimapSensingRadius))
+            {
+                PlayerMotor playerCheck = hit.transform.GetComponent<PlayerMotor>();
+
+                if(playerCheck != null)
+                    marker.inLOS = true;
+                else
+                    marker.inLOS = false;
+            }
+
+            return marker.inLOS;
         }
 
         //gets npc/marker distance from player.
