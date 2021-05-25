@@ -41,6 +41,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public IEnumerator updateMarkerRoutine;
         public float frameTime;
         private bool startMarkerUpdates;
+        private float timePass;
 
         private void Start()
         {
@@ -100,17 +101,14 @@ namespace DaggerfallWorkshop.Game.Minimap
         void Update()
         {
             UnityEngine.Profiling.Profiler.BeginSample("NPC Scripts");
-            float timePass =+ Time.deltaTime;
+            timePass += Time.deltaTime;
 
             //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
-
-            if (timePass > .1f)
+            if(timePass > .048f)
             {
-                timePass = 0;
                 //if the marker is turned off compleetly, turn off marker object and stop any further updates.
                 if (!marker.isActive)
                 {
-                    Debug.Log(npcMarkerObject.name + " | " + ObjectInView() + " | " + NPCinLOS());
                     marker.markerObject.SetActive(false);
                     return;
                 }
@@ -133,33 +131,16 @@ namespace DaggerfallWorkshop.Game.Minimap
                 //If not and more than half the distance away, turn off marker.
                 else if (Minimap.minimapControls.realDetectionEnabled)
                 {
-                    //if it is an active enemy, only show their icon when they are in actual line of sight of player.
-                    //a hostile would actively try to mask their position until seen.                
-                    if (marker.markerType == Minimap.MarkerGroups.Enemies)
+                    if (!marker.markerObject.activeSelf && NPCinLOS() && ObjectInView())
                     {
-                        if (marker.enemySenses.TargetInSight)
-                            marker.markerObject.SetActive(true);
-                        else
-                            marker.markerObject.SetActive(false);
+                        marker.markerObject.SetActive(true);
                     }
-                    //else if friendly, show within radius.
-                    else
-                    {
-                        if (NPCinLOS() && ObjectInView())
-                        {
-                            marker.markerObject.SetActive(true);
-                        }
-                        else if ((MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2) || !NPCinLOS())
-                            marker.markerObject.SetActive(false);
-
-                        //if (marker.markerObject.activeSelf && !ObjectInView() && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2)
-                        //marker.markerObject.SetActive(false);
-                        //else if(!marker.markerObject.activeSelf && ObjectInView() && MarkerDistanceFromPlayer() < Minimap.minimapSensingRadius)
-                        //marker.markerObject.SetActive(true);
-                    }
+                    else if (marker.markerObject.activeSelf && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2 && !ObjectInView())
+                        marker.markerObject.SetActive(false);
                 }
+                timePass = 0;
             }
-
+                
             UnityEngine.Profiling.Profiler.EndSample();
         }       
 

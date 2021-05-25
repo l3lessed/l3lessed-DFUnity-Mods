@@ -110,7 +110,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         private float deltaTime;
         public static float fps;
         private float timePass;
-        public float minimapSizeMult = .25f;
+        public float minimapSizeMult = .35f;
         public float multi;
 
         private string currentLocationName;
@@ -253,7 +253,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             minimapCamera = Instantiate(minimapCamera);
 
             //create and assigned a new render texture for passing camera view into texture.
-            minimapTexture = new RenderTexture(256, 256, 0, RenderTextureFormat.ARGB32);
+            minimapTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
             minimapTexture.Create();
 
             //get minimap size based on screen width.
@@ -685,7 +685,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                     if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GeneralStore)
                     {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 24, 0, true, 0);
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
                         textboxRect.sizeDelta = new Vector2(125, 100);
                     }
 
@@ -706,16 +706,21 @@ namespace DaggerfallWorkshop.Game.Minimap
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 46, 0, true, 0);
                     }
 
+                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Alchemist)
+                    {
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 41, 0, true, 0);
+                    }
+
                     buildingInfo.marker.iconGroup = MarkerGroups.Shops;
                     updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
                 }
                 else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.WeaponSmith || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Armorer)
                 {
                     if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Armorer)
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.249", 30, 0, true, 0);
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.249", 05, 0, true, 0);
 
                     if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.WeaponSmith)
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 29, 0, true, 0);
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.207", 00, 0, true, 0);
 
                     buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
                     updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
@@ -724,7 +729,19 @@ namespace DaggerfallWorkshop.Game.Minimap
                 {
                     if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Library)
                     {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.081", 0, 0, true, 0);
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 57, 0, true, 0);
+                        textboxRect.sizeDelta = new Vector2(75, 100);
+                    }
+
+                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Temple)
+                    {
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 0, 0, true, 0);
+                        textboxRect.sizeDelta = new Vector2(75, 100);
+                    }
+
+                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GuildHall)
+                    {
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
                         textboxRect.sizeDelta = new Vector2(75, 100);
                     }
 
@@ -735,7 +752,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 {
                     buildingInfo.marker.iconGroup = MarkerGroups.Government;
                     updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                    Destroy(buildingIcon);
+                    buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
                 }
                 else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House1 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House2 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House3 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House4 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House5 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House6)
                 {
@@ -926,7 +943,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
             foreach (MobilePersonNPC mobileNPC in mobileNPCArray)
             {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 1.0f);
+                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
                 float time =+ Time.deltaTime;
                 npcMarker npcMarkerObject = mobileNPC.GetComponent<npcMarker>();
 
@@ -941,7 +958,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
             foreach (DaggerfallEnemy mobileEnemy in mobileEnemyArray)
             {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 1.0f);
+                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
                 float time = +Time.deltaTime;
 
                 npcMarker npcMarkerObject = mobileEnemy.GetComponent<npcMarker>();
@@ -956,7 +973,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
             foreach (StaticNPC staticNPC in flatNPCArray)
             {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 1.0f);
+                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
                 float time = +Time.deltaTime;
 
                 npcMarker npcMarkerObject = staticNPC.GetComponent<npcMarker>();
@@ -986,17 +1003,15 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                 if (isInside)
                 {
+                    indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .05f, 1, 6f);
                     markerScale = new Vector3(indicatorSize, .01f, indicatorSize);
                     npcMarkerObject.marker.markerObject.transform.localScale = markerScale;
-                    indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .05f, 1, 6f);
-                    minimapCameraHeight = GameManager.Instance.PlayerMotor.FindGroundPosition().y + 2f;
                 }
                 else
                 {
+                    indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .06f, 1, 7);
                     markerScale = new Vector3(indicatorSize, .01f, indicatorSize);
                     npcMarkerObject.marker.markerObject.transform.localScale = markerScale;
-                    indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .06f, 1, 7);
-                    minimapCameraHeight = 800;
                 }
 
                 npcMarkerObject.marker.isActive = iconGroupActive[npcMarkerObject.marker.markerType];
