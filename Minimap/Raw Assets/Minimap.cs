@@ -100,7 +100,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public float minimapViewSize;
         private float savedMinimapSize;
         private float savedMinimapViewSize;
-        public float iconSize = .7f;
+        public float iconSize = .75f;
         public float nearClipValue;
         public float farClipValue;
         public static float minimapSensingRadius = 40;
@@ -264,7 +264,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //sets up minimap render canvas that render camera texture it projected to.
             publicMinimapRender = CanvasConstructor(false, "Rendering Layer", false, false, true, true, false, 1, 1, new Vector3(0, 0, 0), minimapTexture, 0);
             //sets up bearing directions canvas layer.
-            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .7f, .7f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
+            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
             //sets up the golden compass canvas layer.
             publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1.03f, 1.13f, new Vector3((minimapSize * .46f) * -1, (minimapSize * .365f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/pixalatedGoldCompass.png"), 1);
             //attaches rendering canvas to the main minimap mask canvas.
@@ -274,7 +274,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //attaches golden compass canvas to main screen layer canvas.
             publicCompass.transform.SetParent(GameObject.Find("Canvas Screen Space").transform);
             //zeros out bearings canvas position so it centers on its parent canvas layer.
-            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
+            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(1, 1, 0);
             //zeros out rendering canvas position so it centers on its parent canvas layer.
             publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //sets the golden compass canvas to the proper screen position on the main screen space layer so it sits right on top of the rendreing canvas.
@@ -606,7 +606,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             minimapCameraHeight = gameObjectPlayerAdvanced.transform.position.y + tallestSpot + 1f;
 
             foreach (BuildingMarker buildingInfo in buildingInfoCollection)
-            {               
+            {
                 //gets buildings largest side size for label multiplier.
                 float sizeMultiplier;
                 if (buildingInfo.staticBuilding.size.x > buildingInfo.staticBuilding.size.y)
@@ -663,116 +663,126 @@ namespace DaggerfallWorkshop.Game.Minimap
                 Destroy(textObject.GetComponent<Collider>());
                 textObject.SetActive(false);
 
-                if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Tavern)
+                float widthRatio = 0;
+                switch (buildingInfo.buildingSummary.BuildingType)
                 {
-                    buildingInfo.marker.iconGroup = MarkerGroups.Taverns;
-                    buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                }
-                else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.ClothingStore || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.FurnitureStore || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GemStore || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GeneralStore || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.PawnShop || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Bookseller || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Alchemist)
-                {
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.ClothingStore)
-                    {
+                    case DFLocation.BuildingTypes.Tavern:
+                        buildingInfo.marker.iconGroup = MarkerGroups.Taverns;
+                        Debug.Log(widthRatio);
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .898f, 0, sizeMultiplier * iconSize);
+                        break;
+                    case DFLocation.BuildingTypes.ClothingStore:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.204", 0, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.88f, 0, sizeMultiplier * iconSize);
                         textboxRect.sizeDelta = new Vector2(125, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.FurnitureStore)
-                    {
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.FurnitureStore:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.200", 14, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .66f, 0, sizeMultiplier * iconSize);
                         textboxRect.sizeDelta = new Vector2(125, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GeneralStore)
-                    {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
-                        textboxRect.sizeDelta = new Vector2(125, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.PawnShop)
-                    {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.208", 3, 0, true, 0);
-                        textboxRect.sizeDelta = new Vector2(80, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Bookseller)
-                    {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.209", 0, 0, true, 0);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Bank)
-                    {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 46, 0, true, 0);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Alchemist)
-                    {
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.Alchemist:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 41, 0, true, 0);
-                    }
-
-                    buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                }
-                else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.WeaponSmith || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Armorer)
-                {
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Armorer)
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .885f, 0, sizeMultiplier * iconSize);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.Bank:
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 0, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.63f, 0, sizeMultiplier * iconSize * 1.25f);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.Bookseller:
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.209", 0, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 2.01f, 0, sizeMultiplier * iconSize );
+                        textboxRect.sizeDelta = new Vector2(75, 100);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.GemStore:
+                        //needs updated. THis is copy paste record.
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 19, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.4f, 0, sizeMultiplier * iconSize);
+                        textboxRect.sizeDelta = new Vector2(122, 100);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.GeneralStore:
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.37f, 0, sizeMultiplier * iconSize);
+                        textboxRect.sizeDelta = new Vector2(125, 100);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.PawnShop:
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 33, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.5f, 0, sizeMultiplier * iconSize * .5f);
+                        textboxRect.sizeDelta = new Vector2(125, 100);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
+                        break;
+                    case DFLocation.BuildingTypes.Armorer:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.249", 05, 0, true, 0);
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.WeaponSmith)
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.02f, 0, sizeMultiplier * iconSize * 1.25f);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
+                        break;
+                    case DFLocation.BuildingTypes.WeaponSmith:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.207", 00, 0, true, 0);
-
-                    buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                }
-                else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GuildHall || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Temple || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Library)
-                {
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Library)
-                    {
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 57, 0, true, 0);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Temple)
-                    {
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.1f, 0, sizeMultiplier * iconSize * 1.2f);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
+                        break;
+                    case DFLocation.BuildingTypes.Temple:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 0, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize * .5f);
                         textboxRect.sizeDelta = new Vector2(75, 100);
-                    }
-
-                    if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.GuildHall)
-                    {
+                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
+                        break;
+                    case DFLocation.BuildingTypes.Library:
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 28, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .73f, 0, sizeMultiplier * iconSize);
+                        textboxRect.sizeDelta = new Vector2(75, 100);
+                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
+                        break;
+                    case DFLocation.BuildingTypes.GuildHall:
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.25f, 0, sizeMultiplier * iconSize * .75f);
                         textboxRect.sizeDelta = new Vector2(75, 100);
-                    }
+                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
+                        break;
+                    case DFLocation.BuildingTypes.Palace:
+                        buildingInfo.marker.iconGroup = MarkerGroups.Government;
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .86f, 0, sizeMultiplier * iconSize * .7f);
+                        break;
+                    case DFLocation.BuildingTypes.House1:
+                    case DFLocation.BuildingTypes.House2:
+                    case DFLocation.BuildingTypes.House3:
+                    case DFLocation.BuildingTypes.House4:
+                    case DFLocation.BuildingTypes.House5:
+                    case DFLocation.BuildingTypes.House6:                    
+                        buildingInfo.marker.iconGroup = MarkerGroups.Houses;
+                        textObject.GetComponent<TMPro.TextMeshPro>().text = "House";
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.211", 37, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.09f, 0, sizeMultiplier * iconSize);
+                        break;
+                    case DFLocation.BuildingTypes.HouseForSale:
+                        buildingInfo.marker.iconGroup = MarkerGroups.Houses;
+                        textObject.GetComponent<TMPro.TextMeshPro>().text = "House Sale";
+                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.212", 4, 0, true, 0);
+                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize * 1.77f);
+                        break;
+                    case DFLocation.BuildingTypes.None:
+                        Destroy(buildingIcon);
+                        Destroy(textObject);
+                        Destroy(buildingMesh);
+                        continue;
+                }
+                //updates materials based on user settings saved to dictionary.
+                updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
 
-                    buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                }
-                else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.Palace)
-                {
-                    buildingInfo.marker.iconGroup = MarkerGroups.Government;
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                    buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
-                }
-                else if (buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House1 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House2 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House3 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House4 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House5 || buildingInfo.buildingSummary.BuildingType == DFLocation.BuildingTypes.House6)
-                {
-                    buildingInfo.marker.iconGroup = MarkerGroups.Houses;
-                    textObject.GetComponent<TMPro.TextMeshPro>().text = "House";
-                    buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.211", 38, 0, true, 0);
-                    updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-                }
-                else
-                {
-                    Destroy(buildingIcon);
-                    Destroy(textObject);
-                }
-
+                //attaches all above objects to the marker constructor class.
                 buildingInfo.marker.attachedMesh = buildingMesh;
                 buildingInfo.marker.attachedLabel = textObject;
                 buildingInfo.marker.attachedIcon = buildingIcon;
                 buildingInfo.marker.position = new Vector3(buildingInfo.position.x, buildingInfo.position.y + tallestSpot + 10, buildingInfo.position.z);
-
-                Debug.Log("Marker: " + buildingInfo.marker.attachedIcon);
 
                 //turn off the indicator once transperency goes below a level it isn't helpful.
                 if (iconGroupTransperency[buildingInfo.marker.iconGroup] > .8f)
