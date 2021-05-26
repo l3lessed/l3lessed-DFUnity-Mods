@@ -205,7 +205,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 294, 60, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Mark", currentToggleStyle);           
 
             //assign selected color to color selector.
-            colorSelector = new Color(redValue, greenValue, blueValue, 1);
+            colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
 
             //check if any controls have been updated, and if so, pushed window trigger update.
             if (lastColor != colorSelector || blendValue != lastBlend || alphaValue != lastAlphaValue || labelIndicatorActive != lastLabelActive || iconsIndicatorActive != lastIndicatorActive || lastIconGroupActive != Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt])

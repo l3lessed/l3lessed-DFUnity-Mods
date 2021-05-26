@@ -64,6 +64,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         private GameObject gameObjectPlayerAdvanced;
         public GameObject minimapMaterialObject;
         private GameObject buildingMesh;
+        private GameObject buildingIcon;
         public GameObject gameobjectBeaconPlayerPosition;
         public GameObject gameobjectPlayerMarkerArrow;
         public GameObject mainCamera;
@@ -162,16 +163,16 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         public static Dictionary<MarkerGroups, float> iconGroupTransperency = new Dictionary<MarkerGroups, float>()
         {
-            {MarkerGroups.Shops, 0 },
-            {MarkerGroups.Blacksmiths, 0 },
-            {MarkerGroups.Houses, 0 },
-            {MarkerGroups.Taverns, 0 },
-            {MarkerGroups.Utilities, 0 },
-            {MarkerGroups.Government, 0 },
-            {MarkerGroups.Friendlies, 0 },
-            {MarkerGroups.Enemies, 0 },
-            {MarkerGroups.Resident, 0 },
-            {MarkerGroups.None, 0 }
+            {MarkerGroups.Shops, 1 },
+            {MarkerGroups.Blacksmiths, 1 },
+            {MarkerGroups.Houses, 1 },
+            {MarkerGroups.Taverns, 1 },
+            {MarkerGroups.Utilities, 1 },
+            {MarkerGroups.Government, 1 },
+            {MarkerGroups.Friendlies, 1 },
+            {MarkerGroups.Enemies, 1 },
+            {MarkerGroups.Resident, 1 },
+            {MarkerGroups.None, 1 }
         };
 
         public static Dictionary<MarkerGroups, bool> iconGroupActive = new Dictionary<MarkerGroups, bool>()
@@ -188,6 +189,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             {MarkerGroups.None, false}
         };
         private float lastIndicatorSize;
+        public List<GameObject> buildingIcons = new List<GameObject>();
 
         //sets up marker groups to assign each marker type. This is crucial for seperating and controlling each indicator types appearance and use.
         //technically, you can add to this enum, add to the individual dictionary's, and construct your own marker group to assign to specific objects/npcs.
@@ -627,7 +629,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                 //setup icons for building.
                 Material iconMaterial = new Material(iconMarkerMaterial);
-                GameObject buildingIcon = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                buildingIcon = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 buildingIcon.name = "Building Icon";
                 buildingIcon.transform.position = buildingMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, .3f, 0);
                 buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize);
@@ -663,12 +665,10 @@ namespace DaggerfallWorkshop.Game.Minimap
                 Destroy(textObject.GetComponent<Collider>());
                 textObject.SetActive(false);
 
-                float widthRatio = 0;
                 switch (buildingInfo.buildingSummary.BuildingType)
                 {
                     case DFLocation.BuildingTypes.Tavern:
                         buildingInfo.marker.iconGroup = MarkerGroups.Taverns;
-                        Debug.Log(widthRatio);
                         buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
                         buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .898f, 0, sizeMultiplier * iconSize);
                         break;
@@ -799,7 +799,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             Material buildingMarkermaterial = new Material(buildingMarkerMaterial);
             buildingMarkermaterial.SetFloat("_DistortionEnabled", 1f);
             buildingMarkermaterial.SetFloat("_DistortionStrength", 1f);
-            buildingMarkermaterial.SetFloat("_DistortionBlend", DistortionBlend);
+            buildingMarkermaterial.SetFloat("_DistortionBlend", 0);
             buildingMarkermaterial.SetFloat("_Mode", 3f);
             buildingMarkermaterial.SetFloat("__ColorMode", 3);
             buildingMarkermaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
@@ -828,10 +828,16 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             if(buildingInfoCollection == null)
                 return;
-
-            foreach(BuildingMarker buildingMarker in buildingInfoCollection)
+            foreach (BuildingMarker buildingMarker in buildingInfoCollection)
             {
+                //updates building mesh material.
                 updateMaterials(buildingMarker.marker.attachedMesh, iconGroupColors[buildingMarker.marker.iconGroup], iconGroupTransperency[buildingMarker.marker.iconGroup]);
+                //grabs icon material.
+                Material iconMaterial = buildingMarker.marker.attachedIcon.GetComponent<MeshRenderer>().material;
+                //sets its transperency level.
+                iconMaterial.SetColor("_Color",new Color (1,1,1, iconGroupTransperency[buildingMarker.marker.iconGroup]));
+                //reassigns it back to icon for update.
+                buildingMarker.marker.attachedIcon.GetComponent<MeshRenderer>().material = iconMaterial;
             }
         }
 
