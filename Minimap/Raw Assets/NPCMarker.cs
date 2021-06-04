@@ -1,3 +1,4 @@
+using DaggerfallWorkshop.Utility;
 using System.Collections;
 using UnityEngine;
 namespace DaggerfallWorkshop.Game.Minimap
@@ -8,6 +9,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public class Marker
         {
             public GameObject markerObject;
+            public GameObject markerIcon;
             public Minimap.MarkerGroups markerType;
             public float markerDistance;
             public bool isActive;
@@ -20,13 +22,14 @@ namespace DaggerfallWorkshop.Game.Minimap
             public Marker()
             {
                 markerObject = null;
+                markerIcon = null;
                 markerType = Minimap.MarkerGroups.None;
                 isActive = false;
                 inVision = false;
                 inLOS = false;
                 markerLayerMask = 10;
                 markerDistance = 0;
-                npcMarkerMaterial = Minimap.buildingMarkerMaterial;
+                npcMarkerMaterial = null;
                 enemySenses = null;
             }
         }
@@ -35,62 +38,117 @@ namespace DaggerfallWorkshop.Game.Minimap
         public Marker marker = new Marker();
 
         //object general properties.
-        public GameObject npcMarkerObject;
-        public Material material;
         public Vector3 markerScale;
-        public IEnumerator updateMarkerRoutine;
+        private Vector3 iconScale;
         public float frameTime;
         private bool startMarkerUpdates;
         private float timePass;
+        private int[] textures;
 
         private void Start()
         {
+
             MobilePersonNPC mobileNPC = GetComponentInParent<MobilePersonNPC>();
             DaggerfallEnemy mobileEnemy = GetComponentInParent<DaggerfallEnemy>();
-            StaticNPC flatNPC = GetComponentInParent<StaticNPC>();
+            StaticNPC flatNPC = GetComponentInParent<StaticNPC>();           
 
-            //setup base npc marker object and properties.
-            npcMarkerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Destroy(npcMarkerObject.GetComponent<Collider>());
-            marker.npcMarkerMaterial = Minimap.updateMaterials(npcMarkerObject, Color.white, .5f);
-            marker.markerObject = npcMarkerObject;
+            //setup base npc marker object and properties.           
+            marker.markerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.markerObject.GetComponentInChildren<MeshRenderer>().material = Minimap.updateMaterials(marker.markerObject, Color.white, .5f);
+            marker.npcMarkerMaterial = marker.markerObject.GetComponentInChildren<MeshRenderer>().material;
+            Destroy(marker.markerObject.GetComponent<Collider>());        
+            marker.markerObject.name = "NPCMarker";
+            marker.markerObject.transform.SetParent(transform, false);
+            marker.markerObject.layer = 10;
+
+            marker.markerIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            marker.markerIcon.GetComponentInChildren<MeshRenderer>().material = new Material(Minimap.iconMarkerMaterial);
+            Destroy(marker.markerIcon.GetComponent<Collider>());
+            marker.markerIcon.name = "NPCIcon";
+            marker.markerIcon.transform.SetParent(transform, false);
+            marker.markerIcon.transform.localPosition = new Vector3(0, 1, 0);
+            marker.markerIcon.layer = 10;            
+            marker.markerIcon.SetActive(false);
+
             marker.isActive = true;
-            npcMarkerObject.name = "NPCMarker";
-            npcMarkerObject.transform.SetParent(transform, false);
-            npcMarkerObject.layer = 10;
 
             //check if player is inside or not, and then setup proper marker size.
             //This needs moved to update in some way, so it updates on entering a building/dungeon.
             if (GameManager.Instance.IsPlayerInside)
+            {
                 markerScale = new Vector3(Minimap.indicatorSize, .01f, Minimap.indicatorSize);
+                iconScale = new Vector3(Minimap.npcIconSize, .01f, Minimap.npcIconSize);
+            }
             else
+            {
                 markerScale = new Vector3(Minimap.indicatorSize, .01f, Minimap.indicatorSize);
+                iconScale = new Vector3(Minimap.npcIconSize, .01f, Minimap.npcIconSize);
+            }
+
 
             //set marker object scale.
-            npcMarkerObject.transform.localScale = markerScale;
+            marker.markerObject.transform.localScale = markerScale;
+            marker.markerIcon.transform.localScale = iconScale;
 
             //if friendly npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             if (mobileNPC != null)
             {
+                if (mobileNPC.IsGuard)
+                {
+                    textures = Minimap.guardTextures;
+                }
+                else
+                {
+                    switch (mobileNPC.Race)
+                    {
+                        case Entity.Races.Redguard:
+                            textures = (mobileNPC.Gender == Entity.Genders.Male) ? Minimap.maleRedguardTextures : Minimap.femaleRedguardTextures;
+                            break;
+                        case Entity.Races.Nord:
+                            textures = (mobileNPC.Gender == Entity.Genders.Male) ? Minimap.maleNordTextures : Minimap.femaleNordTextures;
+                            break;
+                        case Entity.Races.Breton:
+                        default:
+                            textures = (mobileNPC.Gender == Entity.Genders.Male) ? Minimap.maleBretonTextures : Minimap.femaleBretonTextures;
+                            break;
+                    }
+                }
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + textures[mobileNPC.PersonOutfitVariant], 5, 0, true, 0);
+
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = Color.green;
                 marker.markerType = Minimap.MarkerGroups.Friendlies;
                 marker.npcMarkerMaterial.color = Color.green;
-                npcMarkerObject.SetActive(false);
-                npcMarkerObject.name = npcMarkerObject.name + " " + mobileNPC.NameNPC;
+                marker.markerObject.SetActive(false);
+                marker.markerObject.name = marker.markerObject.name + " " + mobileNPC.NameNPC;
             }
             //if enemy npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             else if (mobileEnemy != null)
             {
+                DaggerfallMobileUnit mobileUnit = mobileEnemy.GetComponentInChildren<DaggerfallMobileUnit>();
+
+                // Monster genders are always unspecified as there is no male/female variant
+                if (mobileUnit.Summary.Enemy.Gender == MobileGender.Male || mobileUnit.Summary.Enemy.Gender == MobileGender.Unspecified)
+                    marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.MaleTexture, 0, 0, true, 0);
+                else
+                    marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.FemaleTexture, 0, 0, true, 0);
+
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = Color.red;
                 marker.npcMarkerMaterial.color = Color.red;
                 marker.markerType = Minimap.MarkerGroups.Enemies;
-                npcMarkerObject.SetActive(false);
+                marker.markerObject.SetActive(false);
                 marker.enemySenses = GetComponentInParent<DaggerfallEnemy>().GetComponent<EnemySenses>();
             }
             //if static npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             else if (flatNPC != null)
             {
+                DaggerfallBillboard billboardNPC = flatNPC.GetComponentInChildren<DaggerfallBillboard>();
+
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + billboardNPC.Summary.Archive, billboardNPC.Summary.Record,0, true, 0);
+
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = Color.yellow;
                 marker.npcMarkerMaterial.color = Color.yellow;
                 marker.markerType = Minimap.MarkerGroups.Resident;
-                npcMarkerObject.SetActive(false);
+                marker.markerObject.SetActive(false);
             }
             else
             {
@@ -107,36 +165,72 @@ namespace DaggerfallWorkshop.Game.Minimap
             if(timePass > .048f)
             {
                 //if the marker is turned off compleetly, turn off marker object and stop any further updates.
-                if (!marker.isActive)
+                if (marker.isActive == false)
                 {
                     marker.markerObject.SetActive(false);
+                    marker.markerIcon.SetActive(false);
                     return;
                 }
                 //if player has camera detect and realistic detection off, enable npc marker. This setting turns on all markers.
                 else if (!Minimap.minimapControls.cameraDetectionEnabled && !Minimap.minimapControls.realDetectionEnabled)
                 {
-                    marker.markerObject.SetActive(true);
+                    if (!Minimap.minimapPersonMarker)
+                    {
+                        marker.markerObject.SetActive(true);
+                        marker.markerIcon.SetActive(false);
+                    }
+                    else
+                    {
+                        marker.markerObject.SetActive(false);
+                        marker.markerIcon.SetActive(true);
+                    }
                     return;
                 }
                 //if marker is active, check if it is in view, and if so, turn on. If not, turn off.
                 else if (Minimap.minimapControls.cameraDetectionEnabled && !Minimap.minimapControls.realDetectionEnabled)
                 {
-                    if (!ObjectInView() && marker.markerObject.activeSelf)
-                        marker.markerObject.SetActive(false);
-                    else if (ObjectInView() && !marker.markerObject.activeSelf)
-                        marker.markerObject.SetActive(true);
+                    if (!ObjectInView())
+                    {
+                            marker.markerObject.SetActive(false);
+                            marker.markerIcon.SetActive(false);
+                    }
+                    else if (ObjectInView())
+                    {
+                        if (!Minimap.minimapPersonMarker && !marker.markerObject.activeSelf)
+                        {
+                            marker.markerObject.SetActive(true);
+                            marker.markerIcon.SetActive(false);
+                        }
+                        else if (Minimap.minimapPersonMarker && !marker.markerIcon.activeSelf)
+                        {
+                            marker.markerIcon.SetActive(true);
+                            marker.markerObject.SetActive(false);
+                        }
+                    }
                     return;
                 }
                 //if marker is active, check if it is in view and within detection radius, and if so, turn on.
                 //If not and more than half the distance away, turn off marker.
                 else if (Minimap.minimapControls.realDetectionEnabled)
                 {
-                    if (!marker.markerObject.activeSelf && NPCinLOS() && ObjectInView())
+                    if (NPCinLOS() && ObjectInView())
                     {
-                        marker.markerObject.SetActive(true);
+                        if(!Minimap.minimapPersonMarker && !marker.markerObject.activeSelf)
+                        {
+                            marker.markerObject.SetActive(true);
+                            marker.markerIcon.SetActive(false);
+                        }
+                        else if(Minimap.minimapPersonMarker && !marker.markerIcon.activeSelf)
+                        {
+                            marker.markerObject.SetActive(false);
+                            marker.markerIcon.SetActive(true);
+                        }
                     }
-                    else if (marker.markerObject.activeSelf && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2 && !ObjectInView())
+                    else if ((MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2 && !ObjectInView()) || !NPCinLOS())
+                    {
                         marker.markerObject.SetActive(false);
+                        marker.markerIcon.SetActive(false);
+                    }
                 }
                 timePass = 0;
             }
@@ -181,13 +275,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                 marker.inVision = false;
 
             return marker.inVision;
-        }
-
-        //forces maker off or not.
-        public static bool SetActive(bool isActive)
-        {
-            bool markerStatus = isActive;
-            return markerStatus;
         }
     }
 }
