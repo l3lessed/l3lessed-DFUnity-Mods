@@ -204,8 +204,8 @@ namespace DaggerfallWorkshop.Game.Minimap
             float.TryParse(GUI.TextField(new Rect(205, 226, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(greenValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out greenValue);
             blueValue = GUI.HorizontalSlider(new Rect(60, 256, 145, 25), blueValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(205, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
-            blendValue = GUI.HorizontalSlider(new Rect(60, 279, 145, 25), blendValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(205, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
+            alphaValue = GUI.HorizontalSlider(new Rect(60, 279, 145, 25), alphaValue, 0, 1);
+            float.TryParse(GUI.TextField(new Rect(205, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(alphaValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out alphaValue);
             Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 294, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Area", currentToggleStyle);
             if(Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] && (selectedIconInt == 6 || selectedIconInt == 7 || selectedIconInt == 8))
                 Minimap.minimapPersonMarker = GUI.Toggle(new Rect(135, 294, 120, 25), Minimap.minimapPersonMarker, "Scan Soul", currentToggleStyle);
