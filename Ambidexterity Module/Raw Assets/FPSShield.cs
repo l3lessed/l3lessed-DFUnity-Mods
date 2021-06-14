@@ -105,6 +105,7 @@ namespace AmbidexterityModule
         public static float vulnerableTime = 0;
         private float bob;
         private bool bobSwitch;
+        private int hitType;
 
         public float currentFrame { get; private set; }
         #endregion

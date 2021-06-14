@@ -1017,7 +1017,7 @@ namespace AmbidexterityModule
                 // Handle poisoned weapons
                 if (damage > 0 && weapon.poisonType != Poisons.None)
                 {
-                    FormulaHelper.InflictPoison(target, weapon.poisonType, false);
+                    FormulaHelper.InflictPoison(attacker, target, weapon.poisonType, false);
                     weapon.poisonType = Poisons.None;
                 }
             }

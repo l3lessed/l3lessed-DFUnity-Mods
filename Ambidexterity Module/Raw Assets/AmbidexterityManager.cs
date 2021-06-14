@@ -142,6 +142,11 @@ namespace AmbidexterityModule
         private bool attackIndicator = true;
         private float walkspeed;
         private float runspeed;
+        private float previousSpeed = 0;
+        private bool restoredWalk;
+        private bool attackApplied;
+        private string walkModUID;
+        private string runModUID;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -323,6 +328,9 @@ namespace AmbidexterityModule
 
         private void Update()
         {
+            //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
+            movementModifier();
+
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
             if (!GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
             {
@@ -411,8 +419,6 @@ namespace AmbidexterityModule
             //each script and its corresponding animation systems.
             UpdateHands();
 
-            //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
-            movementModifier();
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
             if (isHit && AttackState == 7)
@@ -452,41 +458,36 @@ namespace AmbidexterityModule
         //sets players current movement using overrides and override float values. Ensures triggered only once when setting values to save update cycles.
         void movementModifier()
         {
-            //if using override speeds and player is sheathed, flip off override and return to default/classic speeds.
-            if (playerSpeedChanger.useRunSpeedOverride && GameManager.Instance.WeaponManager.Sheathed)
+            //the player isn't sheathed, idle, and restoredWalk hasn't been triggered by sheathing yet. This is default movement speed unsheathed modifier.
+            if (!GameManager.Instance.WeaponManager.Sheathed && AttackState == 0 && !restoredWalk)
             {
-                playerSpeedChanger.useRunSpeedOverride = false;
-                playerSpeedChanger.useWalkSpeedOverride = false;
-                playerSpeedChanger.walkSpeedOverride = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
-                playerSpeedChanger.runSpeedOverride = playerSpeedChanger.GetRunSpeed(walkspeed);
+                playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
+                playerSpeedChanger.RemoveSpeedMod(runModUID, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, .75f, true);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, .75f, true);
+                restoredWalk = true;
+                attackApplied = false;
                 return;
             }
-
-            //the player isn't sheathed, idle, and player unsheathed override don't match current unsheathed movement calculated number, set unsheathed movement speed.
-            if(!GameManager.Instance.WeaponManager.Sheathed && AttackState == 0 && playerSpeedChanger.walkSpeedOverride != walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod))
+            //if the player is attacking, is unsheathed, and hasn't already had movement modifier attackApplied, set walkspeed based.
+            if (AttackState != 0 && !attackApplied)
             {
-                playerSpeedChanger.useRunSpeedOverride = false;
-                playerSpeedChanger.useWalkSpeedOverride = false;
-                walkspeed = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
-                runspeed = playerSpeedChanger.GetRunSpeed(walkspeed);
-                playerSpeedChanger.walkSpeedOverride = walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod);
-                playerSpeedChanger.runSpeedOverride = runspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod);
-                playerSpeedChanger.useRunSpeedOverride = true;
-                playerSpeedChanger.useWalkSpeedOverride = true;
+                playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
+                playerSpeedChanger.RemoveSpeedMod(runModUID, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, .1f, true);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, .1f, true);
+                attackApplied = true;
+                restoredWalk = false;
                 return;
             }
-
-            //if the player is attacking, and has unsheathed movement speed already set in override, set to attack movement speed.
-            if (AttackState != 0 && playerSpeedChanger.walkSpeedOverride == walkspeed * Math.Min(mainWeapon.UnsheathedMoveMod, offhandWeapon.UnsheathedMoveMod))
+            //if weapon is sheathed and restore walk has been set to true, restore sheathed movement speed using the last walk speed value.
+            if (GameManager.Instance.WeaponManager.Sheathed && restoredWalk)
             {
-                playerSpeedChanger.useRunSpeedOverride = false;
-                playerSpeedChanger.useWalkSpeedOverride = false;
-                walkspeed = playerSpeedChanger.GetWalkSpeed(GameManager.Instance.PlayerEntity);
-                runspeed = playerSpeedChanger.GetRunSpeed(walkspeed);
-                playerSpeedChanger.walkSpeedOverride = walkspeed * Math.Min(mainWeapon.AttackMoveMod, offhandWeapon.AttackMoveMod);
-                playerSpeedChanger.runSpeedOverride = runspeed * Math.Min(mainWeapon.AttackMoveMod, offhandWeapon.AttackMoveMod);
-                playerSpeedChanger.useRunSpeedOverride = true;
-                playerSpeedChanger.useWalkSpeedOverride = true;
+                playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
+                playerSpeedChanger.RemoveSpeedMod(runModUID, true);
+                restoredWalk = false;
+                attackApplied = false;
+                Debug.Log("restore walkspeed");
                 return;
             }
         }
@@ -529,7 +530,7 @@ namespace AmbidexterityModule
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
                     FPSShield.shieldStates = 7;
-                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true));
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     mainWeapon.weaponState = (WeaponStates)attackState;
@@ -546,7 +547,7 @@ namespace AmbidexterityModule
                     //both weapons are idle, then perform attack routine....
                     if (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None)
                     {
-                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true));
+                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
                         mainWeapon.weaponState = WeaponStateController();
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
@@ -566,7 +567,7 @@ namespace AmbidexterityModule
             if (AttackState == 0 && !FPSShield.shieldEquipped && AttackState != 7 && (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None))
             {
                 //trigger offhand weapon attack animation routines.
-                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true));
+                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
                 offhandWeapon.weaponState = WeaponStateController();
                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                 StartCoroutine(offhandWeapon.AnimationCalculator());
@@ -1245,6 +1246,7 @@ namespace AmbidexterityModule
             attackHit = null;
             //assigns the above triggered attackcast to the debug ray for easy debugging in unity.
             Debug.DrawRay(mainCamera.transform.position + (mainCamera.transform.forward * .25f), attackcast , Color.red, 5);
+
             //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
             RaycastHit hit;
             Ray ray = new Ray(mainCamera.transform.position, attackcast);
@@ -1275,7 +1277,7 @@ namespace AmbidexterityModule
                     //if attackable entity is hit, do....
                     if (entityBehaviour || mobileNpc)
                     {
-                        if (GameManager.Instance.WeaponManager.WeaponDamage(weapon, false, hit.transform, hit.point, mainCamera.transform.forward))
+                        if (GameManager.Instance.WeaponManager.WeaponDamage(weapon, false, false, hit.transform, hit.point, mainCamera.transform.forward))
                         {
                             hitObject = true;
                             //bashedEnemyEntity = entityBehaviour.Entity as EnemyEntity;
