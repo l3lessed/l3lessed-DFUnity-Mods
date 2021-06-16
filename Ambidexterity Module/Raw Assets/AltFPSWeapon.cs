@@ -142,7 +142,7 @@ namespace AmbidexterityModule
                 case WeaponTypes.Flail:
                 case WeaponTypes.Flail_Magic:
                     arcSpeed =.85f + arcModifier;
-                    return .16f;
+                    return .33f;
                 case WeaponTypes.Werecreature:
                     arcSpeed = 1.25f + arcModifier;
                     return .085f;
@@ -494,14 +494,6 @@ namespace AmbidexterityModule
                                 weaponAnimRecordIndex = 3;
                                 offsetX = posi - .66f;
                             }
-                            else if (currentFrame == 2)
-                            {
-                                posi = posi + .002f;
-                                rect = weaponRects[weaponIndices[6].startIndex + 2];
-                                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-                                weaponAnimRecordIndex = 6;
-                                offsetX = posi + .1f;
-                            }
                             else
                             {
                                 offsetX = posi;
@@ -589,14 +581,6 @@ namespace AmbidexterityModule
                                 curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[4].startIndex + 3];
                                 weaponAnimRecordIndex = 3;
                                 offsetX = posi - .7f;
-                            }
-                            else if (currentFrame == 2)
-                            {
-                                posi = posi + .003f;
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
-                                weaponAnimRecordIndex = 6;
-                                offsetX = posi + .075f;
-                                offsetY = (posi / 2) - .1f;
                             }
                             else
                             {

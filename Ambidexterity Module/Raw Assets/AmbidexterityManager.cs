@@ -568,7 +568,7 @@ namespace AmbidexterityModule
             {
                 //trigger offhand weapon attack animation routines.
                 mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
-                offhandWeapon.weaponState = WeaponStateController();
+                offhandWeapon.weaponState = WeaponStateController(true);
                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                 StartCoroutine(offhandWeapon.AnimationCalculator());
                 GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(offhandWeapon.weaponState);
@@ -578,12 +578,12 @@ namespace AmbidexterityModule
             }
         }
 
-        WeaponStates WeaponStateController()
+        WeaponStates WeaponStateController(bool offhandAttack = false)
         {
             //defaults to random attack select like classic if nothing overrides it.
             WeaponStates state = (WeaponStates)randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
 
-            if(mainWeapon.WeaponType == WeaponTypes.Melee && direction == MouseDirections.Up)
+            if(mainWeapon.WeaponType == WeaponTypes.Melee || (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandAttack) && direction == MouseDirections.Up)
                 return mainWeapon.OnAttackDirection(MouseDirections.DownRight);
 
             //if player has drag attack selected, and either weapon attack key is pressed, then return the attack direction based on mouse drag,
