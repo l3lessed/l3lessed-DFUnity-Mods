@@ -603,18 +603,15 @@ namespace AmbidexterityModule
 
             //Controls Shield Bob when shield is idle:
             //if player is moving, not attacking, and enabled the bob system, setup and start bobbing system coroutine.
-            if (shieldStates == 0 && moving && !bobSwitch)
+            if (shieldStates == 0 && moving)
             {
-                bobSwitch = true;
-                Bobcoroutine = StartCoroutine(ShieldBob(2));
-            }
-            //if the shield isn't idle or the player isn't moving, stop the bob.
-            else if (shieldStates != 0 || !moving)
-            {
-                if (Bobcoroutine != null)
-                    StopCoroutine(Bobcoroutine);
+                //bobSwitch = true;
+               //Bobcoroutine = StartCoroutine(ShieldBob(2));
 
-                bobSwitch = false;
+                float bob = (AltFPSWeapon.bob - .1f) * -1;
+
+                xPos = (bob / 1.5f) - .05f;
+                yPos = (bob * 1.5f) - .1f;
             }
 
             if (shieldStates == 7)

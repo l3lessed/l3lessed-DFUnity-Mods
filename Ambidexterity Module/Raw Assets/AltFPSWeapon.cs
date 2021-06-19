@@ -106,7 +106,7 @@ namespace AmbidexterityModule
         public static readonly Dictionary<int, Texture2D> customTextures = new Dictionary<int, Texture2D>();
         public static Texture2D curCustomTexture;
 
-        private static float bob = .1f;
+        public static float bob = .1f;
         private static bool bobSwitch = true;
         Stopwatch AnimationTimer = new Stopwatch();
         private static float timePass;
@@ -470,8 +470,17 @@ namespace AmbidexterityModule
                     else
                         bob = bob - UnityEngine.Random.Range(.0005f, .001f);
 
-                    weaponAnimRecordIndex = 0;
-                    offsetX = (bob / 1.5f) - .07f;
+                    if (WeaponType == WeaponTypes.Werecreature)
+                    {
+                        weaponAnimRecordIndex = 5;
+                        offsetX = (bob / 1.5f) - .57f;
+                    }
+                    else
+                    {
+                        weaponAnimRecordIndex = 0;
+                        offsetX = (bob / 1.5f) - .07f;
+                    }
+
                     offsetY = (bob * 1.5f) - .15f;
                 }
                 else if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)

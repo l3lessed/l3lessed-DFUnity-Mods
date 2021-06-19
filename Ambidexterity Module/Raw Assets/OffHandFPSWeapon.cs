@@ -465,18 +465,18 @@ namespace AmbidexterityModule
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
                 if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying && !AmbidexterityManager.classicAnimations)
                 {
-                    if (bob >= .10f && bobSwitch)
-                        bobSwitch = false;
-                    else if (bob <= 0 && !bobSwitch)
-                        bobSwitch = true;
-
-                    if (bobSwitch)
-                        bob = bob + UnityEngine.Random.Range(.0005f, .001f);
+                    float bob = (AltFPSWeapon.bob - .1f) * -1;
+                    if (WeaponType == WeaponTypes.Werecreature)
+                    {
+                        weaponAnimRecordIndex = 5;
+                        offsetX = (bob / 1.5f) + .57f;
+                    }
                     else
-                        bob = bob - UnityEngine.Random.Range(.0005f, .001f);
+                    {
+                        weaponAnimRecordIndex = 0;
+                        offsetX = (bob / 1.5f) - .07f;
+                    }
 
-                    weaponAnimRecordIndex = 0;
-                    offsetX = (bob / 1.5f) - .07f;
                     offsetY = (bob * 1.5f) - .15f;
                 }
                 else if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
@@ -646,6 +646,7 @@ namespace AmbidexterityModule
                         else if (WeaponType == WeaponTypes.Werecreature)
                         {
                             curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
+                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
                             weaponAnimRecordIndex = 5;
                             if (currentFrame < 6)
                                 offsetY = (posi / 3) * -1;

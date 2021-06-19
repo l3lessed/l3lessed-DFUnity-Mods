@@ -65,6 +65,8 @@ namespace AmbidexterityModule
         public float screenScaleX;
         public float screenScaleY;
 
+        public static float bob;
+
         float cooldownTime;
         public bool arrowLoading;
         public static Texture2D arrowLoadingTex;
