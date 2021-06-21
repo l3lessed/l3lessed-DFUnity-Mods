@@ -360,10 +360,10 @@ namespace AmbidexterityModule
                 }
 
                 startxPos = currentxPos;
-                endxPos = -.05f;
+                endxPos = (bob / 1.5f) - .05f;
 
                 startyPos = currentyPos;
-                endyPos = -.1f;
+                endyPos = (bob * 1.5f) - .1f;
 
                 startSize = currentSize;
                 endSize = 118;
@@ -605,10 +605,7 @@ namespace AmbidexterityModule
             //if player is moving, not attacking, and enabled the bob system, setup and start bobbing system coroutine.
             if (shieldStates == 0 && moving)
             {
-                //bobSwitch = true;
-               //Bobcoroutine = StartCoroutine(ShieldBob(2));
-
-                float bob = (AltFPSWeapon.bob - .1f) * -1;
+                bob = (AltFPSWeapon.bob - .1f) * -1;
 
                 xPos = (bob / 1.5f) - .05f;
                 yPos = (bob * 1.5f) - .1f;
@@ -828,9 +825,7 @@ namespace AmbidexterityModule
                     //sets up and plays lowering/reset animation, and when done, sets shield state to idle again.
                     doneCoroutine = BlockDone(totalBlockTime);
                     if (AnimationManager(doneCoroutine, 0))
-                    {
                         shieldStates = 0;
-                    }
                 }
             }
 

@@ -421,6 +421,12 @@ namespace AmbidexterityModule
             //each script and its corresponding animation systems.
             UpdateHands();
 
+            if(FPSShield.shieldStates == 1)
+                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, false, 1, FPSShield.totalBlockTime, 0, true, true, false));
+
+            if (FPSShield.shieldStates == 3)
+                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(-.25f, 0, -.4f, 0, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
             if (isHit && AttackState == 7)
@@ -502,7 +508,7 @@ namespace AmbidexterityModule
             {
                 if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true));
+                    mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
                     //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                     offhandWeapon.isParrying = true;
                     offhandWeapon.ParryCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -512,7 +518,7 @@ namespace AmbidexterityModule
 
                 if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true));
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
                     //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                     mainWeapon.isParrying = true;
                     mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -1181,7 +1187,9 @@ namespace AmbidexterityModule
         //runs all the code for when two npcs parry each other. Uses calculateattackdamage formula to help it figure this out.
         public void activateNPCParry(DaggerfallEntity targetEntity, DaggerfallEntity attackerEntity, int parriedDamage)
         {
-            Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
+            CharacterController attackerController = attackerEntity.EntityBehaviour.GetComponent<EnemyMotor>().GetComponent<CharacterController>();
+
+            Destroy(Instantiate(sparkParticles, new Vector3(attackerController.transform.position.x, attackerController.height, attackerController.transform.position.z) + (attackerController.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
             EnemyMotor targetMotor = targetEntity.EntityBehaviour.GetComponent<EnemyMotor>();
             //grab hit entity's motor component and assign it to targetMotor object.
@@ -1221,7 +1229,9 @@ namespace AmbidexterityModule
         //runs all the code for when player and npc parry each other. Uses calculateattackdamage formula to help it figure this out.
         public void activatePlayerParry(DaggerfallEntity attackerEntity, int parriedDamage)
         {
-            Destroy(Instantiate(sparkParticles, attackerEntity.EntityBehaviour.transform.position + (attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
+            CharacterController attackerController = attackerEntity.EntityBehaviour.GetComponent<EnemyMotor>().GetComponent<CharacterController>();
+
+            Destroy(Instantiate(sparkParticles, new Vector3(attackerController.transform.position.x, attackerController.height * 1.2f, attackerController.transform.position.z) + (attackerController.transform.forward * .35f), Quaternion.identity, null), 1.0f);
             //grab hit entity's motor component and assign it to targetMotor object.
             EnemyMotor attackMotor = attackerEntity.EntityBehaviour.GetComponent<EnemyMotor>();
             //finds daggerfall audio source object, loads it, and then adds it to the player object, so it knows where the sound source is from.

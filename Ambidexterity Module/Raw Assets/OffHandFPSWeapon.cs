@@ -292,17 +292,17 @@ namespace AmbidexterityModule
 
                     if ((percentagetime > hitStart && percentagetime < hitEnd) && !hitObject && AmbidexterityManager.physicalWeapons && !isParrying)
                     {
-                        Vector3 attackcast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
+                        Vector3 attackcast = GameManager.Instance.PlayerController.transform.forward * weaponReach;
                         if (weaponState == WeaponStates.StrikeRight)
-                            attackcast = ArcCastCalculator(new Vector3(0, -90, 0), new Vector3(0, 90, 0), percentagetime * arcSpeed, attackcast);
+                            attackcast = ArcCastCalculator(new Vector3(0, 90, 0), new Vector3(0, -90, 0), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeDownRight)
                             attackcast = ArcCastCalculator(new Vector3(35, -35, 0), new Vector3(-30, 35, 0), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeLeft)
-                            attackcast = ArcCastCalculator(new Vector3(0, 90, 0), new Vector3(0, -90, 0), percentagetime * arcSpeed, attackcast);
+                            attackcast = ArcCastCalculator(new Vector3(0, -90, 0), new Vector3(0, 90, 0), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeDownLeft)
                             attackcast = ArcCastCalculator(new Vector3(35, 35, 0), new Vector3(0, -30, -35), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeDown)
-                            attackcast = ArcCastCalculator(new Vector3(45, 0, 0), new Vector3(-45, 0, 0), percentagetime * arcSpeed, attackcast);
+                            attackcast = ArcCastCalculator(new Vector3(-45, 0, 0), new Vector3(45, 0, 0), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeUp)
                             attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, weaponReach, percentagetime * arcSpeed));
 

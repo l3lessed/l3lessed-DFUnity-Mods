@@ -258,7 +258,7 @@ namespace AmbidexterityModule
                         else if (weaponState == WeaponStates.StrikeDownLeft)
                             attackcast = ArcCastCalculator(new Vector3(35, 35, 0), new Vector3(0, -30, -35), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeDown)
-                            attackcast = ArcCastCalculator(new Vector3(45, 0, 0), new Vector3(-45, 0, 0), percentagetime * arcSpeed, attackcast);
+                            attackcast = ArcCastCalculator(new Vector3(-45, 0, 0), new Vector3(45, 0, 0), percentagetime * arcSpeed, attackcast);
                         else if (weaponState == WeaponStates.StrikeUp)
                             attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, weaponReach, percentagetime * arcSpeed));                        
 
@@ -458,7 +458,7 @@ namespace AmbidexterityModule
                 //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
                 //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying && !AmbidexterityManager.classicAnimations)
+                if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
                 {
                     if (bob >= .10f && bobSwitch)
                         bobSwitch = false;
