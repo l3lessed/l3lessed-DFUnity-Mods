@@ -98,23 +98,25 @@ namespace AmbidexterityModule
 
         private static float timePass;
         private int hitType;
-        private float smoothingRange;
-        private float framepercentage;
-        private float frametime;
+        public float smoothingRange;
+        public float framepercentage;
+        public float frametime;
         public float arcSpeed;
         public float arcModifier;
         public float hitStart = .3f;
         public float hitEnd = .75f;
-        private float yModifier1;
-        private float xModifier1;
-        private float yModifier;
-        private float xModifier;
-        private float xModifier2;
-        private float yModifier2;
-        private float xModifier3;
-        private float yModifier3;
-        private float xModifier4;
-        private float yModifier4;
+        public float yModifier1;
+        public float xModifier1;
+        public float yModifier;
+        public float xModifier;
+        public float xModifier2;
+        public float yModifier2;
+        public float xModifier3;
+        public float yModifier3;
+        public float xModifier4;
+        public float yModifier4;
+        public int selectedFrame;
+        public bool useImportedTextures;
 
         public void PlaySwingSound()
         {
@@ -155,7 +157,20 @@ namespace AmbidexterityModule
                 {
                     UpdateWeapon();
                 }
-            }            
+            }
+        }
+
+        void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.PageDown))
+            {
+                if (useImportedTextures)
+                    useImportedTextures = false;
+                else
+                    useImportedTextures = true;
+
+                UpdateWeapon();
+            }
         }
 
         //*COMBAT OVERHAUL ADDITION*//
@@ -388,243 +403,184 @@ namespace AmbidexterityModule
             weaponAnimRecordIndex = weaponAnims[(int)weaponState].Record;
 
             WeaponAnimation anim = weaponAnims[(int)weaponState];
-          
+
             try
             {
-                bool isImported = customTextures.TryGetValue(MaterialReader.MakeTextureKey(0, (byte)weaponAnimRecordIndex, (byte)currentFrame), out curCustomTexture);
-                if (isImported)
-                    curAnimRect = new Rect(1, 0, 1, 1);
-
-                Rect rect = new Rect();
-
-                if (isParrying && !AmbidexterityManager.isHit)
-                {
-                    weaponAnimRecordIndex = 0;
-                    rect = weaponRects[weaponIndices[0].startIndex];
-                }
+                bool isImported = false;
+                //check to see if the texture is an imported texture for setup.
+                if (useImportedTextures)
+                    isImported = customTextures.TryGetValue(MaterialReader.MakeTextureKey(0, (byte)weaponAnimRecordIndex, (byte)currentFrame), out curCustomTexture);
                 else
-                    rect = weaponRects[weaponIndices[weaponAnimRecordIndex].startIndex + currentFrame];
-
-                if (!flip)
-                {
-                    // Mirror weapon rect
-                    if (isImported)
-                        curAnimRect = new Rect(1, 0, -1, 1);
-                    else
-                        curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-                }
-                else
-                {
-                    curAnimRect = rect;
-                }
-
-                if (weaponState == WeaponStates.StrikeDownRight)
-                    offsetX = .15f;
-
-                if (WeaponType == WeaponTypes.Werecreature)
-                {
-                    if (weaponState == WeaponStates.Idle)
-                    {
-                        weaponAnimRecordIndex = 5;
-                        rect = weaponRects[weaponIndices[5].startIndex + 2];
-                        offsetY = -.05f;
-                        if (flip)
-                        {
-                            offsetX = -.5f;
-                            curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-                        }
-                        else
-                        {
-                            offsetX = .5f;
-                            curAnimRect = rect;
-                        }
-                    }
-                    else if (weaponState == WeaponStates.StrikeDownRight)
-                    {
-                        if (!flip)
-                            curAnimRect = rect;
-                        else
-                        {
-                            offsetX = .6f;
-                            curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-                        }
-                    }
-                    else if (weaponState == WeaponStates.StrikeUp)
-                    {
-                        if (!flip)
-                            curAnimRect = rect;
-                        else
-                        {
-                            offsetX = .6f;
-                            curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
-                        }
-                    }
-                }
+                    curCustomTexture = null;
 
                 //*COMBAT OVERHAUL ADDITION*//
                 //added offset checks for individual attacks and weapons. Also, allows for the weapon bobbing effect.
                 //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
                 //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (weaponState == WeaponStates.Idle && AmbidexterityManager.toggleBob && !isParrying && !AmbidexterityManager.classicAnimations)
+                if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
                 {
-                    float bob = (AltFPSWeapon.bob - .1f) * -1;
                     if (WeaponType == WeaponTypes.Werecreature)
                     {
                         weaponAnimRecordIndex = 5;
-                        offsetX = (bob / 1.5f) + .57f;
+                        offsetX = (AltFPSWeapon.bob / 1.5f) - .57f;
                     }
                     else
                     {
                         weaponAnimRecordIndex = 0;
-                        offsetX = (bob / 1.5f) - .07f;
+                        offsetX = (AltFPSWeapon.bob / 1.5f) - .07f;
                     }
 
-                    offsetY = (bob * 1.5f) - .15f;
+                    offsetY = (AltFPSWeapon.bob * -1.5f);
                 }
-                else if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
-                {
-                    //posi = posi * posiModifier;
 
+                if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
+                {
                     if (weaponState == WeaponStates.StrikeLeft)
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame == 0)
+                            selectedFrame = currentFrame;
+
+                            if (isImported)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 3;
-                                offsetX = posi - .95f;
-                            }
-                            else if (currentFrame == 1)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 3;
-                                offsetX = posi - .66f;
+                                if (currentFrame == 0)
+                                    offsetX = (posi * -1) - .46f +xModifier;
+                                else
+                                    offsetX = posi - .33f + (.0825f * currentFrame);
                             }
                             else
                             {
-                                offsetX = posi;
-                                offsetY = (posi / 2) * -1;
+                                offsetY = ((posi / 3) * -1) - (.05f * currentFrame) + yModifier;
+                                offsetX = posi - .33f + (.0825f * currentFrame);
                             }
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 1];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+                                selectedFrame = 1;
                                 weaponAnimRecordIndex = 2;
                                 offsetX = posi - .55f;
                                 offsetY = -.18f;
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[2].startIndex + 2];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+                                selectedFrame = 2;
                                 weaponAnimRecordIndex = 2;
                                 offsetX = posi - .33f;
                             }
                             else
                             {
+                                selectedFrame = currentFrame;
                                 offsetX = posi;
                             }
 
                         }
                         else if (WeaponType == WeaponTypes.Melee)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[2].startIndex + currentFrame];
-                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+                            selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 2;
                             if (currentFrame <= 2)
                             {
-                                offsetX = +.5f;
+                                offsetX = .25f;
                                 offsetY = posi - .165f;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetX = +.5f;
+                                offsetX = .25f;
                                 offsetY = posi * -1;
                             }
                             else if (currentFrame == 4)
                             {
-                                offsetX = +.5f;
+                                offsetX = .25f;
                                 offsetY = (posi * -1) - .165f;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Staff)
                         {
+                            selectedFrame = currentFrame;
                             offsetX = posi - .385f;
-                        }
-                        else if (WeaponType == WeaponTypes.LongBlade)
-                        {
-                            if (currentFrame == 0)
-                                offsetX = posi - .33f;
-
-                            if (currentFrame != 0)
-                                offsetX = posi - .35f + (.1f * currentFrame);
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
                         {
+                            selectedFrame = currentFrame;
                             offsetX = posi + .33f;
                         }
                         else
                         {
-                            if (currentFrame == 0)
-                                offsetX = posi - .33f;
+                            selectedFrame = currentFrame;
 
-                            if (currentFrame != 0)
-                                offsetX = posi - .33f + (.11f * currentFrame);
+                            if (isImported)
+                            {
+                                if (currentFrame == 0)
+                                    offsetX = posi - .39f + xModifier;
+
+                                if (currentFrame != 0)
+                                    offsetX = posi - .33f + (.105f * currentFrame) + xModifier1;
+                            }
+                            else
+                            {
+                                if (currentFrame == 0)
+                                    offsetX = posi - .33f + xModifier;
+
+                                if (currentFrame != 0)
+                                    offsetX = posi - .36f + (.105f * currentFrame) + xModifier1;
+                            }
                         }
                     }
                     else if (weaponState == WeaponStates.StrikeRight)
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame == 0)
+                            selectedFrame = currentFrame;
+
+                            if (isImported)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
-                                weaponAnimRecordIndex = 3;
-                                offsetX = (posi * -1) + .95f;
-                            }
-                            else if (currentFrame == 1)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + 3];
-                                weaponAnimRecordIndex = 3;
-                                offsetX = (posi * -1) + .66f;
+                                if (currentFrame == 0)
+                                    offsetX = (posi * -1) + .46f + xModifier;
+                                else
+                                    offsetX = (posi * -1) + .33f - (.0825f * currentFrame);
                             }
                             else
                             {
-                                offsetX = (posi * -1);
-                                offsetY = (posi / 2) * -1;
+                                offsetY = ((posi / 6) * -1) + yModifier;
+                                offsetX = (posi * -1) + .33f - (.0825f * currentFrame);
                             }
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
+                            selectedFrame = currentFrame;
+
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[5].startIndex + 1];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 2;
-                                offsetX = (posi * -1) + .55f;
-                                offsetY = -.3f;
+                                offsetX = (posi / 4) + .03f + xModifier;
+                                offsetY = (posi / 8) * -1;
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[5].startIndex + 2];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 2;
-                                offsetX = (posi * -1) + .33f;
+                                offsetX = (posi / 4) + .0825f + xModifier1;
+                                offsetY = ((posi / 8) * -1) - .04125f;
+                            }
+                            else if(currentFrame == 2)
+                            {
+                                offsetX = (posi * -1) + .2f + xModifier2;
+                                offsetY = (posi / 8) * -1;
+                            }
+                            else if (currentFrame == 3)
+                            {
+                                offsetX = (posi * -1) + .166f + xModifier3;
+                                offsetY = (posi / 8) * -1;
                             }
                             else
                             {
-                                offsetX = (posi * -1);
+                                offsetX = (posi * -1)+ .133f + xModifier4;
+                                offsetY = (posi / 8) * -1;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Melee)
                         {
+                            selectedFrame = currentFrame;
                             if (currentFrame <= 1)
                             {
                                 offsetX = (posi * -1) + .15f;
@@ -648,78 +604,146 @@ namespace AmbidexterityModule
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[5].startIndex + currentFrame];
-                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+                            selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 5;
-                            if (currentFrame < 6)
-                                offsetY = (posi / 3) * -1;
+
                             offsetX = (posi * -1) + .3f;
+                            offsetY = (posi / 3) * -1;
                         }
-                        //Player will never use offhand staff, since it is 2 handed.
-                        //else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
-                        //{
-                            //offsetX = (posi * -1.225f) + .4f;
-                        //}
+                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        {
+                            selectedFrame = currentFrame;
+
+                            offsetX = (posi * -1.225f) + .4f;
+                        }
                         else if (WeaponType == WeaponTypes.LongBlade)
                         {
-                            if (currentFrame == 0)
-                                offsetX = (posi * -1) + .33f;
+                            selectedFrame = currentFrame;
 
-                            if (currentFrame != 0)
-                                offsetX = (posi * -1) + .35f - (.1f * currentFrame);
+
+                            if (isImported)
+                            {
+                                if (currentFrame == 0)
+                                    offsetX = (posi * -1) + .43f + xModifier;
+                                else if (currentFrame == 4)
+                                    offsetX = (posi * -1) - .15f + xModifier4;
+                                else if (currentFrame != 0)
+                                    offsetX = (posi * -1) + .33f - (.1f * currentFrame);
+                            }
+                            else
+                            {
+                                    offsetX = (posi * -1) + .38f - (.1f * currentFrame);
+                            }
                         }
                         else
                         {
-                            if (currentFrame == 0)
-                                offsetX = (posi * -1) + .33f;
+                            selectedFrame = currentFrame;
 
-                            if (currentFrame != 0)
-                                offsetX = (posi * -1) + .33f - (.11f * currentFrame);
+                            if (isImported)
+                            {
+                                if (currentFrame == 0)
+                                    offsetX = (posi * -1) + .33f + xModifier;
+                                else if (currentFrame == 4)
+                                    offsetX = (posi * -1) + xModifier4;
+                                else if (currentFrame != 0)
+                                    offsetX = (posi * -1) + .165f + xModifier1;
+                            }
+                            else
+                            {
+                                if (currentFrame == 0)
+                                    offsetX = (posi * -1) + .32f;
+
+                                if (currentFrame != 0)
+                                    offsetX = (posi * -1) + .32f - (.11f * currentFrame);
+                            }
                         }
                     }
                     else if (weaponState == WeaponStates.StrikeDown)
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame == 0)
+                            if (isImported)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 2];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 1;
-                                offsetX = posi - .51f;
-                                offsetY = ((posi / 2) * -1) + .1f;
-                            }
-                            else if (currentFrame == 1)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, -1, 1) : weaponRects[weaponIndices[2].startIndex + 2];
-                                weaponAnimRecordIndex = 2;
-                                offsetX = posi - .28f;
-                                offsetY = ((posi / 2) * -1) + .035f;
-                            }
-                            else if (currentFrame == 2)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
-                                weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) + .19f;
-                                offsetY = (posi * -1) - .15f;
-                            }
-                            else if (currentFrame == 3)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
-                                weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) + .2f;
-                                offsetY = (posi * -1) - .275f;
+                                if (currentFrame == 0)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 1;
+                                    offsetX = (posi) - .153f + xModifier;
+                                    offsetY = ((posi / 2) * -1) + .05f + yModifier;
+                                }
+                                else if (currentFrame == 1)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 2;
+                                    offsetX = posi - .28f + xModifier1;
+                                    offsetY = ((posi / 2) * -1) - .06f + yModifier1;
+                                }
+                                else if (currentFrame == 2)
+                                {
+                                    selectedFrame = 3;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .34f + xModifier2;
+                                    offsetY = (posi * -1) - .15f + yModifier2;
+                                }
+                                else if (currentFrame == 3)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .35f + xModifier3;
+                                    offsetY = (posi * -1) - .275f + yModifier3;
+                                }
+                                else
+                                {
+                                    selectedFrame = 1;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .36f + xModifier4;
+                                    offsetY = (posi * -1) - .375f + yModifier4;
+                                }
                             }
                             else
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 1];
-                                weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 3) + .2f;
-                                offsetY = (posi * -1) - .375f;
+                                if (currentFrame == 0)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 1;
+                                    offsetX = (posi) - .3f + xModifier;
+                                    offsetY = ((posi / 2) * -1) + .096f + yModifier;
+                                }
+                                else if (currentFrame == 1)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 2;
+                                    offsetX = posi - .38f + xModifier1;
+                                    offsetY = ((posi / 2) * -1) - .015f + yModifier1;
+
+                                }
+                                else if (currentFrame == 2)
+                                {
+                                    selectedFrame = 3;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .19f + xModifier2;
+                                    offsetY = (posi * -1) - .15f + yModifier2;
+                                }
+                                else if (currentFrame == 3)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .2f + xModifier3;
+                                    offsetY = (posi * -1) - .275f + yModifier3;
+                                }
+                                else
+                                {
+                                    selectedFrame = 1;
+                                    weaponAnimRecordIndex = 6;
+                                    offsetX = (posi / 3) + .2f + xModifier4;
+                                    offsetY = (posi * -1) - .375f + yModifier4;
+                                }
                             }
+
                         }
                         else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
+                            selectedFrame = currentFrame;
                             if (currentFrame == 0)
                             {
                                 offsetX = (posi / 2) - .33f;
@@ -740,83 +764,130 @@ namespace AmbidexterityModule
                         {
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
+                                selectedFrame = 3;
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .45f;
-                                offsetY = (posi * -1f) + .53f;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .66f + xModifier;
+                                    offsetY = (posi * -1f) + .71f + yModifier;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .45f + xModifier;
+                                    offsetY = (posi * -1f) + .51f + yModifier;
+                                }
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .3f;
-                                offsetY = (posi * -1f) + .13f;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .525f + xModifier1;
+                                    offsetY = (posi * -1f) + .385f + yModifier1;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .3f + xModifier1;
+                                    offsetY = (posi * -1f) + .11f + yModifier1;
+                                }
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
-                                weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .18f;
-                                offsetY = (posi * -1f) - .18f;
+                                selectedFrame = 2;
+                                weaponAnimRecordIndex = 1;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .08f + xModifier2;
+                                    offsetY = (posi * -1f) + .025f + yModifier2;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) + .07f + xModifier2;
+                                    offsetY = (posi * -1f) - .11f + yModifier2;
+                                }
                             }
                             else if (currentFrame == 3)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
+                                selectedFrame = 3;
                                 weaponAnimRecordIndex = 1;
-                                offsetY = (posi * -1f) - .33f;
-                                offsetX = (posi / 2) + .18f;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) + .05f + xModifier3;
+                                    offsetY = (posi * -1f) - .03f + yModifier3;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) + .2f + xModifier3;
+                                    offsetY = (posi * -1f) - .23f + yModifier3;
+                                }
                             }
                             else
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) + .2825f;
-                                offsetY = (posi * -1f) - .29f;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) + .18f + xModifier4;
+                                    offsetY = (posi * -1f) - .09f + yModifier4;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) + .3325f + xModifier4;
+                                    offsetY = (posi * -1f) - .24f + yModifier4;
+                                }
                             }
-                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
                         }
                         else if (WeaponType == WeaponTypes.Warhammer || WeaponType == WeaponTypes.Warhammer_Magic)
                         {
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
+                                selectedFrame = 2;
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .43f;
-                                offsetY = (posi * -1f) + .53f;
+                                offsetX = (posi / 2) - .43f + xModifier;
+                                offsetY = (posi * -1f) + .53f + yModifier;
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
+                                selectedFrame = 3;
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .27f;
-                                offsetY = (posi * -1f) + .13f;
+                                offsetX = (posi / 2) - .27f + xModifier1;
+                                offsetY = (posi * -1f) + .13f + yModifier1;
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 6;
-                                offsetX = (posi / 2) - .175f;
-                                offsetY = (posi * -1f) - .18f;
+                                offsetX = (posi / 2) - .175f + xModifier2;
+                                offsetY = (posi * -1f) - .18f + yModifier2;
                             }
                             else if (currentFrame == 3)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
+                                selectedFrame = 3;
                                 weaponAnimRecordIndex = 1;
-                                offsetY = (posi * -1f) - .32f;
-                                offsetX = (posi / 2) + .06f;
+                                offsetY = (posi * -1f) - .32f + xModifier3;
+                                offsetX = (posi / 2) + .06f + yModifier3;
                             }
                             else
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) + .2725f;
-                                offsetY = (posi * -1f) - .39f;
+                                offsetX = (posi / 2) + .2725f + xModifier4;
+                                offsetY = (posi * -1f) - .39f + yModifier4;
                             }
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[6].startIndex + currentFrame];
-                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+                            curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + currentFrame];
+
+                            if (!isImported)
+                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
+
                             weaponAnimRecordIndex = 6;
                             if (currentFrame < 3)
                                 offsetY = posi - .1f;
@@ -825,88 +896,203 @@ namespace AmbidexterityModule
                         }
                         else if (WeaponType == WeaponTypes.Melee)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[3].startIndex + currentFrame];
-                            curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
                             weaponAnimRecordIndex = 3;
+                            selectedFrame = currentFrame;
                             if (currentFrame < 4)
-                                offsetY = posi - .14f;
+                                offsetY = posi - .14f + yModifier;
                             else
-                                offsetY = posi * -1.5f;
+                                offsetY = posi * -2.2f + yModifier1;
                         }
                         else if (WeaponType == WeaponTypes.Mace || WeaponType == WeaponTypes.Mace_Magic)
                         {
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
-                                weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .32f + xModifier;
-                                offsetY = (posi * -1f) + .45f + yModifier;
+                                selectedFrame = 2;
+                                weaponAnimRecordIndex = 6;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .3f + xModifier;
+                                    offsetY = ((posi / 2) * -1f) + .45f + yModifier;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .32f + xModifier;
+                                    offsetY = ((posi / 2) * -1f) + .425f + yModifier;
+                                }
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
-                                weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .17f + xModifier1;
-                                offsetY = (posi * -1f) + .02f + yModifier1;
+                                selectedFrame = 1;
+                                weaponAnimRecordIndex = 5;
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .745f + xModifier1;
+                                    offsetY = ((posi / 2) * -1f) + .1f + yModifier1;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .645f + xModifier1;
+                                    offsetY = ((posi / 2) * -1f) + .04f + yModifier1;
+                                }
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
-                                weaponAnimRecordIndex = 1;
+                                selectedFrame = 4;
+                                weaponAnimRecordIndex = 6;
                                 offsetX = (posi / 2) - .015f + xModifier2;
-                                offsetY = (posi * -1f) - .43f + yModifier2;
+                                offsetY = ((posi / 2) * -1f) + yModifier2;
                             }
                             else if (currentFrame == 3)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
+                                selectedFrame = currentFrame;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3) + .185f + xModifier3;
-                                offsetY = (posi * -1f) - .235f + yModifier3;
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 3) + .065f + xModifier3;
+                                    offsetY = (posi * -1f) - .035f + yModifier3;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 3) + .045f + xModifier3;
+                                    offsetY = (posi * -1f) - .035f + yModifier3;
+                                }
+                            }
+                            else if (currentFrame == 4)
+                            {
+                                selectedFrame = currentFrame;
+                                weaponAnimRecordIndex = 1;
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 3) + .174f + xModifier4;
+                                    offsetY = (posi * -1f) - .235f + yModifier4;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 3) + .124f + xModifier4;
+                                    offsetY = (posi * -1f) - .125f + yModifier4;
+                                }
+                            }
+                        }
+                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        {
+                            if (currentFrame == 0)
+                            {
+                                selectedFrame = 2;
+                                weaponAnimRecordIndex = 6;
+                                offsetX = (posi / 2) - .335f + xModifier;
+                                offsetY = (posi * -1f) + .73f + yModifier;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                selectedFrame = 3;
+                                weaponAnimRecordIndex = 6;
+                                offsetX = (posi / 2) - .19f + xModifier1;
+                                offsetY = (posi * -1f) + .28f + yModifier1;
+                            }
+                            else if (currentFrame == 2)
+                            {
+                                selectedFrame = 4;
+                                weaponAnimRecordIndex = 6;
+                                offsetX = (posi / 2) - .04f + xModifier2;
+                                offsetY = (posi * -1f) - .13f + yModifier2;
+                            }
+                            else if (currentFrame == 3)
+                            {
+                                selectedFrame = 3;
+                                weaponAnimRecordIndex = 1;
+                                offsetY = (posi * -1f) - .27f + yModifier3;
+                                offsetX = (posi / 2) + .06f + xModifier3;
                             }
                             else
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3) + .24f + xModifier4;
-                                offsetY = (posi * -1f) - .32f + yModifier4;
+                                offsetX = (posi / 2) + .1525f + xModifier4;
+                                offsetY = (posi * -1f) - .34f + yModifier4;
                             }
                         }
                         else
                         {
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 4];
-                                weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .33f + xModifier;
-                                offsetY = (posi * -1f) + .3f + yModifier;
+                                selectedFrame = 3;
+                                weaponAnimRecordIndex = 6;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .5125f + xModifier;
+                                    offsetY = (posi * -1f) + .7f + yModifier;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .5125f + xModifier;
+                                    offsetY = (posi * -1f) + .7f + yModifier;
+                                }
                             }
                             else if (currentFrame == 1)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 3];
-                                weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) - .16f + xModifier1;
-                                offsetY = (posi * -1f) + .05f + yModifier1;
+                                selectedFrame = 4;
+                                weaponAnimRecordIndex = 6;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .375f + xModifier1;
+                                    offsetY = (posi * -1f) + .31f + yModifier1;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .375f + xModifier1;
+                                    offsetY = (posi * -1f) + .31f + yModifier1;
+                                }
                             }
                             else if (currentFrame == 2)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + 2];
+                                selectedFrame = 2;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 2) + xModifier2;
-                                offsetY = (posi * -1f) - .15f + yModifier2;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .13f + xModifier2;
+                                    offsetY = (posi * -1f) + yModifier2;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) - .13f + xModifier2;
+                                    offsetY = (posi * -1f) + yModifier2;
+                                }
                             }
                             else if (currentFrame == 3)
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 3];
+                                selectedFrame = 3;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3) + .2f + xModifier3;
-                                offsetY = (posi * -1f) - .17F + yModifier3;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) - .03f + xModifier3;
+                                    offsetY = (posi * -1f) + yModifier3;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) -.02f + xModifier3;
+                                    offsetY = (posi * -1f) + yModifier3;
+                                }
                             }
                             else
                             {
-                                curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[1].startIndex + 4];
+                                selectedFrame = 4;
                                 weaponAnimRecordIndex = 1;
-                                offsetX = (posi / 3) + .225f + xModifier4;
-                                offsetY = (posi * -1f) - .23F + yModifier4;
+
+                                if (isImported)
+                                {
+                                    offsetX = (posi / 2) + .115f + xModifier4;
+                                    offsetY = (posi * -1f) - .12f + yModifier4;
+                                }
+                                else
+                                {
+                                    offsetX = (posi / 2) + .055f + xModifier4;
+                                    offsetY = (posi * -1f) - .02f + yModifier4;
+                                }
                             }
                         }
                     }
@@ -914,36 +1100,77 @@ namespace AmbidexterityModule
                     {
                         if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
                         {
-                            if (currentFrame == 0)
+                            if (isImported)
                             {
-                                offsetY = (posi / 2) - .20f;
+                                if (currentFrame == 0)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetY = (posi / 2) - .27f + yModifier;
+                                    offsetX = (posi / 7) * -1 + .25f + xModifier1;
+                                }
+                                else if (currentFrame == 1)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = ((posi / 7) * -1) + .225f + xModifier1;
+                                    offsetY = (posi / 2) - .205f + yModifier1;
+                                }
+                                else if (currentFrame == 2)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = (posi / 6) * -1 + .15f + xModifier2;
+                                    offsetY = (posi / 2) - .25f + yModifier2;
+                                }
+                                if (currentFrame == 3)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = (posi / 5) * -1 + .08f + xModifier3;
+                                    offsetY = (posi / 2) - .2f + yModifier3;
+                                }
+                                else if (currentFrame == 4)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 1;
+                                    offsetX = (posi / 4) * -1 - .12f + xModifier4;
+                                    offsetY = (posi / 3) - .135f + yModifier4;
+                                }   
                             }
-                            else if (currentFrame == 1)
+                            else
                             {
-                                offsetX = (posi / 7) * -1;
-                                offsetY = (posi / 2) - .17f;
-                            }
-                            else if (currentFrame == 2)
-                            {
-                                offsetX = (posi / 6) * -1 - .05f;
-                                offsetY = (posi / 2) - .13f;
-                            }
-                            if (currentFrame == 3)
-                            {
-                                offsetX = (posi / 5) * -1 - .12f;
-                                offsetY = (posi / 2) - .07f;
-                            }
-                            else if (currentFrame == 4)
-                            {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + 2];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                offsetX = (posi / 4) * -1 - .12f;
-                                offsetY = (posi / 3) - .105f;
+                                if (currentFrame == 0)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetY = (posi / 2) - .22f + yModifier;
+                                }
+                                else if (currentFrame == 1)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = (posi / 7) * -1 + xModifier1;
+                                    offsetY = (posi / 2) - .19f + yModifier1;
+                                }
+                                else if (currentFrame == 2)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = (posi / 6) * -1 - .05f + xModifier2;
+                                    offsetY = (posi / 2) - .17f + yModifier2;
+                                }
+                                if (currentFrame == 3)
+                                {
+                                    selectedFrame = currentFrame;
+                                    offsetX = (posi / 5) * -1 - .12f + xModifier3;
+                                    offsetY = (posi / 2) - .1f + yModifier3;
+                                }
+                                else if (currentFrame == 4)
+                                {
+                                    selectedFrame = 2;
+                                    weaponAnimRecordIndex = 1;
+                                    offsetX = (posi / 4) * -1 - .12f + xModifier4;
+                                    offsetY = (posi / 3) - .135f + yModifier4;
+                                }
                             }
                         }
                         else if (WeaponType == WeaponTypes.Werecreature)
                         {
-                            curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[1].startIndex + currentFrame];
+                            selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 1;
                             if (currentFrame < 3)
                                 offsetY = posi - .1f;
@@ -952,10 +1179,9 @@ namespace AmbidexterityModule
                         }
                         else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
                         {
+                            selectedFrame = currentFrame;
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[0].startIndex];
-                                weaponAnimRecordIndex = 0;
                                 offsetY = (posi * -1) * 2f;
                             }
                             else if (currentFrame == 1)
@@ -975,13 +1201,38 @@ namespace AmbidexterityModule
                                 offsetY = (posi * .75f) - .25f;
                             }
                         }
-                        else
+                        else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
                         {
+                            selectedFrame = currentFrame;
                             if (currentFrame == 0)
                             {
-                                curAnimRect = isImported ? new Rect(0, 0, 1, 1) : weaponRects[weaponIndices[0].startIndex];
-                                curAnimRect = new Rect(curAnimRect.xMax, curAnimRect.yMin, -curAnimRect.width, curAnimRect.height);
-                                weaponAnimRecordIndex = 0;
+                                offsetY = (posi * -1) * 1.25f + yModifier;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                offsetY = ((posi * -1) - .07f) * 1.25f + yModifier1;
+                            }
+                            else if (currentFrame == 2)
+                            {
+                                selectedFrame = 4;
+                                offsetY = (posi * .75f) - .4f + yModifier2;
+                            }
+                            else if (currentFrame == 3)
+                            {
+                                selectedFrame = 3;
+                                offsetY = (posi * .75f) - .4f + yModifier3;
+                            }
+                            else if (currentFrame == 4)
+                            {
+                                selectedFrame = 2;
+                                offsetY = (posi * .75f) - .2475f + yModifier4;
+                            }
+                        }
+                        else
+                        {
+                            selectedFrame = currentFrame;
+                            if (currentFrame == 0)
+                            {
                                 offsetY = (posi * -1) * 2f;
                             }
                             else if (currentFrame == 1)
@@ -991,7 +1242,7 @@ namespace AmbidexterityModule
                             }
                             else if (currentFrame == 2)
                             {
-                                weaponAnimRecordIndex = 6;     
+                                weaponAnimRecordIndex = 6;
                                 offsetY = posi - .816f;
                             }
                             else if (currentFrame == 3)
@@ -1006,16 +1257,152 @@ namespace AmbidexterityModule
                     }
                     else if (weaponState == WeaponStates.StrikeDownRight)
                     {
+                        selectedFrame = currentFrame;
                         if (currentFrame < 3)
                         {
-                            offsetX = (posi * -1) / 2f;
-                            offsetY = posi - .14f;
+                            offsetX = (posi / 2f) * -1 + xModifier;
+                            offsetY = posi - .14f + yModifier;
                         }
                         else
                         {
-                            offsetX = (posi * -1);
-                            offsetY = posi * -2;
+                            offsetX = posi * -1 + xModifier1;
+                            offsetY = posi * -2 + yModifier1;
                         }
+                    }
+                }
+
+                if (weaponState == WeaponStates.Idle)
+                {
+                    if (WeaponType != WeaponTypes.Werecreature)
+                    {
+                        selectedFrame = 0;
+                        weaponAnimRecordIndex = 0;
+                    }
+                    else
+                    {
+                        selectedFrame = 2;
+                        weaponAnimRecordIndex = 5;
+                    }
+                }
+
+                Rect rect = weaponRects[weaponIndices[weaponAnimRecordIndex].startIndex + selectedFrame];
+                curAnimRect = rect;
+                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
+
+                if (isImported)
+                {
+                    customTextures.TryGetValue(MaterialReader.MakeTextureKey(0, (byte)weaponAnimRecordIndex, (byte)selectedFrame), out curCustomTexture);
+                    curAnimRect = new Rect(1, 0, -1, 1);
+                }
+
+                //flips the sprite rect so it matches the hand position. Without this, the image won't flip on left-handed option selected.
+                if (flip)
+                {
+                    // Mirror weapon rect.
+                    if (isImported)
+                        curAnimRect = new Rect(0, 0, 1, 1);
+                    else
+                        curAnimRect = weaponRects[weaponIndices[weaponAnimRecordIndex].startIndex + selectedFrame];
+                }
+
+                //checks if player is parying. and not hit. If so, keep in idle frame for animation cleanliness.
+                if (isParrying && !AmbidexterityManager.isHit)
+                {
+                    weaponAnimRecordIndex = 0;
+                    rect = weaponRects[weaponIndices[0].startIndex];
+                }
+
+                if (weaponState == WeaponStates.StrikeDownLeft)
+                    offsetX = -.09f;
+
+                if (WeaponType == WeaponTypes.Werecreature)
+                {
+                    if (weaponState == WeaponStates.Idle)
+                    {
+                        offsetY = -.05f + (AltFPSWeapon.bob * -1.5f) + yModifier;
+
+                        if (flip)
+                        {
+                            offsetX = -.7f + (AltFPSWeapon.bob / 1.5f) + xModifier;
+                            if (isImported)
+                                curAnimRect = new Rect(1, 0, -1, 1);
+                            else
+                                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
+                        }
+                        else
+                        {
+                            offsetX = .7f - (AltFPSWeapon.bob / 1.5f) + xModifier;
+                            if (isImported)
+                                curAnimRect = new Rect(0, 0, 1, 1);
+                            else
+                                curAnimRect = rect;
+                        }
+                    }
+                    else if (weaponState == WeaponStates.StrikeDownRight)
+                    {
+                        if (!flip)
+                        {
+                            offsetX = .6f;
+                            if (isImported)
+                                curAnimRect = new Rect(0, 0, 1, 1);
+                            else
+                                curAnimRect = rect;
+                        }
+                        else
+                        {
+                            if (isImported)
+                                curAnimRect = new Rect(1, 0, -1, 1);
+                            else
+                                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
+                        }
+                    }
+                    else if (weaponState == WeaponStates.StrikeUp)
+                    {
+                        if (!flip)
+                        {
+                            offsetX = .25f + xModifier;
+                            if (isImported)
+                                curAnimRect = new Rect(0, 0, 1, 1);
+                            else
+                                curAnimRect = rect;
+                        }
+                        else
+                        {
+                            offsetX = -.25f + xModifier;
+                            if (isImported)
+                                curAnimRect = new Rect(1, 0, -1, 1);
+                            else
+                                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
+                        }
+
+                    }
+                    else if (weaponState == WeaponStates.StrikeDown)
+                    {
+                        selectedFrame = currentFrame;
+
+                        if (!flip)
+                        {
+                            offsetX = -.25f + xModifier;
+
+                            if (isImported)
+                                curAnimRect = new Rect(0, 0, 1, 1);
+                            else
+                                curAnimRect = rect;
+                        }
+                        else
+                        {
+                            offsetX = .25f + xModifier;
+
+                            if (isImported)
+                                curAnimRect = new Rect(1, 0, -1, 1);
+                            else
+                                curAnimRect = new Rect(rect.xMax, rect.yMin, -rect.width, rect.height);
+                        }
+
+                        if (currentFrame < 3)
+                            offsetY = posi - .1f;
+                        else
+                            offsetY = (posi * -1);
                     }
                 }
 
@@ -1063,7 +1450,7 @@ namespace AmbidexterityModule
         {
             weaponPosition = new Rect(
                 Screen.width * offsetX,
-                (Screen.height - height * weaponScaleY) * (1f - offsetY),
+                (Screen.height * (1f - offsetY) - height * weaponScaleY),
                 width * weaponScaleX,
                 height * weaponScaleY);
         }
@@ -1114,19 +1501,19 @@ namespace AmbidexterityModule
 
             smoothingRange = GetAnimationOffset();
         }
-                        //unload next qued item, running the below input routine.
-                
+        //unload next qued item, running the below input routine.
 
-    #region Texture Loading
 
-    private Texture2D GetWeaponTextureAtlas(
-            string filename,
-            MetalTypes metalType,
-            out Rect[] rectsOut,
-            out RecordIndex[] indicesOut,
-            int padding,
-            int border,
-            bool dilate = false)
+        #region Texture Loading
+
+        private Texture2D GetWeaponTextureAtlas(
+                string filename,
+                MetalTypes metalType,
+                out Rect[] rectsOut,
+                out RecordIndex[] indicesOut,
+                int padding,
+                int border,
+                bool dilate = false)
         {
             cifFile = new CifRciFile();
             cifFile.Palette.Load(Path.Combine(dfUnity.Arena2Path, cifFile.PaletteName));

@@ -542,6 +542,10 @@ namespace AmbidexterityModule
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
                     mainWeapon.weaponState = (WeaponStates)attackState;
+
+                    if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
+                        mainWeapon.weaponState = WeaponStates.StrikeDownRight;
+
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                     StartCoroutine(mainWeapon.AnimationCalculator());
@@ -557,6 +561,10 @@ namespace AmbidexterityModule
                     {
                         offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
                         mainWeapon.weaponState = WeaponStateController();
+
+                        if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
+                            mainWeapon.weaponState = WeaponStates.StrikeDownRight;
+
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
@@ -577,6 +585,10 @@ namespace AmbidexterityModule
                 //trigger offhand weapon attack animation routines.
                 mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
                 offhandWeapon.weaponState = WeaponStateController(true);
+
+                if (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandWeapon.weaponState == WeaponStates.StrikeUp)
+                    offhandWeapon .weaponState = WeaponStates.StrikeDownRight;
+
                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                 StartCoroutine(offhandWeapon.AnimationCalculator());
                 GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(offhandWeapon.weaponState);
@@ -591,26 +603,23 @@ namespace AmbidexterityModule
             //defaults to random attack select like classic if nothing overrides it.
             WeaponStates state = (WeaponStates)randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
 
-            if(mainWeapon.WeaponType == WeaponTypes.Melee || (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandAttack) && direction == MouseDirections.Up)
-                return mainWeapon.OnAttackDirection(MouseDirections.DownRight);
-
             //if player has drag attack selected, and either weapon attack key is pressed, then return the attack direction based on mouse drag,
             if (!DaggerfallUnity.Settings.ClickToAttack)
             {
-                return mainWeapon.OnAttackDirection(direction);
+                return OnAttackDirection(direction);
             }           
 
             //if movement based is selected, return one of four attacks based on movement direction.
             if (movementDirAttack)
             {
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveLeft))
-                    return WeaponStates.StrikeLeft;
+                    state = WeaponStates.StrikeLeft;
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight))
-                    return WeaponStates.StrikeRight;
+                    state = WeaponStates.StrikeRight;
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveForwards))
-                    return WeaponStates.StrikeUp;
+                    state = WeaponStates.StrikeUp;
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
-                    return WeaponStates.StrikeDown;
+                    state = WeaponStates.StrikeDown;
             }
 
             //if using look direction setting, grab the current mouse direction.
@@ -618,10 +627,7 @@ namespace AmbidexterityModule
             {
                 //if a mouse direction is active, activate proper attack for it.
                 if (direction != MouseDirections.None)
-                    return mainWeapon.OnAttackDirection(direction);
-                //if not, return a random attack.
-                else
-                    return state;
+                    state = OnAttackDirection(direction);
             }
 
             return state;
@@ -1467,6 +1473,30 @@ namespace AmbidexterityModule
             public override string ToString()
             {
                 return string.Format("t={0}s, dx={1}, dy={2}", Time, Delta.x, Delta.y);
+            }
+        }
+
+        public WeaponStates OnAttackDirection(MouseDirections direction)
+        {
+            // Get state based on attack direction
+            //WeaponStates state;
+
+            switch (direction)
+            {
+                case MouseDirections.Down:
+                    return WeaponStates.StrikeDown;
+                case MouseDirections.DownLeft:
+                    return WeaponStates.StrikeDownLeft;
+                case MouseDirections.Left:
+                    return WeaponStates.StrikeLeft;
+                case MouseDirections.Right:
+                    return WeaponStates.StrikeRight;
+                case MouseDirections.DownRight:
+                    return WeaponStates.StrikeDownRight;
+                case MouseDirections.Up:
+                    return WeaponStates.StrikeUp;
+                default:
+                    return WeaponStates.Idle;
             }
         }
 
