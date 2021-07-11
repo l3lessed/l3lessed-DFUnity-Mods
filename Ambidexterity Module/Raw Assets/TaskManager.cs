@@ -68,6 +68,11 @@ namespace AmbidexterityModule
             task.Unpause();
         }
 
+        public void Reset()
+        {
+            task.Reset();
+        }
+
         void TaskFinished(bool manual)
         {
             FinishedHandler handler = Finished;
@@ -105,6 +110,7 @@ namespace AmbidexterityModule
             bool running;
             bool paused;
             bool stopped;
+            bool restart;
 
             public TaskState(IEnumerator c)
             {
@@ -131,6 +137,11 @@ namespace AmbidexterityModule
             {
                 stopped = true;
                 running = false;
+            }
+
+            public void Reset()
+            {
+                coroutine.Reset();
             }
 
             IEnumerator CallWrapper()

@@ -51,7 +51,9 @@ namespace AmbidexterityModule
 
         //public static Coroutine ParryCoroutine;
         public Task ParryCoroutine;
-        public Task PrimerCoroutine;
+        public Task lowerWeaponCoroutine;
+        public Task raiseWeaponCoroutine;
+        public Task attackWeaponCoroutine;
 
         public bool AltFPSWeaponShow;
         public static bool flip;
@@ -226,7 +228,7 @@ namespace AmbidexterityModule
                 if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                 {
                     lerpfinished = true;
-                    ResetAnimation();
+                    ResetAnimation(frameLock);
                     UpdateWeapon();
                     yield break;
                 }
@@ -313,7 +315,7 @@ namespace AmbidexterityModule
             return attackcast;
         }
 
-        public void ResetAnimation()
+        public void ResetAnimation(bool savePosition = false)
         {
             timeCovered = 0;
             currentFrame = 0;
@@ -327,9 +329,13 @@ namespace AmbidexterityModule
             AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = false;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
             AmbidexterityManager.isHit = false;
-            posi = 0;
-            offsetX = 0;
-            offsetY = 0;
+
+            if (!savePosition)
+            {
+                posi = 0;
+                offsetX = 0;
+                offsetY = 0;
+            }
         }
 
         //draws gui shield.

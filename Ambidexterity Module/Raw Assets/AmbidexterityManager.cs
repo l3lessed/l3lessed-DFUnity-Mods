@@ -421,11 +421,11 @@ namespace AmbidexterityModule
             //each script and its corresponding animation systems.
             UpdateHands();
 
-            if(FPSShield.shieldStates == 1)
-                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, false, 1, FPSShield.totalBlockTime, 0, true, true, false));
+            if (FPSShield.shieldStates == 0 && Input.GetKeyDown(offHandKeyCode))
+                mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator((AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, AltFPSWeapon.offsetX, -.4f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
 
-            if (FPSShield.shieldStates == 3)
-                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(-.25f, 0, -.4f, 0, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+            if (FPSShield.shieldStates != 0 && Input.GetKeyUp(offHandKeyCode))
+                mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, .5f, 0, true, true, false));
 
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
@@ -508,7 +508,7 @@ namespace AmbidexterityModule
             {
                 if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
+                    mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
                     //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                     offhandWeapon.isParrying = true;
                     offhandWeapon.ParryCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -583,7 +583,7 @@ namespace AmbidexterityModule
             if (AttackState == 0 && !FPSShield.shieldEquipped && AttackState != 7 && (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None))
             {
                 //trigger offhand weapon attack animation routines.
-                mainWeapon.PrimerCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
+                mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
                 offhandWeapon.weaponState = WeaponStateController(true);
 
                 if (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandWeapon.weaponState == WeaponStates.StrikeUp)
