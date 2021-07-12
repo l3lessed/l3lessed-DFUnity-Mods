@@ -422,10 +422,19 @@ namespace AmbidexterityModule
             UpdateHands();
 
             if (FPSShield.shieldStates == 0 && Input.GetKeyDown(offHandKeyCode))
-                mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator((AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, AltFPSWeapon.offsetX, -.4f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+            {
+                if(mainWeapon.raiseWeaponCoroutine != null)
+                    mainWeapon.raiseWeaponCoroutine.Stop();
+                Debug.Log("Shield Lowering Weapon:" + FPSShield.shieldStates + " | " + FPSShield.totalBlockTime * .5f);
+                mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX,  AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+            }                
 
-            if (FPSShield.shieldStates != 0 && Input.GetKeyUp(offHandKeyCode))
-                mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, .5f, 0, true, true, false));
+            if ((FPSShield.shieldStates == 2 || FPSShield.shieldStates == 3) && Input.GetKeyUp(offHandKeyCode))
+            {
+                mainWeapon.lowerWeaponCoroutine.Stop();
+                Debug.Log("Shield Raising Weapon:" + FPSShield.shieldStates + " | " + FPSShield.totalBlockTime * .5f);
+                mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .35f, 0, true, true, false));
+            }               
 
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
@@ -540,15 +549,14 @@ namespace AmbidexterityModule
                     FPSShield.shieldStates = 7;
                     offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                    attackState = randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
-                    mainWeapon.weaponState = (WeaponStates)attackState;
+                    mainWeapon.weaponState = WeaponStateController();
 
                     if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
                         mainWeapon.weaponState = WeaponStates.StrikeDownRight;
 
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
-                    StartCoroutine(mainWeapon.AnimationCalculator());
+                    mainWeapon.AttackCoroutine = new Task(mainWeapon.AnimationCalculator());
                     TallyCombatSkills(currentmainHandItem);
                     return;
                 }
@@ -568,7 +576,7 @@ namespace AmbidexterityModule
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                         GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                        StartCoroutine(mainWeapon.AnimationCalculator());
+                        mainWeapon.AttackCoroutine = new Task(mainWeapon.AnimationCalculator());
                         TallyCombatSkills(currentmainHandItem);
                         return;
                     }
@@ -590,7 +598,7 @@ namespace AmbidexterityModule
                     offhandWeapon .weaponState = WeaponStates.StrikeDownRight;
 
                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                StartCoroutine(offhandWeapon.AnimationCalculator());
+                offhandWeapon.AttackCoroutine = new Task(offhandWeapon.AnimationCalculator());
                 GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(offhandWeapon.weaponState);
                 offhandWeapon.PlaySwingSound();
                 TallyCombatSkills(currentoffHandItem);

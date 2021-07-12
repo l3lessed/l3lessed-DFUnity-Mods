@@ -50,6 +50,7 @@ namespace AmbidexterityModule
 
         public Task ParryCoroutine;
         public Task PrimerCoroutine;
+        public Task AttackCoroutine;
 
         static bool bash;
         public bool OffHandWeaponShow;

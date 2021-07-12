@@ -54,6 +54,7 @@ namespace AmbidexterityModule
         public Task lowerWeaponCoroutine;
         public Task raiseWeaponCoroutine;
         public Task attackWeaponCoroutine;
+        public Task AttackCoroutine;
 
         public bool AltFPSWeaponShow;
         public static bool flip;
@@ -365,7 +366,22 @@ namespace AmbidexterityModule
 
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
-                    UpdateWeapon();
+                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
+                    {
+                        if (bob >= .10f && bobSwitch)
+                            bobSwitch = false;
+                        else if (bob <= 0 && !bobSwitch)
+                            bobSwitch = true;
+
+                        if (bobSwitch)
+                            bob = bob + UnityEngine.Random.Range(.0005f, .001f);
+                        else
+                            bob = bob - UnityEngine.Random.Range(.0005f, .001f);
+
+                        offsetX = (bob / 1.5f) - .07f;
+                        offsetY = (bob * 1.5f) - .15f;
+                        UpdateWeapon();
+                    };
                 }
             }
 
@@ -423,24 +439,7 @@ namespace AmbidexterityModule
                 //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
                 //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
                 //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
-                {
-                    if (bob >= .10f && bobSwitch)
-                        bobSwitch = false;
-                    else if (bob <= 0 && !bobSwitch)
-                        bobSwitch = true;
-
-                    if (bobSwitch)
-                        bob = bob + UnityEngine.Random.Range(.0005f, .001f);
-                    else
-                        bob = bob - UnityEngine.Random.Range(.0005f, .001f);
-
-                    weaponAnimRecordIndex = 0;
-
-                    offsetX = (bob / 1.5f) - .07f;
-                    offsetY = (bob * 1.5f) - .15f;
-                }
-                else if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
+                if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
                 {
                     //posi = posi * posiModifier;
 
