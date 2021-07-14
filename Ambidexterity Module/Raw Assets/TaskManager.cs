@@ -68,11 +68,6 @@ namespace AmbidexterityModule
             task.Unpause();
         }
 
-        public void Reset()
-        {
-            task.Reset();
-        }
-
         void TaskFinished(bool manual)
         {
             FinishedHandler handler = Finished;
@@ -139,11 +134,6 @@ namespace AmbidexterityModule
                 running = false;
             }
 
-            public void Reset()
-            {
-                coroutine.Reset();
-            }
-
             IEnumerator CallWrapper()
             {
                 yield return null;
@@ -163,7 +153,7 @@ namespace AmbidexterityModule
                             running = false;
                         }
                     }
-                }
+                }                
 
                 FinishedHandler handler = Finished;
                 if (handler != null)

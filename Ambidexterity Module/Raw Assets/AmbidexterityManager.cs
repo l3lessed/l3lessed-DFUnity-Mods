@@ -421,20 +421,26 @@ namespace AmbidexterityModule
             //each script and its corresponding animation systems.
             UpdateHands();
 
-            if (FPSShield.shieldStates == 0 && Input.GetKeyDown(offHandKeyCode))
+            //CONTROLS WEAPON ANIMATIONS FOR SHIELD\\
+            //if the player has a shield equipped, start logic for raising and lowering weapon hand.
+            if (FPSShield.shieldEquipped)
             {
-                if(mainWeapon.raiseWeaponCoroutine != null)
-                    mainWeapon.raiseWeaponCoroutine.Stop();
-                Debug.Log("Shield Lowering Weapon:" + FPSShield.shieldStates + " | " + FPSShield.totalBlockTime * .5f);
-                mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX,  AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
-            }                
+                //if the shield is raising and the weapon lowering animation routine is empty or not running, stop the raising animation and start the lowering animation.
+                if (FPSShield.shieldStates == 1 && (mainWeapon.lowerWeaponCoroutine == null || !mainWeapon.lowerWeaponCoroutine.Running))
+                {
+                    if (mainWeapon.raiseWeaponCoroutine != null)
+                        mainWeapon.raiseWeaponCoroutine.Stop();
 
-            if ((FPSShield.shieldStates == 2 || FPSShield.shieldStates == 3) && Input.GetKeyUp(offHandKeyCode))
-            {
-                mainWeapon.lowerWeaponCoroutine.Stop();
-                Debug.Log("Shield Raising Weapon:" + FPSShield.shieldStates + " | " + FPSShield.totalBlockTime * .5f);
-                mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .35f, 0, true, true, false));
-            }               
+                    mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+                }
+
+                //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
+                if (FPSShield.shieldStates == 3 && (mainWeapon.raiseWeaponCoroutine == null || !mainWeapon.raiseWeaponCoroutine.Running))
+                {
+                    mainWeapon.lowerWeaponCoroutine.Stop();
+                    mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .35f, 0, true, true, false));
+                }
+            }                       
 
             //CONTROLS PARRY ANIMATIONS AND WEAPON STATES\\
             //if player is hit and they are parrying do...
