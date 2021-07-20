@@ -432,14 +432,14 @@ namespace AmbidexterityModule
                     if (mainWeapon.raiseWeaponCoroutine != null)
                         mainWeapon.raiseWeaponCoroutine.Stop();
 
-                    mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .75f, 0, true, true, false));
+                    mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
                 }
 
                 //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
                 if (FPSShield.shieldStates == 3 && (mainWeapon.raiseWeaponCoroutine == null || !mainWeapon.raiseWeaponCoroutine.Running))
                 {
                     mainWeapon.lowerWeaponCoroutine.Stop();
-                    mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .75f, 0, true, true, false));
+                    mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .35f, 0, true, true, false));
                 }
             }                       
 
@@ -485,19 +485,10 @@ namespace AmbidexterityModule
             //the player isn't sheathed, idle, and restoredWalk hasn't been triggered by sheathing yet. This is default movement speed unsheathed modifier.
             if (!GameManager.Instance.WeaponManager.Sheathed && AttackState == 0 && !restoredWalk)
             {
-                //setup default movement speed container.
-                float unsheathedModifier = 1;
-
-                //check which hand has the lowest/slowest movement modifier and assign it to the modifier container float for use below.
-                if (mainWeapon.UnsheathedMoveMod > offhandWeapon.UnsheathedMoveMod)
-                    unsheathedModifier = offhandWeapon.UnsheathedMoveMod;
-                else
-                    unsheathedModifier = mainWeapon.UnsheathedMoveMod;
-
                 playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
                 playerSpeedChanger.RemoveSpeedMod(runModUID, true);
-                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, unsheathedModifier, true);
-                playerSpeedChanger.AddRunSpeedMod(out runModUID, unsheathedModifier, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, .75f, true);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, .75f, true);
                 restoredWalk = true;
                 attackApplied = false;
                 return;
@@ -505,19 +496,10 @@ namespace AmbidexterityModule
             //if the player is attacking, is unsheathed, and hasn't already had movement modifier attackApplied, set walkspeed based.
             if (AttackState != 0 && !attackApplied)
             {
-                //setup default movement speed container.
-                float attackModifier = 1;
-
-                //check which hand has the lowest/slowest movement modifier and assign it to the modifier container float for use below.
-                if (mainWeapon.AttackMoveMod > offhandWeapon.AttackMoveMod)
-                    attackModifier = offhandWeapon.AttackMoveMod;
-                else
-                    attackModifier = mainWeapon.AttackMoveMod;
-
                 playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
                 playerSpeedChanger.RemoveSpeedMod(runModUID, true);
-                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, attackModifier, true);
-                playerSpeedChanger.AddRunSpeedMod(out runModUID, attackModifier, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, .1f, true);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, .1f, true);
                 attackApplied = true;
                 restoredWalk = false;
                 return;
@@ -555,7 +537,7 @@ namespace AmbidexterityModule
                     offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
                     //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                     mainWeapon.isParrying = true;
-                    mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true,true,false));
+                    mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
                     return;
                 }
@@ -744,7 +726,7 @@ namespace AmbidexterityModule
         }
 
         //CHECKS PLAYERS ATTACK STATE USING BOTH HANDS.
-        private int checkAttackState()
+        public int checkAttackState()
         {
             if(mainWeapon.weaponState != WeaponStates.Idle)
                 return attackState = (int)mainWeapon.weaponState;

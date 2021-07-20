@@ -118,6 +118,7 @@ namespace AmbidexterityModule
         public float yModifier4;
         public int selectedFrame;
         public bool useImportedTextures;
+        private float waitTimer;
 
         public void PlaySwingSound()
         {
@@ -156,7 +157,23 @@ namespace AmbidexterityModule
 
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
-                    UpdateWeapon();
+                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
+                    {
+
+                        offsetX = (AltFPSWeapon.bob / -1.5f);
+                        offsetY = (AltFPSWeapon.bob * -1.5f);
+
+                        waitTimer += Time.deltaTime;
+
+                        if (waitTimer > .75f && AmbidexterityManager.classicAnimations)
+                        {
+                            waitTimer = 0;
+                            UpdateWeapon();
+                            return;
+                        }
+                        else if (!AmbidexterityManager.classicAnimations)
+                            UpdateWeapon();
+                    }
                 }
             }
         }
@@ -392,6 +409,7 @@ namespace AmbidexterityModule
         public void UpdateWeapon()
         {
             int frameBeforeStepping = currentFrame;
+            selectedFrame = currentFrame;
             // Do nothing if weapon not ready
             if (weaponAtlas == null || weaponAnims == null ||
                 weaponRects == null || weaponIndices == null)
@@ -414,26 +432,6 @@ namespace AmbidexterityModule
                 else
                     curCustomTexture = null;
 
-                //*COMBAT OVERHAUL ADDITION*//
-                //added offset checks for individual attacks and weapons. Also, allows for the weapon bobbing effect.
-                //helps smooth out some animaitions by swapping out certain weapon animation attack frames and repositioning.
-                //to line up the 5 animation frame changes with one another. This was critical for certain weapons and attacks.
-                //this is a ridiculous if then loop set. Researching better ways of structuring this, of possible.
-                if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
-                {
-                    if (WeaponType == WeaponTypes.Werecreature)
-                    {
-                        weaponAnimRecordIndex = 5;
-                        offsetX = (AltFPSWeapon.bob / 1.5f) - .57f;
-                    }
-                    else
-                    {
-                        weaponAnimRecordIndex = 0;
-                        offsetX = (AltFPSWeapon.bob / 1.5f) - .07f;
-                    }
-
-                    offsetY = (AltFPSWeapon.bob * -1.5f);
-                }
 
                 if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
                 {

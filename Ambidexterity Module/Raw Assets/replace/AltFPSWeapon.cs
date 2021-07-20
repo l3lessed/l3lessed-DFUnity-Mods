@@ -67,7 +67,6 @@ namespace AmbidexterityModule
         public static float weaponScaleX;
         public static float weaponScaleY;
         public static float offsetY;
-        public float waitTimer;
         public static float offsetX;
         static float posi;
         public float totalAnimationTime;
@@ -190,18 +189,9 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if(AmbidexterityManager.classicAnimations && !raycast)
+                if (!AmbidexterityManager.classicAnimations)
                 {
-                    if (!breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered + (totalTime / 5);
-                    else if (breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered - (totalTime / 5);
-                }
-                else
-                {
-                    if (hitObject)
+                    if(hitObject)
                     {
                         frametime -= Time.deltaTime * 2;
                         timeCovered -= Time.deltaTime * 2;
@@ -219,6 +209,15 @@ namespace AmbidexterityModule
                         timeCovered -= Time.deltaTime;
                     }
                 }
+                else
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered + (totalTime / 5);
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered - (totalTime / 5);
+                }                
 
                 //how much time has passed in the animation
                 percentagetime = (float)Math.Round(timeCovered / totalTime, 2);
@@ -274,7 +273,7 @@ namespace AmbidexterityModule
                         }
                         else if (weaponState == WeaponStates.StrikeDownRight)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(-90, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(110, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = Vector3.Lerp(new Vector3(GameManager.Instance.MainCamera.transform.position.x, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(GameManager.Instance.MainCamera.transform.position.x, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
                             attackcast = (objectRotation * attackcast);
                         }
                         else if (weaponState == WeaponStates.StrikeLeft)
@@ -284,7 +283,7 @@ namespace AmbidexterityModule
                         }
                         else if (weaponState == WeaponStates.StrikeDownLeft)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(90f, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-70f, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = Vector3.Lerp(new Vector3(GameManager.Instance.MainCamera.transform.position.x, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(GameManager.Instance.MainCamera.transform.position.x, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
                             attackcast = (objectRotation * attackcast);
                         }
                         else if (weaponState == WeaponStates.StrikeDown)
@@ -315,11 +314,10 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
-                if (AmbidexterityManager.classicAnimations && !raycast)
-                    yield return new WaitForSecondsRealtime(totalTime / 5);
-                else
+                if (!AmbidexterityManager.classicAnimations)
                     yield return new WaitForFixedUpdate();
-
+                else
+                    yield return new WaitForSecondsRealtime(totalTime / 5);
 
             }
         }
@@ -350,6 +348,8 @@ namespace AmbidexterityModule
         //draws gui shield.
         private void OnGUI()
         {
+            UnityEngine.Debug.Log(GameManager.Instance.MainCamera.transform.rotation);
+
             GUI.depth = 1;
             //if shield is not equipped or console is open then....
             if (!AltFPSWeaponShow || GameManager.Instance.WeaponManager.Sheathed || AmbidexterityManager.consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
@@ -374,7 +374,7 @@ namespace AmbidexterityModule
 
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
-                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
+                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob && !AmbidexterityManager.classicAnimations)
                     {
                         if (bob >= .10f && bobSwitch)
                             bobSwitch = false;
@@ -382,23 +382,13 @@ namespace AmbidexterityModule
                             bobSwitch = true;
 
                         if (bobSwitch)
-                            bob = bob + UnityEngine.Random.Range(.00025f, .0005f);
+                            bob = bob + UnityEngine.Random.Range(.0005f, .001f);
                         else
-                            bob = bob - UnityEngine.Random.Range(.00025f, .0005f);
+                            bob = bob - UnityEngine.Random.Range(.0005f, .001f);
 
                         offsetX = (bob / 1.5f) - .07f;
                         offsetY = (bob * 1.5f) - .15f;
-
-                        waitTimer += Time.deltaTime;
-
-                        if(waitTimer > .75f && AmbidexterityManager.classicAnimations)
-                        {
-                            waitTimer = 0;
-                            UpdateWeapon();
-                            return;
-                        }
-                        else if(!AmbidexterityManager.classicAnimations)
-                            UpdateWeapon();
+                        UpdateWeapon();
                     };
                 }
             }
@@ -430,7 +420,6 @@ namespace AmbidexterityModule
         public void UpdateWeapon()
         {
             int frameBeforeStepping = currentFrame;
-            selectedFrame = currentFrame;
             // Do nothing if weapon not ready
             if (weaponAtlas == null || weaponAnims == null ||
                 weaponRects == null || weaponIndices == null)

@@ -51,6 +51,8 @@ namespace AmbidexterityModule
         public Coroutine Bobcoroutine;
         private Coroutine currentAnimation;
 
+        private Task shieldBobTask;
+
         //used for storing texture path for shield.
         public static string smallTexture_Path;
         public static string largeTexture_Path;
@@ -228,7 +230,7 @@ namespace AmbidexterityModule
                 currentAnimationNumerator = loadAnimation;
             }
 
-            if (currentAnimationNumerator.ToString() == loadAnimation.ToString() && reset)
+            if (currentAnimationNumerator.ToString() == loadAnimation.ToString() && reset && lerpfinished)
             {
                 Debug.Log("RESET:" + currentAnimationNumerator + " || " + loadAnimation);
                 TimeCovered = 0;
@@ -257,55 +259,20 @@ namespace AmbidexterityModule
         #region IndividualAnimationCoroutines
         //below is all the individual animation coroutines that store the individual
         //animation position and size information to pass to the lerp calculator.
-        IEnumerator ShieldBob(float animeTime)
+        IEnumerator ShieldBob()
         {
             while (true)
             {
+                bob = (AltFPSWeapon.bob - .1f) * -1;
+
+                xPos = (bob / 1.5f) - .05f;
+                yPos = (bob * 1.5f) - .1f;
+
                 //if classic animation enabled, return animation every 5 frames, just like classic.
                 if (AmbidexterityManager.classicAnimations)
-                    yield return new WaitForSeconds(animeTime / 5);
+                    yield return new WaitForSeconds(.35f);
                 else
                     yield return new WaitForEndOfFrame();
-
-                if (AmbidexterityManager.classicAnimations)
-                {
-                    //forces time covered update. Override of usual lerp calculatator time counter.
-                    if (breatheTrigger)
-                    {
-                        //computes the time covered for each from by taking the total animation time and dividing it by frames wanted.
-                        //adds that to the timecovered var to count up.
-                        TimeCovered = TimeCovered + (animeTime / 5);
-                        //rounds the total seconds down to proper decimal amount to ensure no animation glitches from super tiny float points.
-                        TimeCovered = (float)Math.Round(TimeCovered, 2);
-
-                        totalTime = totalTime + (animeTime / 5);
-                    }
-                    else if (!breatheTrigger)
-                    {
-                        //computes the time covered for each from by taking the total animation time and dividing it by frames wanted.
-                        //adds that to the timecovered var to count up.
-                        TimeCovered = TimeCovered - (animeTime / 5);
-                        //rounds the total seconds down to proper decimal amount to ensure no animation glitches from super tiny float points.
-                        TimeCovered = (float)Math.Round(TimeCovered, 2);
-
-                        totalTime = totalTime + (animeTime / 5);
-                    }
-                }
-
-                //set lerp/animation calculation values for bobbing effect.
-                startxPos = -.05f;
-                endxPos = 0;
-
-                startyPos = -.1f;
-                endyPos = 0;
-
-                startSize = 118;
-                endSize = 128;
-
-                //calculate shield/lerp animation values for bob. Loop and breathe the animation to create bob.
-                CalculateShieldx(animeTime, 0, "smoothstep", true, true, 2);
-                CalculateShieldy(animeTime, 0, "smoothstep", true, true, 2);
-                CalculateShieldsize(animeTime, 0, "smoothstep", true, true, 2);
             }
 
         }
@@ -602,13 +569,15 @@ namespace AmbidexterityModule
             }
 
             //Controls Shield Bob when shield is idle:
-            //if player is moving, not attacking, and enabled the bob system, setup and start bobbing system coroutine.
-            if (shieldStates == 0 && moving)
+            //if player is moving, not attacking, and bob coroutine isn't running/present, setup and start bobbing system coroutine.
+            if (shieldStates == 0 && moving && (shieldBobTask == null || !shieldBobTask.Running))
             {
-                bob = (AltFPSWeapon.bob - .1f) * -1;
-
-                xPos = (bob / 1.5f) - .05f;
-                yPos = (bob * 1.5f) - .1f;
+                shieldBobTask = new Task(ShieldBob());
+            }
+            //if they attack or stop moving, stop the bob coroutine in its tracks.
+            else if((shieldStates != 0 || !moving) && (shieldBobTask != null || shieldBobTask.Running))
+            {
+                shieldBobTask.Stop();
             }
 
             if (shieldStates == 7)
