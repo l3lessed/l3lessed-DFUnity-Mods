@@ -118,7 +118,7 @@ namespace AmbidexterityModule
         public float yModifier4;
         public int selectedFrame;
         public bool useImportedTextures;
-        private float waitTimer;
+        public bool classicBobUpdate;
 
         public void PlaySwingSound()
         {
@@ -155,24 +155,24 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
+                //offhand bob animation. Tied to altfps script to ensure they move together.
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
                     if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
                     {
-
-                        offsetX = (AltFPSWeapon.bob / -1.5f);
-                        offsetY = (AltFPSWeapon.bob * -1.5f);
-
-                        waitTimer += Time.deltaTime;
-
-                        if (waitTimer > .75f && AmbidexterityManager.classicAnimations)
+                        if (classicBobUpdate && AmbidexterityManager.classicAnimations)
                         {
-                            waitTimer = 0;
+                            offsetX  = (AltFPSWeapon.bob / -1.5f) + UnityEngine.Random.Range(.001f, .0015f);
+                            offsetY = (AltFPSWeapon.bob * -1.5f) + UnityEngine.Random.Range(.0015f, .002f);
+                            classicBobUpdate = false;
                             UpdateWeapon();
-                            return;
                         }
                         else if (!AmbidexterityManager.classicAnimations)
+                        {
+                            offsetX = (AltFPSWeapon.bob / -1.5f) + UnityEngine.Random.Range(.001f, .0015f);
+                            offsetY = (AltFPSWeapon.bob * -1.5f) + UnityEngine.Random.Range(.0015f, .002f);
                             UpdateWeapon();
+                        }
                     }
                 }
             }

@@ -150,6 +150,7 @@ namespace AmbidexterityModule
         private string walkModUID;
         private string runModUID;
         public Vector3 raylength;
+        public bool classicAnimationBool;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -333,6 +334,8 @@ namespace AmbidexterityModule
         {
             //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
             movementModifier();
+
+            classicAnimations = classicAnimationBool;
 
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
             if (!GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
