@@ -126,11 +126,6 @@ namespace AmbidexterityModule
         public float castX;
         public float castY;
         public float castZ;
-        public float bobClassicUpdate = 1.25f;
-        public float bobStart;
-        public float bobEnd;
-        public float bobClassicTimer;
-        public bool classicBobUpdate;
 
         //*COMBAT OVERHAUL ADDITION*//
         //switch used to set custom offset distances for each weapon.
@@ -266,30 +261,32 @@ namespace AmbidexterityModule
 
                     if ((percentagetime > hitStart && percentagetime < hitEnd) && !hitObject && AmbidexterityManager.physicalWeapons && !isParrying)
                     {
-                        //defualt forward arccast setup for use.
+                        //gets forward facing vector using player camera.
                         Vector3 attackcast = GameManager.Instance.MainCamera.transform.forward;
                         //sets a Quaternion angle for adjusting arccast by calculating the angle of my forward look, multiplied to my up/down look and offset left by 20 degrees to center to raycast.
-                        Quaternion objectRotation = Quaternion.LookRotation(GameManager.Instance.MainCamera.transform.forward) * Quaternion.Euler(GameManager.Instance.MainCamera.transform.rotation.x, -20f, 0);
+                        Quaternion objectRotation = Quaternion.LookRotation(attackcast);
 
                         //logic ladder to calculate actual arccast based on selected attack direction.
                         if (weaponState == WeaponStates.StrikeRight)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(-110f, GameManager.Instance.MainCamera.transform.position.y, GameManager.Instance.MainCamera.transform.position.z), new Vector3(165f, GameManager.Instance.MainCamera.transform.position.y, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            attackcast = objectRotation * attackcast;
+                            //lerps through lerp cordinates to make arc cast. Locks y position to main camera z rotation(look up/down angle/radian).
+                            attackcast = Vector3.Lerp(new Vector3(-90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            //rotates vector3 position to camera forward using above Quaternion
+                            attackcast = objectRotation * attackcast;                            
                         }
                         else if (weaponState == WeaponStates.StrikeDownRight)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(-90, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(110, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = Vector3.Lerp(new Vector3(-70, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(90, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
                             attackcast = (objectRotation * attackcast);
                         }
                         else if (weaponState == WeaponStates.StrikeLeft)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(165f, GameManager.Instance.MainCamera.transform.position.y, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-110f, GameManager.Instance.MainCamera.transform.position.y, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = Vector3.Lerp(new Vector3(110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
                             attackcast = (objectRotation * attackcast);
                         }
                         else if (weaponState == WeaponStates.StrikeDownLeft)
                         {
-                            attackcast = Vector3.Lerp(new Vector3(90f, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-70f, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = Vector3.Lerp(new Vector3(90f, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-70f,-45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
                             attackcast = (objectRotation * attackcast);
                         }
                         else if (weaponState == WeaponStates.StrikeDown)
@@ -352,63 +349,6 @@ namespace AmbidexterityModule
             }
         }
 
-        void BobAnimation()
-        {
-            //make sure player isn't attacking, using shield, and enabled bobbing feature before running.
-            if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
-            {
-                //adjust bob start and end additive property to work best with classic or smooth animations.
-                if (AmbidexterityManager.classicAnimations)
-                {
-                    bobStart = .0005f;
-                    bobEnd = .001f;
-                    //add to bob timer time lapsed since last frame.
-                    bobClassicTimer += Time.deltaTime;
-                    //wait this long before updating frame.
-                    bobClassicUpdate = 1.25f;
-
-                    //default classic update to false/not trigger.
-                    classicBobUpdate = false;
-                    //check if bob timer is greater than classic update time interval. If so, set all classic update properties to true across all weapon/shield scripts.
-                    if (bobClassicTimer >= bobClassicUpdate)
-                    {
-                        //sets all weapons/shields bob to update if classic animation is selected. Gives bob a classic frame skipping look.
-                        classicBobUpdate = true;
-                        OffHandFPSWeapon.OffHandFPSWeaponInstance.classicBobUpdate = true;
-                        //reset bobtimer for classic animations.
-                        bobClassicTimer = 0;
-                    }
-                }
-                else
-                {
-                    bobStart = .0015f;
-                    bobEnd = .002f;
-                    //do not wait to updated weapon position/bob since classic animations are disabled.
-                    classicBobUpdate = true;
-                }
-
-                //controls if the bob is adding or subtracting based on if it has completed the full bob.
-                if (bob >= .10f && bobSwitch)
-                {
-                    bob = bob + UnityEngine.Random.Range(bobStart, bobEnd);
-                    bobSwitch = false;
-                }
-                else if (bob <= 0 && !bobSwitch)
-                {
-                    bob = bob - UnityEngine.Random.Range(bobStart, bobEnd);
-                    bobSwitch = true;
-                }
-
-                //updates position if update trigger is true. Smoothed animations default this to true always. Classic update at set time interval.
-                if (classicBobUpdate)
-                {
-                    offsetX = (bob / 1.5f) - .07f;
-                    offsetY = (bob * 1.5f) - .15f;
-                    UpdateWeapon();
-                }
-            }
-        }
-
         //draws gui shield.
         private void OnGUI()
         {
@@ -436,9 +376,32 @@ namespace AmbidexterityModule
 
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
-                    //calls bob routine to offset weapons based on movement key push, which simulates a weapon bob.
-                    //used to also synchonize offhand and shield bob by tying their offsets to this scripts bob property.
-                    BobAnimation();
+                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
+                    {
+                        if (bob >= .10f && bobSwitch)
+                            bobSwitch = false;
+                        else if (bob <= 0 && !bobSwitch)
+                            bobSwitch = true;
+
+                        if (bobSwitch)
+                            bob = bob + UnityEngine.Random.Range(.00025f, .0005f);
+                        else
+                            bob = bob - UnityEngine.Random.Range(.00025f, .0005f);
+
+                        offsetX = (bob / 1.5f) - .07f;
+                        offsetY = (bob * 1.5f) - .15f;
+
+                        waitTimer += Time.deltaTime;
+
+                        if(waitTimer > .75f && AmbidexterityManager.classicAnimations)
+                        {
+                            waitTimer = 0;
+                            UpdateWeapon();
+                            return;
+                        }
+                        else if(!AmbidexterityManager.classicAnimations)
+                            UpdateWeapon();
+                    };
                 }
             }
 

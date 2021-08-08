@@ -23,10 +23,12 @@ namespace AmbidexterityModule
     {
         //initiates mod instances for mod manager.
         public static Mod mod;
+        public static Mod PhysicalCombatMod;
         public static AmbidexterityManager AmbidexterityManagerInstance;
         public AltFPSWeapon mainWeapon;
         public OffHandFPSWeapon offhandWeapon;
         static ModSettings settings;
+        static ModSettings PhysicalCombatSettings;
         public static ConsoleController consoleController;
         //sets up console instances for the script to load the objects into. Used to disabled texture when consoles open.
         static GameObject console;
@@ -188,12 +190,9 @@ namespace AmbidexterityModule
             mod = initParams.Mod;
             //loads mods settings.
             settings = mod.GetSettings();
-            //assets = mod.LoadAllAssetsFromBundle();
-            //initiates save paramaters for class/script.
-            //mod.SaveDataInterface = instance;
             //after finishing, set the mod's IsReady flag to true.
             mod.IsReady = true;
-            Debug.Log("You stretch your arms, cracking your knuckles, your whole body ready and alert.");
+            Debug.Log("You stretch your arms and crack your knuckles feeling your whole body becoming ready and alert.");
 
             usingRightHand = GameManager.Instance.WeaponManager.UsingRightHand;
         }
@@ -201,6 +200,26 @@ namespace AmbidexterityModule
         // Use this for initialization
         void Start()
         {
+            //AUTO PATCHERS FOR DIFFERING MODS\\
+            //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
+            if(ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
+            {
+                Debug.Log("DREAM Handheld detected. Activated Dream Textures");
+                AltFPSWeapon.AltFPSWeaponInstance.useImportedTextures = true;
+                OffHandFPSWeapon.OffHandFPSWeaponInstance.useImportedTextures = true;
+            }            
+
+            //register the formula calculate attack damage formula so can pull attack properties needed and zero out damage when player is blocking succesfully.
+            //If they have physical combat & armor overhaul mod, replace with a patched formula for mod compatibility. If not, use ambidexterity module formulas.
+            //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\   
+            if (ModManager.Instance.GetMod("PhysicalCombatAndArmorOverhaul") != null)
+            {
+                Debug.Log("Physical Combat & overhaul detected. Activated formulas for compatibility");
+                FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamagePhysicalCombat);
+            }                
+            else
+                FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);
+
             //assigns console to script object, then attaches the controller object to that.
             console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
@@ -269,11 +288,7 @@ namespace AmbidexterityModule
             _gesture = new Gesture();
             _longestDim = Math.Max(Screen.width, Screen.height);
 
-            AttackThreshold = DaggerfallUnity.Settings.WeaponAttackThreshold;
-
-            //register the formula calculate attack damage formula so can pull attack properties needed and zero out damage when player is blocking succesfully.
-            //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\
-            FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);
+            AttackThreshold = DaggerfallUnity.Settings.WeaponAttackThreshold;         
 
             //converts string key setting into valid unity keycode. Ensures mouse and keyboard inputs work properly.
             offHandKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), offHandKeyString);
@@ -545,7 +560,7 @@ namespace AmbidexterityModule
             {
                 if ((equipState == 5 || equipState == 2 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
+                    mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .5f, 0, true, true, false));
                     //sets offhand weapon to parry state, starts classic animation update system, and plays swing sound.
                     offhandWeapon.isParrying = true;
                     offhandWeapon.ParryCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true));
@@ -555,7 +570,7 @@ namespace AmbidexterityModule
 
                 if ((equipState == 1 || (equipState == 4 && GameManager.Instance.WeaponManager.UsingRightHand)))
                 {
-                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .5f, 0, true, true,false));
                     //sets main weapon to parry state, starts classic animation update system, and plays swing sound.
                     mainWeapon.isParrying = true;
                     mainWeapon.ParryCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, .75f, -.5f, true, .5f, 0, 0, true,true,false));
@@ -575,7 +590,7 @@ namespace AmbidexterityModule
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
                     FPSShield.shieldStates = 7;
-                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true,false));
+                    offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .5f, 0, true, true,false));
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     mainWeapon.weaponState = WeaponStateController();
 
@@ -595,7 +610,7 @@ namespace AmbidexterityModule
                     //both weapons are idle, then perform attack routine....
                     if (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None)
                     {
-                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .75f, 0, true, true, false));
+                        offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .5f, 0, true, true, false));
                         mainWeapon.weaponState = WeaponStateController();
 
                         if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
@@ -619,7 +634,7 @@ namespace AmbidexterityModule
             if (AttackState == 0 && !FPSShield.shieldEquipped && AttackState != 7 && (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None))
             {
                 //trigger offhand weapon attack animation routines.
-                mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .75f, 0, true, true, false));
+                mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .5f, 0, true, true, false));
                 offhandWeapon.weaponState = WeaponStateController(true);
 
                 if (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandWeapon.weaponState == WeaponStates.StrikeUp)

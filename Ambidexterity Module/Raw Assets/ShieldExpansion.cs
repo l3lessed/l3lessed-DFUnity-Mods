@@ -45,6 +45,7 @@ public class ShieldExpansion : MonoBehaviour
         ShieldExpansionInstance = ShieldExpansionScript.AddComponent<ShieldExpansion>();
         //initiates mod paramaters for class/script.
         ShieldExpansionMod = initParams.Mod;
+        ShieldExpansionMod.IsReady = true;
     }
 
     // Use this for initialization

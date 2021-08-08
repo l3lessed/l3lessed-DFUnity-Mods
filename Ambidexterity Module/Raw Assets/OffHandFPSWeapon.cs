@@ -118,7 +118,7 @@ namespace AmbidexterityModule
         public float yModifier4;
         public int selectedFrame;
         public bool useImportedTextures;
-        public bool classicBobUpdate;
+        private float waitTimer;
 
         public void PlaySwingSound()
         {
@@ -155,24 +155,24 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
-                //offhand bob animation. Tied to altfps script to ensure they move together.
                 if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
                 {
                     if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
                     {
-                        if (classicBobUpdate && AmbidexterityManager.classicAnimations)
+
+                        offsetX = (AltFPSWeapon.bob / -1.5f);
+                        offsetY = (AltFPSWeapon.bob * -1.5f);
+
+                        waitTimer += Time.deltaTime;
+
+                        if (waitTimer > .75f && AmbidexterityManager.classicAnimations)
                         {
-                            offsetX  = (AltFPSWeapon.bob / -1.5f) + UnityEngine.Random.Range(.001f, .0015f);
-                            offsetY = (AltFPSWeapon.bob * -1.5f) + UnityEngine.Random.Range(.0015f, .002f);
-                            classicBobUpdate = false;
+                            waitTimer = 0;
                             UpdateWeapon();
+                            return;
                         }
                         else if (!AmbidexterityManager.classicAnimations)
-                        {
-                            offsetX = (AltFPSWeapon.bob / -1.5f) + UnityEngine.Random.Range(.001f, .0015f);
-                            offsetY = (AltFPSWeapon.bob * -1.5f) + UnityEngine.Random.Range(.0015f, .002f);
                             UpdateWeapon();
-                        }
                     }
                 }
             }
@@ -254,7 +254,16 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if (!AmbidexterityManager.classicAnimations)
+                if(AmbidexterityManager.classicAnimations && !raycast)
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered + (totalTime / 5);
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered - (totalTime / 5);
+                }
+                else
                 {
                     if (hitObject)
                     {
@@ -273,15 +282,6 @@ namespace AmbidexterityModule
                         // Distance moved equals elapsed time times speed.
                         timeCovered -= Time.deltaTime;
                     }
-                }
-                else
-                {
-                    if (!breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered + (totalTime / 5);
-                    else if (breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered - (totalTime / 5);
                 }
 
                 //how much time has passed in the animation
@@ -325,24 +325,43 @@ namespace AmbidexterityModule
 
                     if ((percentagetime > hitStart && percentagetime < hitEnd) && !hitObject && AmbidexterityManager.physicalWeapons && !isParrying)
                     {
-                        Vector3 attackcast = GameManager.Instance.PlayerController.transform.forward * weaponReach;
-                        if (weaponState == WeaponStates.StrikeRight)
-                            attackcast = ArcCastCalculator(new Vector3(0, 90, 0), new Vector3(0, -90, 0), percentagetime * arcSpeed, attackcast);
-                        else if (weaponState == WeaponStates.StrikeDownRight)
-                            attackcast = ArcCastCalculator(new Vector3(35, -35, 0), new Vector3(-30, 35, 0), percentagetime * arcSpeed, attackcast);
-                        else if (weaponState == WeaponStates.StrikeLeft)
-                            attackcast = ArcCastCalculator(new Vector3(0, -90, 0), new Vector3(0, 90, 0), percentagetime * arcSpeed, attackcast);
-                        else if (weaponState == WeaponStates.StrikeDownLeft)
-                            attackcast = ArcCastCalculator(new Vector3(35, 35, 0), new Vector3(0, -30, -35), percentagetime * arcSpeed, attackcast);
-                        else if (weaponState == WeaponStates.StrikeDown)
-                            attackcast = ArcCastCalculator(new Vector3(-45, 0, 0), new Vector3(45, 0, 0), percentagetime * arcSpeed, attackcast);
-                        else if (weaponState == WeaponStates.StrikeUp)
-                            attackcast = AmbidexterityManager.mainCamera.transform.forward * (Mathf.Lerp(0, weaponReach, percentagetime * arcSpeed));
+                        //gets forward facing vector using player camera.
+                        Vector3 attackcast = GameManager.Instance.MainCamera.transform.forward;
+                        //sets a Quaternion angle for adjusting arccast by calculating the angle of my forward look, multiplied to my up/down look and offset left by 20 degrees to center to raycast.
+                        Quaternion objectRotation = Quaternion.LookRotation(attackcast);
 
-                        if (AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, out attackHit))
+                        //logic ladder to calculate actual arccast based on selected attack direction.
+                        if (weaponState == WeaponStates.StrikeRight)
                         {
-                            hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, out attackHit);
+                            //lerps through lerp cordinates to make arc cast. Locks y position to main camera z rotation(look up/down angle/radian).
+                            attackcast = Vector3.Lerp(new Vector3(90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            //rotates vector3 position to camera forward using above Quaternion
+                            attackcast = objectRotation * attackcast;
                         }
+                        else if (weaponState == WeaponStates.StrikeDownRight)
+                        {
+                            attackcast = Vector3.Lerp(new Vector3(70, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-90, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = (objectRotation * attackcast);
+                        }
+                        else if (weaponState == WeaponStates.StrikeLeft)
+                        {
+                            attackcast = Vector3.Lerp(new Vector3(-110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = (objectRotation * attackcast);
+                        }
+                        else if (weaponState == WeaponStates.StrikeDownLeft)
+                        {
+                            attackcast = Vector3.Lerp(new Vector3(-90f, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(70f, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = (objectRotation * attackcast);
+                        }
+                        else if (weaponState == WeaponStates.StrikeDown)
+                        {
+                            attackcast = Vector3.Lerp(new Vector3(GameManager.Instance.MainCamera.transform.position.x, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(GameManager.Instance.MainCamera.transform.position.x, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
+                            attackcast = (objectRotation * attackcast);
+                        }
+                        else if (weaponState == WeaponStates.StrikeUp)
+                            weaponReach = weaponReach * percentagetime;
+
+                        hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, out attackHit);
                     }
                 }
 
@@ -362,10 +381,10 @@ namespace AmbidexterityModule
 
                 UpdateWeapon();
 
-                if (!AmbidexterityManager.classicAnimations)
-                    yield return new WaitForFixedUpdate();
-                else
+                if (AmbidexterityManager.classicAnimations && !raycast)
                     yield return new WaitForSecondsRealtime(totalTime / 5);
+                else
+                    yield return new WaitForFixedUpdate();
 
             }
         }

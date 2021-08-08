@@ -108,7 +108,6 @@ namespace AmbidexterityModule
         private float bob;
         private bool bobSwitch;
         private int hitType;
-        public float shieldBobSpeed = .2f;
 
         public float currentFrame { get; private set; }
         #endregion
@@ -264,13 +263,14 @@ namespace AmbidexterityModule
         {
             while (true)
             {
-                xPos = (AltFPSWeapon.bob / 1.75f);
-                yPos = (AltFPSWeapon.bob * -1.75f);
+                bob = (AltFPSWeapon.bob - .1f) * -1;
 
-                //if classic animation enabled, return animation every 5 frames, just like classic. Can change update speed using either the base bob property
-                //or, if you want the shield to bob different, update the shieldBobSpeed property.
+                xPos = (bob / 1.5f) - .05f;
+                yPos = (bob * 1.5f) - .1f;
+
+                //if classic animation enabled, return animation every 5 frames, just like classic.
                 if (AmbidexterityManager.classicAnimations)
-                    yield return new WaitForSeconds(AltFPSWeapon.AltFPSWeaponInstance.bobClassicUpdate * shieldBobSpeed);
+                    yield return new WaitForSeconds(.35f);
                 else
                     yield return new WaitForEndOfFrame();
             }
