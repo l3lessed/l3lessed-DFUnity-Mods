@@ -1,6 +1,6 @@
 --This text file contains the custom weapon properties.--
 --It can be configured by adding to or editing the current values using the below formatting standard--
---ITEMID,REACH,UNSHEATHEDMOVEMENT,ATTACKMOVEMENT,ATTACKSPEEDMOD,OFFHANDWIELD--
+--ITEMID,REACH,UNSHEATHEDMOVEMENT,ATTACKMOVEMENT,ATTACKSPEEDMOD,OFFHANDAllOWED--
 113,2.25,1,1,1,1
 114,2.25,1,1,1,1
 115,2.25,1,1,1,1
