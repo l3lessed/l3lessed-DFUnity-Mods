@@ -186,6 +186,11 @@ namespace AmbidexterityModule
             ShieldFormulaHelper.ShieldFormulaHelperInstance = ShieldFormulaHelperObject.AddComponent<ShieldFormulaHelper>();
             Debug.Log("Weapons sharpened, cleaned, and equipped.");
 
+            //attaches and starts the ShieldFormulaHelperObject to run the parry and shield CalculateAttackDamage mod hook adjustments
+            GameObject PhysicalCombatArmorPatchObject = new GameObject("PhysicalCombatArmorPatch");
+            PhysicalCombatArmorPatch.PhysicalCombatArmorPatchInstance = ShieldFormulaHelperObject.AddComponent<PhysicalCombatArmorPatch>();
+            Debug.Log("Gear snugged down & ready");
+
             //initiates mod paramaters for class/script.
             mod = initParams.Mod;
             //loads mods settings.
@@ -350,8 +355,6 @@ namespace AmbidexterityModule
             //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
             movementModifier();
 
-            classicAnimations = classicAnimationBool;
-
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
             if (!GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
             {
@@ -450,14 +453,20 @@ namespace AmbidexterityModule
                     if (mainWeapon.raiseWeaponCoroutine != null)
                         mainWeapon.raiseWeaponCoroutine.Stop();
 
-                    mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .75f, 0, true, true, false));
+                    mainWeapon.lowerWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
                 }
 
                 //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
                 if (FPSShield.shieldStates == 3 && (mainWeapon.raiseWeaponCoroutine == null || !mainWeapon.raiseWeaponCoroutine.Running))
                 {
                     mainWeapon.lowerWeaponCoroutine.Stop();
-                    mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .75f, 0, true, true, false));
+                    mainWeapon.raiseWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, (AltFPSWeapon.bob / 1.5f) - .07f, (AltFPSWeapon.bob * 1.5f) - .15f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false));
+                }
+
+                if (AttackState != 0)
+                {
+                    mainWeapon.lowerWeaponCoroutine.Stop();
+                    mainWeapon.raiseWeaponCoroutine.Stop();
                 }
             }                       
 
@@ -514,8 +523,8 @@ namespace AmbidexterityModule
 
                 playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
                 playerSpeedChanger.RemoveSpeedMod(runModUID, true);
-                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, unsheathedModifier, true);
-                playerSpeedChanger.AddRunSpeedMod(out runModUID, unsheathedModifier, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, unsheathedModifier);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, unsheathedModifier);
                 restoredWalk = true;
                 attackApplied = false;
                 return;
@@ -534,8 +543,8 @@ namespace AmbidexterityModule
 
                 playerSpeedChanger.RemoveSpeedMod(walkModUID, false);
                 playerSpeedChanger.RemoveSpeedMod(runModUID, true);
-                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, attackModifier, true);
-                playerSpeedChanger.AddRunSpeedMod(out runModUID, attackModifier, true);
+                playerSpeedChanger.AddWalkSpeedMod(out walkModUID, attackModifier);
+                playerSpeedChanger.AddRunSpeedMod(out runModUID, attackModifier);
                 attackApplied = true;
                 restoredWalk = false;
                 return;
@@ -547,7 +556,6 @@ namespace AmbidexterityModule
                 playerSpeedChanger.RemoveSpeedMod(runModUID, true);
                 restoredWalk = false;
                 attackApplied = false;
-                Debug.Log("restore walkspeed");
                 return;
             }
         }

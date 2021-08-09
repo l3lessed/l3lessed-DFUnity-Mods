@@ -575,7 +575,7 @@ namespace AmbidexterityModule
                 shieldBobTask = new Task(ShieldBob());
             }
             //if they attack or stop moving, stop the bob coroutine in its tracks.
-            else if((shieldStates != 0 || !moving) && (shieldBobTask != null || shieldBobTask.Running))
+            else if((shieldStates != 0 || !moving) && shieldBobTask != null)
             {
                 shieldBobTask.Stop();
             }

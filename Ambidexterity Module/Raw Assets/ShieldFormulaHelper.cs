@@ -347,7 +347,7 @@ namespace AmbidexterityModule
 
             if (weapon != null)
             {
-                if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.softMatRequireModuleCheck) // Only run if "Soft Material Requirements" module is active.
+                if (PhysicalCombatArmorPatch.softMatRequireModuleCheck) // Only run if "Soft Material Requirements" module is active.
                 {
                     // If the attacker is using a weapon, check if the material is high enough to damage the target
                     if (target.MinMetalToHit > (WeaponMaterialTypes)weapon.NativeMaterialValue)
@@ -400,11 +400,11 @@ namespace AmbidexterityModule
             else
                 chanceToHitMod = attacker.Skills.GetLiveSkillValue(skillID);
 
-            if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.critStrikeModuleCheck) // Applies the 'Critical Strikes Increase Damage' module if it is enabled in the settings.
+            if (PhysicalCombatArmorPatch.critStrikeModuleCheck) // Applies the 'Critical Strikes Increase Damage' module if it is enabled in the settings.
             {
                 if (attacker == player) // Crit modifiers, if true, for the player.
                 {
-                    critSuccess = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CriticalStrikeHandler(attacker); // Rolls for if the attacker is sucessful with a critical strike, if yes, critSuccess is set to 'true'.
+                    critSuccess = PhysicalCombatArmorPatch.CriticalStrikeHandler(attacker); // Rolls for if the attacker is sucessful with a critical strike, if yes, critSuccess is set to 'true'.
 
                     if (critSuccess)
                     {
@@ -421,7 +421,7 @@ namespace AmbidexterityModule
                 }
                 else // Crit modifiers, if true, for monsters/enemies.
                 {
-                    critSuccess = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CriticalStrikeHandler(attacker); // Rolls for if the attacker is sucessful with a critical strike, if yes, critSuccess is set to 'true'.
+                    critSuccess = PhysicalCombatArmorPatch.CriticalStrikeHandler(attacker); // Rolls for if the attacker is sucessful with a critical strike, if yes, critSuccess is set to 'true'.
 
                     if (critSuccess)
                     {
@@ -441,26 +441,26 @@ namespace AmbidexterityModule
             if (attacker == player)
             {
                 // Apply swing modifiers
-                PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.ToHitAndDamageMods swingMods = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateSwingModifiers(GameManager.Instance.WeaponManager.ScreenWeapon);
+                PhysicalCombatArmorPatch.ToHitAndDamageMods swingMods = PhysicalCombatArmorPatch.CalculateSwingModifiers(GameManager.Instance.WeaponManager.ScreenWeapon);
                 damageModifiers += swingMods.damageMod;
                 chanceToHitMod += swingMods.toHitMod;
 
                 // Apply proficiency modifiers
-                PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.ToHitAndDamageMods proficiencyMods = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateProficiencyModifiers(attacker, weapon);
+                PhysicalCombatArmorPatch.ToHitAndDamageMods proficiencyMods = PhysicalCombatArmorPatch.CalculateProficiencyModifiers(attacker, weapon);
                 damageModifiers += proficiencyMods.damageMod;
                 chanceToHitMod += proficiencyMods.toHitMod;
 
                 // Apply racial bonuses
-                PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.ToHitAndDamageMods racialMods = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateRacialModifiers(attacker, weapon, player);
+                PhysicalCombatArmorPatch.ToHitAndDamageMods racialMods = PhysicalCombatArmorPatch.CalculateRacialModifiers(attacker, weapon, player);
                 damageModifiers += racialMods.damageMod;
                 chanceToHitMod += racialMods.toHitMod;
 
-                backstabChance = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateBackstabChance(player, null, enemyAnimStateRecord);
+                backstabChance = PhysicalCombatArmorPatch.CalculateBackstabChance(player, null, enemyAnimStateRecord);
                 chanceToHitMod += backstabChance;
             }
 
             // Choose struck body part
-            int struckBodyPart = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateStruckBodyPart();
+            int struckBodyPart = PhysicalCombatArmorPatch.CalculateStruckBodyPart();
 
             // Get damage for weaponless attacks
             if (skillID == (short)DFCareer.Skills.HandToHand)
@@ -469,22 +469,22 @@ namespace AmbidexterityModule
 
                 if (attacker == player || (AIAttacker != null && AIAttacker.EntityType == EntityTypes.EnemyClass))
                 {
-                    if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                    if (PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                     {
-                        damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateHandToHandAttackDamage(attacker, target, damageModifiers, attacker == player); // Added my own, non-overriden version of this method for modification.
+                        damage = PhysicalCombatArmorPatch.CalculateHandToHandAttackDamage(attacker, target, damageModifiers, attacker == player); // Added my own, non-overriden version of this method for modification.
 
-                        damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateBackstabDamage(damage, backstabChance);
+                        damage = PhysicalCombatArmorPatch.CalculateBackstabDamage(damage, backstabChance);
                     }
                 }
                 else if (AIAttacker != null) // attacker is a monster
                 {
-                    specialMonsterWeapon = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.SpecialWeaponCheckForMonsters(attacker);
+                    specialMonsterWeapon = PhysicalCombatArmorPatch.SpecialWeaponCheckForMonsters(attacker);
 
                     if (specialMonsterWeapon)
                     {
                         unarmedAttack = false;
                         weaponAttack = true;
-                        weapon = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.MonsterWeaponAssign(attacker);
+                        weapon = PhysicalCombatArmorPatch.MonsterWeaponAssign(attacker);
                         skillID = weapon.GetWeaponSkillIDAsShort();
                         if (skillID == 32) // Checks if the weapon being used is in the Blunt Weapon category, then sets a bool value to true.
                             bluntWep = true;
@@ -514,7 +514,7 @@ namespace AmbidexterityModule
 
                         int reflexesChance = 50 - (10 * ((int)player.Reflexes - 2));
 
-                        if (DFRandom.rand() % 100 < reflexesChance && minBaseDamage > 0 && PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                        if (DFRandom.rand() % 100 < reflexesChance && minBaseDamage > 0 && PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                         {
                             int hitDamage = UnityEngine.Random.Range(minBaseDamage, maxBaseDamage + 1);
                             // Apply special monster attack effects
@@ -527,7 +527,7 @@ namespace AmbidexterityModule
                         ++attackNumber;
                     }
                     if (damage >= 1)
-                        damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateHandToHandAttackDamage(attacker, target, damage, attacker == player); // Added my own, non-overriden version of this method for modification.
+                        damage = PhysicalCombatArmorPatch.CalculateHandToHandAttackDamage(attacker, target, damage, attacker == player); // Added my own, non-overriden version of this method for modification.
                 }
             }
             // Handle weapon attacks
@@ -536,17 +536,17 @@ namespace AmbidexterityModule
                 weaponAttack = true; // Check for later on if weapon is being used.
 
                 // Apply weapon material modifier.
-                chanceToHitMod += PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateWeaponToHit(weapon);
+                chanceToHitMod += PhysicalCombatArmorPatch.CalculateWeaponToHit(weapon);
 
                 // Mod hook for adjusting final hit chance mod. (is a no-op in DFU)
-                if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.archeryModuleCheck)
-                    chanceToHitMod = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.AdjustWeaponHitChanceMod(attacker, target, chanceToHitMod, weaponAnimTime, weapon);
+                if (PhysicalCombatArmorPatch.archeryModuleCheck)
+                    chanceToHitMod = PhysicalCombatArmorPatch.AdjustWeaponHitChanceMod(attacker, target, chanceToHitMod, weaponAnimTime, weapon);
 
-                if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                if (PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                 {
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateWeaponAttackDamage(attacker, target, damageModifiers, weaponAnimTime, weapon);
+                    damage = PhysicalCombatArmorPatch.CalculateWeaponAttackDamage(attacker, target, damageModifiers, weaponAnimTime, weapon);
 
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateBackstabDamage(damage, backstabChance);
+                    damage = PhysicalCombatArmorPatch.CalculateBackstabDamage(damage, backstabChance);
                 }
 
                 // Handle poisoned weapons
@@ -580,7 +580,7 @@ namespace AmbidexterityModule
 
             float damCheckAfterMatMod = damage;
 
-            if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.softMatRequireModuleCheck)
+            if (PhysicalCombatArmorPatch.softMatRequireModuleCheck)
             {
                 if (attacker == player)
                 {
@@ -602,7 +602,7 @@ namespace AmbidexterityModule
 
             DaggerfallUnityItem shield = target.ItemEquipTable.GetItem(EquipSlots.LeftHand); // Checks if character is using a shield or not.
             bool shieldStrongSpot = false;
-            PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.shieldBlockSuccess = false;
+            PhysicalCombatArmorPatch.shieldBlockSuccess = false;
             if (shield != null)
             {
                 BodyParts[] protectedBodyParts = shield.GetShieldProtectedBodyParts();
@@ -612,17 +612,17 @@ namespace AmbidexterityModule
                     if (protectedBodyParts[i] == (BodyParts)struckBodyPart)
                         shieldStrongSpot = true;
                 }
-                PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.shieldBlockSuccess = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.ShieldBlockChanceCalculation(target, shieldStrongSpot, shield);
+                PhysicalCombatArmorPatch.shieldBlockSuccess = PhysicalCombatArmorPatch.ShieldBlockChanceCalculation(target, shieldStrongSpot, shield);
 
-                if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.shieldBlockSuccess)
-                    PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.shieldBlockSuccess = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CompareShieldToUnderArmor(target, struckBodyPart, naturalDamResist);
+                if (PhysicalCombatArmorPatch.shieldBlockSuccess)
+                    PhysicalCombatArmorPatch.shieldBlockSuccess = PhysicalCombatArmorPatch.CompareShieldToUnderArmor(target, struckBodyPart, naturalDamResist);
             }
 
-            if (PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.condBasedEffectModuleCheck) // Only runs if "Condition Based Effectiveness" module is active. As well if a weapon is even being used.
+            if (PhysicalCombatArmorPatch.condBasedEffectModuleCheck) // Only runs if "Condition Based Effectiveness" module is active. As well if a weapon is even being used.
             {
                 if (attacker == player && weapon != null) // Only the player has weapon damage effected by condition value.
                 {
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.AlterDamageBasedOnWepCondition(damage, bluntWep, weapon);
+                    damage = PhysicalCombatArmorPatch.AlterDamageBasedOnWepCondition(damage, bluntWep, weapon);
                     //Debug.LogFormat("Damage Multiplier Due To Weapon Condition = {0}", damage);
                 }
             }
@@ -695,18 +695,18 @@ namespace AmbidexterityModule
             if (damage < 1) // Cut off the execution if the damage is still not anything higher than 1 at this point in the method.
                 return damage;
 
-            PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.DamageEquipment(attacker, target, damage, weapon, struckBodyPart); // Might alter this later so that equipment damage is only calculated with the amount that was reduced, not the whole initial amount, will see.
+            PhysicalCombatArmorPatch.DamageEquipment(attacker, target, damage, weapon, struckBodyPart); // Might alter this later so that equipment damage is only calculated with the amount that was reduced, not the whole initial amount, will see.
 
             if (((target != player) && (AITarget.EntityType == EntityTypes.EnemyMonster)))
             {
-                monsterArmorCheck = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.ArmorStruckVerification(target, struckBodyPart); // Check for if a monster has a piece of armor/shield hit by an attack, returns true if so.
+                monsterArmorCheck = PhysicalCombatArmorPatch.ArmorStruckVerification(target, struckBodyPart); // Check for if a monster has a piece of armor/shield hit by an attack, returns true if so.
 
                 if (!monsterArmorCheck)
                 {
                     //Debug.Log("------------------------------------------------------------------------------------------");
                     //Debug.LogFormat("Here is damage value before Monster 'Natural' Damage reduction is applied = {0}", damage);
 
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.PercentageReductionCalculationForMonsters(attacker, target, damage, bluntWep, naturalDamResist);
+                    damage = PhysicalCombatArmorPatch.PercentageReductionCalculationForMonsters(attacker, target, damage, bluntWep, naturalDamResist);
 
                     //Debug.LogFormat("Here is damage value after Monster 'Natural' Damage reduction = {0}", damage);
                     //Debug.Log("------------------------------------------------------------------------------------------");
@@ -718,7 +718,7 @@ namespace AmbidexterityModule
                         //Debug.Log("------------------------------------------------------------------------------------------");
                         //Debug.LogFormat("Here is damage value before armor reduction is applied = {0}", damage);
 
-                        damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateArmorDamageReductionWithUnarmed(attacker, target, damage, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against unarmed.
+                        damage = PhysicalCombatArmorPatch.CalculateArmorDamageReductionWithUnarmed(attacker, target, damage, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against unarmed.
 
                         //Debug.LogFormat("Here is damage value after armor reduction = {0}", damage);
                         //Debug.Log("------------------------------------------------------------------------------------------");
@@ -728,7 +728,7 @@ namespace AmbidexterityModule
                         //Debug.Log("------------------------------------------------------------------------------------------");
                         //Debug.LogFormat("Here is damage value before armor reduction is applied = {0}", damage);
 
-                        damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateArmorDamageReductionWithWeapon(attacker, target, damage, weapon, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against weapons.
+                        damage = PhysicalCombatArmorPatch.CalculateArmorDamageReductionWithWeapon(attacker, target, damage, weapon, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against weapons.
 
                         //Debug.LogFormat("Here is damage value after armor reduction = {0}", damage);
                         //Debug.Log("------------------------------------------------------------------------------------------");
@@ -743,7 +743,7 @@ namespace AmbidexterityModule
                     //Debug.LogFormat("Here is damage value before armor reduction is applied = {0}", damage);
                     int damBefore = damage;
 
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateArmorDamageReductionWithUnarmed(attacker, target, damage, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against unarmed.
+                    damage = PhysicalCombatArmorPatch.CalculateArmorDamageReductionWithUnarmed(attacker, target, damage, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against unarmed.
 
                     int damAfter = damage;
                     //Debug.LogFormat("Here is damage value after armor reduction = {0}", damage);
@@ -760,7 +760,7 @@ namespace AmbidexterityModule
                     //Debug.LogFormat("Here is damage value before armor reduction is applied = {0}", damage);
                     int damBefore = damage;
 
-                    damage = PhysicalCombatAndArmorOverhaul.PhysicalCombatAndArmorOverhaul.CalculateArmorDamageReductionWithWeapon(attacker, target, damage, weapon, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against weapons.
+                    damage = PhysicalCombatArmorPatch.CalculateArmorDamageReductionWithWeapon(attacker, target, damage, weapon, struckBodyPart, naturalDamResist); // This will be the method call for armor reduction against weapons.
 
                     int damAfter = damage;
                     //Debug.LogFormat("Here is damage value after armor reduction = {0}", damage);
