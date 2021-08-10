@@ -41,7 +41,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         //classes for setup and use.
         public static npcMarker npcMarkerInstance;
         public static MinimapGUI minimapControls;
-        public static BuildingMarker BuildingMarker;
+        public static BuildingMarker BuildingMarkerInstance;
         private static Mod mod;
         public static Minimap MinimapInstance;
         private static ModSettings settings;
@@ -88,7 +88,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public static Material iconMarkerMaterial;
 
         //layer for automap.
-        private int layerAutomap;
+        private int MiniMap;
 
         //values for controlling minimap properties.
         public float PlayerHeightChanger { get; private set; }
@@ -246,7 +246,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             minimapControls = MinimapGUIObject.AddComponent<MinimapGUI>();
 
             GameObject BuildingMarkerObject = new GameObject("BuildingMarker");
-            BuildingMarker = BuildingMarkerObject.AddComponent<BuildingMarker>();
+            BuildingMarkerInstance = BuildingMarkerObject.AddComponent<BuildingMarker>();
 
             //initiates mod paramaters for class/script.
             mod = initParams.Mod;
@@ -325,11 +325,11 @@ namespace DaggerfallWorkshop.Game.Minimap
             zoomOutKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), zoomOutKey);
 
             //grab games automap layer for assigning mesh and camera layers.
-            layerAutomap = LayerMask.NameToLayer("Automap");
-            if (layerAutomap == -1)
+            MiniMap = LayerMask.NameToLayer("MiniMap");
+            if (MiniMap == -1)
             {
                 DaggerfallUnity.LogMessage("Did not find Layer with name \"Automap\"! Defaulting to Layer 10\nIt is prefered that Layer \"Automap\" is set in Unity Editor under \"Edit/Project Settings/Tags and Layers!\"", true);
-                layerAutomap = 10;
+                MiniMap = 11;
             }
 
             gameObjectPlayerAdvanced = GameObject.Find("PlayerAdvanced");
@@ -343,6 +343,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
 
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
+            Camera.main.cullingMask = Camera.main.cullingMask & ~((1 << MiniMap)); // don't render automap layer with main camera
         }
 
         //Sets up an object class to create a game object that contains the canvas screen space overlay and any sub canvas layers for things like indicators or overlays.
@@ -560,7 +561,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             DaggerfallLocation Dflocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
             blockArray = buildingDirectory.GetComponentsInChildren<DaggerfallRMBBlock>();
             List<Vector3> buildingPositionList = new List<Vector3>();
-
+            Vector3 locationHeight = Dflocation.transform.position;
             foreach (DaggerfallRMBBlock block in blockArray)
             {
                 staticBuildingContainer = block.GetComponentInChildren<DaggerfallStaticBuildings>();
@@ -602,7 +603,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                     buildingsInfo.buildingType = SavedBuilding.BuildingType;
 
                     //buildingPositionList.Add(new Vector3(block.transform.position.x + SavedBuilding.Position.x, SavedBuilding.Position.y, block.transform.position.z + SavedBuilding.Position.z));
-                    buildingsInfo.position = new Vector3(block.transform.position.x + SavedBuilding.Position.x, gameObjectPlayerAdvanced.transform.position.y, block.transform.position.z + SavedBuilding.Position.z);
+                    buildingsInfo.position = new Vector3(block.transform.position.x + SavedBuilding.Position.x, locationHeight.y, block.transform.position.z + SavedBuilding.Position.z);
 
                     buildingInfoCollection.Add(buildingsInfo);
                 }
@@ -653,7 +654,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 buildingMesh = GameObjectHelper.CreateDaggerfallMeshGameObject(buildingInfo.buildingSummary.ModelID, null, false, null, false);
                 buildingMesh.transform.position = new Vector3(buildingInfo.position.x, buildingInfo.position.y + tallestSpot + 10, buildingInfo.position.z);
                 buildingMesh.transform.Rotate(buildingInfo.buildingSummary.Rotation);
-                buildingMesh.layer = layerAutomap;
+                buildingMesh.layer = MiniMap;
                 buildingMesh.transform.localScale = new Vector3(1, 0.01f, 1);
                 buildingMesh.name = buildingInfo.buildingSummary.BuildingType.ToString() + " Marker " + buildingInfo.buildingSummary.buildingKey;
                 buildingMesh.GetComponent<MeshRenderer>().shadowCastingMode = 0;
@@ -667,7 +668,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 buildingIcon.transform.position = buildingMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, .3f, 0);
                 buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize);
                 buildingIcon.transform.Rotate(0, 180,0);
-                buildingIcon.layer = layerAutomap;
+                buildingIcon.layer = MiniMap;
                 buildingIcon.GetComponent<MeshRenderer>().material = iconMaterial;
                 buildingIcon.GetComponent<MeshRenderer>().shadowCastingMode = 0;
                 //remove collider from mes.
@@ -676,7 +677,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 //sets up text mesh pro object and settings.
                 var textObject = new GameObject();
                 textObject.AddComponent<TMPro.TextMeshPro>();
-                textObject.layer = layerAutomap;
+                textObject.layer = MiniMap;
                 RectTransform textboxRect = textObject.GetComponent<RectTransform>();
                 textObject.GetComponent<TMPro.TextMeshPro>().enableAutoSizing = true;
                 textboxRect.sizeDelta = new Vector2(100, 100);
@@ -933,7 +934,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             Ray ray = new Ray(mainCamera.transform.position, Vector3.down);
 
-            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << layerAutomap);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << MiniMap);
 
             nearestHit = null;
             float nearestDistance = float.MaxValue;
@@ -1143,7 +1144,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                 if (GameManager.Instance.IsPlayerInsideDungeon)
                 {
-                    minimapCamera.cullingMask = 1 << layerAutomap;
+                    minimapCamera.cullingMask = 1 << MiniMap;
                     cameraPos.y = gameObjectPlayerAdvanced.transform.position.y + 2f;
                     minimapCamera.nearClipPlane = nearClipValue;
                     minimapCamera.farClipPlane = farClipValue + 4;
@@ -1224,7 +1225,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 gameobjectPlayerMarkerArrow = GameObjectHelper.CreateDaggerfallMeshGameObject(99900, GameManager.Instance.PlayerEntityBehaviour.transform, false, null, true);
                 Destroy(gameobjectPlayerMarkerArrow.GetComponent<MeshCollider>());
                 gameobjectPlayerMarkerArrow.name = "PlayerMarkerArrow";
-                gameobjectPlayerMarkerArrow.layer = layerAutomap;
+                gameobjectPlayerMarkerArrow.layer = MiniMap;
                 updateMaterials(gameobjectPlayerMarkerArrow, Color.yellow, 0f);
             }
 
