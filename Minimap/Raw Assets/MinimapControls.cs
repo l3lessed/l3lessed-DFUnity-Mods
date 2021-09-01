@@ -29,9 +29,10 @@ namespace DaggerfallWorkshop.Game.Minimap
         public float lastAlphaValue;
         public float minimapRotationValue;
 
-        private int selectedIconInt = 0;
+        public int selectedIconInt = 0;
 
-        public bool lastIconGroupActive;
+        public bool[] lastIconGroupActive = new bool[10];
+        public bool[] lastNPCFlatActive = new bool[10];
         public bool lastLabelActive;
         public bool lastIndicatorActive;
         public bool labelIndicatorActive = true;
@@ -47,9 +48,15 @@ namespace DaggerfallWorkshop.Game.Minimap
         public bool cameraDetectionEnabled;
         private string viewType;
         private bool lastMinimapPersonMarker;
+        private float lastIndicatorSize;
 
         private void Start()
         {
+            foreach(var entry in Minimap.iconGroupActive)
+            {
+                lastIconGroupActive[(int)entry.Key] = entry.Value;
+            }
+
             compassMenu = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/ScrollCleaned.png");
         }
 
@@ -70,7 +77,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             // Register the window. We create two windows that use the same function
             // Notice that their IDs differ
             
-            minimapControlsRect = GUI.Window(0, new Rect(Screen.width * .4f, Screen.height * .25f, 270, 350), MinimapControls, "Enchantment Adjustments", currentStyle);
+            minimapControlsRect = GUI.Window(0, new Rect(Screen.width * .02f, Screen.height * .025f, 270, 350), MinimapControls, "Enchantment Adjustments", currentStyle);
         }
 
         // Make the contents of the window
@@ -91,18 +98,12 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             if (GUI.RepeatButton(new Rect(95, 44, 25, 25), "+", currentStyle))
             {
-                if(GameManager.Instance.IsPlayerInside)
-                    Minimap.MinimapInstance.insideZoom += 1;
-                else
-                    Minimap.MinimapInstance.outsideZoom += 1;
+                    Minimap.MinimapInstance.minimapViewSize += 1;
             }
 
             if (GUI.RepeatButton(new Rect(115, 44, 25, 25), "-", currentStyle) && Minimap.MinimapInstance.minimapCamera.orthographicSize > 0)
             {
-                if (GameManager.Instance.IsPlayerInside)
-                    Minimap.MinimapInstance.insideZoom -= 1;
-                else
-                    Minimap.MinimapInstance.outsideZoom -= 1;
+                    Minimap.MinimapInstance.minimapViewSize -= 1;
             }
 
             //map size label and buttons below.
@@ -188,9 +189,6 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             }
 
-            if(Input.GetMouseButtonUp(0))
-                updateMinimap = true;
-
             //setup text fields to label RGB sliders.
             GUI.Label(new Rect(10, 205, 50, 25), "Red", currentStyle);
             GUI.Label(new Rect(10, 228, 50, 25), "Green", currentStyle);
@@ -204,34 +202,23 @@ namespace DaggerfallWorkshop.Game.Minimap
             float.TryParse(GUI.TextField(new Rect(205, 226, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(greenValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out greenValue);
             blueValue = GUI.HorizontalSlider(new Rect(60, 256, 145, 25), blueValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(205, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
-            alphaValue = GUI.HorizontalSlider(new Rect(60, 279, 145, 25), alphaValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(205, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(alphaValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out alphaValue);
-            Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 294, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Area", currentToggleStyle);
-            if(Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] && (selectedIconInt == 6 || selectedIconInt == 7 || selectedIconInt == 8))
-                Minimap.minimapPersonMarker = GUI.Toggle(new Rect(135, 294, 120, 25), Minimap.minimapPersonMarker, "Scan Soul", currentToggleStyle);
+            blendValue = GUI.HorizontalSlider(new Rect(60, 279, 145, 25), blendValue, 0, 1);
+            float.TryParse(GUI.TextField(new Rect(205, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
+            Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 294, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Detect Soul", currentToggleStyle);
+            Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(135, 294, 120, 25), Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Soul", currentToggleStyle);
 
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
 
             //check if any controls have been updated, and if so, pushed window trigger update.
-            if (lastColor != colorSelector || blendValue != lastBlend || alphaValue != lastAlphaValue || labelIndicatorActive != lastLabelActive || iconsIndicatorActive != lastIndicatorActive || lastIconGroupActive != Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] || Minimap.minimapPersonMarker != lastMinimapPersonMarker)
-            {
-                updateMinimap = true;
-            }
-
-            //updates minimap ui by assigning control values and storing for checking for changes.
-            if (updateMinimap)
+            if (lastColor != colorSelector || blendValue != lastBlend || alphaValue != lastAlphaValue || labelIndicatorActive != lastLabelActive || iconsIndicatorActive != lastIndicatorActive || lastIconGroupActive[selectedIconInt] != Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] || lastNPCFlatActive[selectedIconInt] != Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt])
             {
                 updateMinimapUI();
             }
-
         }       
 
         public void updateMinimapUI()
         {
-            Debug.Log("MINIMAP CONTROLS UPDATE!");
-
-            updateMinimap = false;
             //sets icon group color and blend/transperency value.
             Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
             Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt] = blendValue;
@@ -245,17 +232,18 @@ namespace DaggerfallWorkshop.Game.Minimap
             lastColor = colorSelector;
             lastBlend = blendValue;
             lastAlphaValue = alphaValue;
-            lastIconGroupActive = Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt];
+            lastIconGroupActive[selectedIconInt] = Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt];
+            lastNPCFlatActive[selectedIconInt] = Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt];
             lastLabelActive = labelIndicatorActive;
             lastIndicatorActive = iconsIndicatorActive;
-            lastMinimapPersonMarker = Minimap.minimapPersonMarker;
+            lastIndicatorSize = Minimap.indicatorSize;
 
             //runs indicator code, which destroys and rebuilds indicators to refresh them.
             //need to add a refresh routine, so don't have to keep rebuilding anytime we want to refresh.
             Minimap.MinimapInstance.SetupMinimapCameras();
             Minimap.MinimapInstance.SetupNPCIndicators();
-            Minimap.MinimapInstance.UpdateBuildingMarkers();
             Minimap.MinimapInstance.SetupPlayerIndicator();
+            Minimap.MinimapInstance.UpdateBuildingMarkers();
             Minimap.MinimapInstance.UpdateNpcMarkers();
         }
     }

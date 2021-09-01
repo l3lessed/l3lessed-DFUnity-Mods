@@ -12,6 +12,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Reflection;
 using Wenzil.Console;
+using DaggerfallWorkshop.Game.Utility;
 
 namespace DaggerfallWorkshop.Game.Minimap
 {
@@ -24,8 +25,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             public Dictionary<MarkerGroups, float> IconGroupTransperency;
             public Dictionary<MarkerGroups, bool> IconGroupActive;
             public float MinimapSizeMult;
-            public float InsideZoom;
-            public float OutsideZoom;
+            public float MinimapViewSize;
             public float MinimapRotationValue;
             public float MinimapCameraHeight;
             public float AlphaValue;
@@ -41,7 +41,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         //classes for setup and use.
         public static npcMarker npcMarkerInstance;
         public static MinimapGUI minimapControls;
-        public static BuildingMarker BuildingMarkerInstance;
+        public static BuildingMarker BuildingMarker;
         private static Mod mod;
         public static Minimap MinimapInstance;
         private static ModSettings settings;
@@ -56,10 +56,12 @@ namespace DaggerfallWorkshop.Game.Minimap
         private string zoomOutKey;
         private KeyCode zoomOutKeyCode;
         public BuildingDirectory buildingDirectory;
-        private DaggerfallStaticBuildings staticBuildingContainer;
+        public DaggerfallStaticBuildings staticBuildingContainer;
         private Automap automap;
-        private DaggerfallRMBBlock[] blockArray;
+        private DaggerfallStaticBuildings testingArray;
+        public DaggerfallRMBBlock[] blockArray;
         public Camera minimapCamera;
+        public ulong[] acceptedQuests;
 
         //game objects for storing and manipulating.
         private GameObject gameObjectPlayerAdvanced;
@@ -78,6 +80,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public GameObject interiorInstance;
         public GameObject dungeonInstance;
         public GameObject publicDirections;
+        public GameObject publicQuestBearing;
         public GameObject publicMinimap;
         public GameObject publicCompass;
         public GameObject publicMinimapRender;
@@ -88,7 +91,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public static Material iconMarkerMaterial;
 
         //layer for automap.
-        private int MiniMap;
+        public static int layerMinimap;
 
         //values for controlling minimap properties.
         public float PlayerHeightChanger { get; private set; }
@@ -99,24 +102,25 @@ namespace DaggerfallWorkshop.Game.Minimap
         public float minimapCameraHeight;
         public float minimapCameraX;
         public float minimapCameraZ;
-        private float savedOutsideZoom;
-        private float savedInsideZoom;
+        public float minimapViewSize;
+        private float savedMinimapSize;
         private float savedMinimapViewSize;
-        public float iconSize = .75f;
+        public float iconSize = .09f;
         public float nearClipValue;
         public float farClipValue;
         public static float minimapSensingRadius = 40;
-        private float tallestSpot;
+        public static float tallestSpot;
         public static float indicatorSize = 3;
-        public static float npcIconSize;
         public float playerIndicatorHeight;
         private float deltaTime;
         public static float fps;
         private float timePass;
         public float minimapSizeMult = .35f;
         public float multi;
+        public static float iconScaler = 50;
 
         private string currentLocationName;
+        private bool isInLocationRect;
         private string lastLocationName;
 
         private bool attackKeyPressed;
@@ -131,15 +135,15 @@ namespace DaggerfallWorkshop.Game.Minimap
         private RectTransform canvasRectTransform;
         private RectTransform minimapInterfaceRectTransform;
         private RectTransform minimapDirectionsRectTransform;
+        private RectTransform minimapQuestRectTransform;
 
-        public static List<npcMarker> currentNPCIndicatorCollection = new List<npcMarker>();
         public List<npcMarker> npcIndicatorCollection = new List<npcMarker>();
-        public List<BuildingMarker> buildingInfoCollection = new List<BuildingMarker>();
+        public List<GameObject> buildingInfoCollection = new List<GameObject>();
 
         public MobilePersonNPC[] mobileNPCArray;
         public DaggerfallEnemy[] mobileEnemyArray;
         public StaticNPC[] flatNPCArray;
-        public StaticBuilding[] StaticBuildingArray { get; private set; }
+        public StaticBuilding[] StaticBuildingArray;
 
         Queue<int> playerInput = new Queue<int>();
 
@@ -190,7 +194,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             {MarkerGroups.Friendlies, 1 },
             {MarkerGroups.Enemies, 1 },
             {MarkerGroups.Resident, 1 },
-            {MarkerGroups.None, 1 }
+            {MarkerGroups.None, 0 }
         };
 
         public static Dictionary<MarkerGroups, bool> iconGroupActive = new Dictionary<MarkerGroups, bool>()
@@ -206,13 +210,33 @@ namespace DaggerfallWorkshop.Game.Minimap
             {MarkerGroups.Resident, true },
             {MarkerGroups.None, false}
         };
+
+        public static Dictionary<MarkerGroups, bool> npcFlatActive = new Dictionary<MarkerGroups, bool>()
+        {
+            {MarkerGroups.Shops, false },
+            {MarkerGroups.Blacksmiths, false },
+            {MarkerGroups.Houses, false },
+            {MarkerGroups.Taverns, false },
+            {MarkerGroups.Utilities, false },
+            {MarkerGroups.Government, false },
+            {MarkerGroups.Friendlies, false },
+            {MarkerGroups.Enemies, false },
+            {MarkerGroups.Resident, false },
+            {MarkerGroups.None, false}
+        };
+
         private float lastIndicatorSize;
         public List<GameObject> buildingIcons = new List<GameObject>();
         private int[] textures;
-        public float insideZoom = 13;
-        public float outsideZoom = 50;
-        private float savedMinimapSize;
-        private Quaternion lastRotation;
+        private Vector3 currentMarkerPost;
+        private Vector3 lastQuestMarkerPosition;
+        private CityNavigation cityNavigation;
+        private int lastRegionIndex;
+        private int lastLocationIndex;
+        private int lastNPCCount = -1; //starts at a negative to insure it updates on new game load.
+        public List<npcMarker> currentNPCIndicatorCollection = new List<npcMarker>();
+        public static Vector3 markerScale;
+        public static bool dreamModInstalled;
 
         //sets up marker groups to assign each marker type. This is crucial for seperating and controlling each indicator types appearance and use.
         //technically, you can add to this enum, add to the individual dictionary's, and construct your own marker group to assign to specific objects/npcs.
@@ -232,21 +256,15 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
-        [Invoke(StateManager.StateTypes.Start, 0)]
+        [Invoke(StateManager.StateTypes.Game, 0)]
         public static void Init(InitParams initParams)
         {
             //sets up instance of class/script/mod.
             GameObject go = new GameObject("Minimap");
             MinimapInstance = go.AddComponent<Minimap>();
 
-            GameObject npcMarkerObject = new GameObject("npcMarkerObject");
-            npcMarkerInstance = npcMarkerObject.AddComponent<npcMarker>();
-
-            GameObject MinimapGUIObject = new GameObject("npcMarkerObject");
-            minimapControls = MinimapGUIObject.AddComponent<MinimapGUI>();
-
-            GameObject BuildingMarkerObject = new GameObject("BuildingMarker");
-            BuildingMarkerInstance = BuildingMarkerObject.AddComponent<BuildingMarker>();
+            GameObject MinimapControlsObject = new GameObject("MinimapControlsObject");
+            minimapControls = MinimapControlsObject.AddComponent<MinimapGUI>();
 
             //initiates mod paramaters for class/script.
             mod = initParams.Mod;
@@ -262,6 +280,14 @@ namespace DaggerfallWorkshop.Game.Minimap
         // Start is called before the first frame update
         void Start()
         {
+            //AUTO PATCHERS FOR DIFFERING MODS\\
+            //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
+            if (ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
+            {
+                Debug.Log("DREAM Handheld detected. Activated Dream Textures");
+                dreamModInstalled = true;
+            }
+
             //assigns console to script object, then attaches the controller object to that.
             GameObject console = GameObject.Find("Console");
             consoleController = console.GetComponent<ConsoleController>();
@@ -288,6 +314,8 @@ namespace DaggerfallWorkshop.Game.Minimap
             publicMinimap = CanvasConstructor(true, "Minimap Layer", false, false, true, true, false, 1.03f, 1.03f, new Vector3((minimapSize * .455f) * -1, (minimapSize * .455f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/MinimapMask.png"), 1);
             //sets up minimap render canvas that render camera texture it projected to.
             publicMinimapRender = CanvasConstructor(false, "Rendering Layer", false, false, true, true, false, 1, 1, new Vector3(0, 0, 0), minimapTexture, 0);
+            //sets up quest bearing directions canvas layer.
+            publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), 0);
             //sets up bearing directions canvas layer.
             publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
             //sets up the golden compass canvas layer.
@@ -296,8 +324,12 @@ namespace DaggerfallWorkshop.Game.Minimap
             publicMinimapRender.transform.SetParent(publicMinimap.transform);
             //attaches the bearing directions canvas to the minimap canvas.
             publicDirections.transform.SetParent(publicMinimap.transform);
+            //attaches the quest bearing directions canvas to the minimap canvas.
+            publicQuestBearing.transform.SetParent(publicMinimap.transform);
             //attaches golden compass canvas to main screen layer canvas.
             publicCompass.transform.SetParent(GameObject.Find("Canvas Screen Space").transform);
+            //zeros out quest bearings canvas position so it centers on its parent canvas layer.
+            publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(1, 1, 0);
             //zeros out bearings canvas position so it centers on its parent canvas layer.
             publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(1, 1, 0);
             //zeros out rendering canvas position so it centers on its parent canvas layer.
@@ -316,26 +348,28 @@ namespace DaggerfallWorkshop.Game.Minimap
             canvasRectTransform = publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             minimapInterfaceRectTransform = publicCompass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             minimapDirectionsRectTransform = publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
+            minimapQuestRectTransform = publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             dfAutomapWindow = (DaggerfallAutomapWindow)UIWindowFactory.GetInstance(UIWindowType.Automap, uiManager);
             dfExteriorAutomapWindow = (DaggerfallExteriorAutomapWindow)UIWindowFactory.GetInstance(UIWindowType.ExteriorAutomap, uiManager);
 
+            //setup minimap keys using mod key settings.
             zoomInKey = settings.GetValue<string>("CompassKeys", "ZoomIn:FullViewCompass");
             zoomInKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), zoomInKey);
             zoomOutKey = settings.GetValue<string>("CompassKeys", "ZoomOut:SettingScroll");
             zoomOutKeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), zoomOutKey);
 
-            //grab games automap layer for assigning mesh and camera layers.
-            MiniMap = LayerMask.NameToLayer("MiniMap");
-            if (MiniMap == -1)
+            //grab games Minimap layer for assigning mesh and camera layers.
+            layerMinimap = LayerMask.NameToLayer("Minimap");
+            if (layerMinimap == -1)
             {
-                DaggerfallUnity.LogMessage("Did not find Layer with name \"Automap\"! Defaulting to Layer 10\nIt is prefered that Layer \"Automap\" is set in Unity Editor under \"Edit/Project Settings/Tags and Layers!\"", true);
-                MiniMap = 11;
+                DaggerfallUnity.LogMessage("Did not find Layer with name \"Minimap\"! Defaulting to Layer 10\nIt is prefered that Layer \"Minimap\" is set in Unity Editor under \"Edit/Project Settings/Tags and Layers!\"", true);
+                layerMinimap = 10;
             }
 
             gameObjectPlayerAdvanced = GameObject.Find("PlayerAdvanced");
             if (!gameObjectPlayerAdvanced)
             {
-                DaggerfallUnity.LogMessage("GameObject \"PlayerAdvanced\" not found! in script Automap (in function Awake())", true);
+                DaggerfallUnity.LogMessage("GameObject \"PlayerAdvanced\" not found! in script Minimap (in function Awake())", true);
                 if (Application.isEditor)
                     Debug.Break();
                 else
@@ -343,7 +377,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
 
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
-            Camera.main.cullingMask = Camera.main.cullingMask & ~((1 << MiniMap)); // don't render automap layer with main camera
+            minimapControls.updateMinimapUI();
         }
 
         //Sets up an object class to create a game object that contains the canvas screen space overlay and any sub canvas layers for things like indicators or overlays.
@@ -385,7 +419,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             Canvas uiCanvas = newCanvasObject.GetComponent<Canvas>();
             uiCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             //if then ladder for coder to decide what unity objects they want to add to the canvas for using.
-            if (canvasScaler)
+            if(canvasScaler)
                 newCanvasObject.AddComponent<CanvasScaler>();
             if (canvasRenderer)
                 newCanvasObject.AddComponent<CanvasRenderer>();
@@ -400,7 +434,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             //custom screen positioning method. Coder chooses 0 through 1 for differing screen positions.
             //center in screen/container.
-            if (screenPosition == 0)
+            if(screenPosition == 0)
             {
                 newCanvasObject.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().sizeDelta = new Vector2(minimapSize * width, minimapSize * height);
                 newCanvasObject.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchorMin = new Vector2(.5f, .5f);
@@ -424,7 +458,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         void KeyPressCheck()
         {
-
+            
             //if either attack input is press, start the system.
             if (Input.GetKeyDown((KeyCode)Enum.Parse(typeof(KeyCode), "KeypadPlus")) || Input.GetKeyDown((KeyCode)Enum.Parse(typeof(KeyCode), "KeypadMinus")))
             {
@@ -433,7 +467,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
 
             //start monitoring key input for que system.
-            if (attackKeyPressed)
+            if (attackKeyPressed) 
             {
                 timePass += Time.deltaTime;
                 if (Input.GetKeyDown(zoomInKeyCode))
@@ -444,30 +478,22 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
 
             if (Input.GetKey(zoomInKeyCode) && timePass > .25f)
-            {
-                if(GameManager.Instance.IsPlayerInside)
-                    insideZoom += 3;
-                else
-                    outsideZoom += 3;
-
+            {               
+                minimapViewSize += 3;
                 playerInput.Clear();
             }
 
             if (Input.GetKey(zoomOutKeyCode) && timePass > .25f)
-            {
-                if (GameManager.Instance.IsPlayerInside)
-                    insideZoom -= 3;
-                else
-                    outsideZoom -= 3;
-
+            {                
                 playerInput.Clear();
+                minimapViewSize -= 3;
             }
 
             if (timePass > .25f)
             {
                 playerInput.Clear();
                 timePass = 0;
-            }
+            }                
 
             //if the player has qued up an input routine and .16 seconds have passed, do...     
             while (playerInput.Count >= 2 && timePass < .2f)
@@ -492,7 +518,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
 
                 int count = 0;
-                foreach (int input in playerInput)
+                foreach(int input in playerInput)
                 {
                     if (input == 0)
                         count += 1;
@@ -501,24 +527,24 @@ namespace DaggerfallWorkshop.Game.Minimap
                     {
                         if (!fullMinimapMode)
                         {
-                            savedOutsideZoom = outsideZoom;
-                            savedInsideZoom = insideZoom;
                             savedMinimapSize = minimapSize;
+                            savedMinimapViewSize = minimapViewSize;
 
                             fullMinimapMode = true;
                             minimapSize = Screen.width * .58f;
                             if (!GameManager.Instance.IsPlayerInside)
-                                outsideZoom = 190;
+                                minimapViewSize = 190;
                             else
-                                insideZoom = 20;
+                                minimapViewSize = 20;
                         }
                         else
                         {
                             fullMinimapMode = false;
-                            outsideZoom = savedOutsideZoom;
-                            insideZoom = savedInsideZoom;
                             minimapSize = savedMinimapSize;
+                            minimapViewSize = savedMinimapViewSize;
                         }
+
+                        //minimapControls.updateMinimapUI();
                     }
 
                 }
@@ -541,7 +567,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                             minimapControls.minimapMenuEnabled = false;
                             GameManager.Instance.PlayerMouseLook.cursorActive = false;
                         }
-                    }
+                    }                        
                 }
 
                 playerInput.Clear();
@@ -549,29 +575,39 @@ namespace DaggerfallWorkshop.Game.Minimap
         }
 
         //grabs all the buildings in the area and outputs them into a list for use.
-        List<BuildingMarker> BuildingFinderCollection()
+        List<GameObject> BuildingFinderCollection()
         {
-            List<BuildingMarker> buildingInfoCollection = new List<BuildingMarker>();
-
-            buildingDirectory = GameManager.Instance.StreamingWorld.GetCurrentBuildingDirectory();
-
-            if (buildingDirectory == null)
-                return buildingInfoCollection;
-
+            //setup a new empty list to load with building info.
+            List<GameObject> buildingInfoCollection = new List<GameObject>();
+            //grab the proper location position considering the origin point system. Below object does this for us.
+            Vector3 locationPosition = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation().WorldToScenePosition(GameManager.Instance.PlayerGPS.CurrentMapPixel, true);
+            //grab the players current location.
             DaggerfallLocation Dflocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-            blockArray = buildingDirectory.GetComponentsInChildren<DaggerfallRMBBlock>();
-            List<Vector3> buildingPositionList = new List<Vector3>();
-            Vector3 locationHeight = Dflocation.transform.position;
+            //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+            blockArray = new DaggerfallRMBBlock[Dflocation.transform.childCount];
+            //grab the rmbblock objects from the location object for use.
+            blockArray = Dflocation.GetComponentsInChildren<DaggerfallRMBBlock>();
+            //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+            buildingDirectory = Dflocation.GetComponentInChildren<BuildingDirectory>();
+
+            //start to loop through blocks from the block array created above.
             foreach (DaggerfallRMBBlock block in blockArray)
             {
+                //setup a new static buildings object to hold the rmb blocks static buildings object.
+                staticBuildingContainer = new DaggerfallStaticBuildings();
+                //grab static buildings object from the block object.
                 staticBuildingContainer = block.GetComponentInChildren<DaggerfallStaticBuildings>();
 
                 //if there are not any buildings in this block, stop code from crashing script and return.
                 if (staticBuildingContainer == null)
-                    return buildingInfoCollection;
+                    continue;
 
+                //resize static building array based on the number of static building pbjects in the container.
+                StaticBuildingArray = new StaticBuilding[staticBuildingContainer.transform.childCount];
+                //load blocks static building array into the empty array for looping through.
                 StaticBuildingArray = staticBuildingContainer.Buildings;
 
+                //--NOT BEING USED YET. MAY ADD IN FUTURE RELEASES FOR DOORS ON MAP--\\
                 //staticDoorContainer = block.GetComponentInChildren<DaggerfallStaticDoors>();
                 //staticDoorArray = staticDoorContainer.Doors;
 
@@ -582,250 +618,94 @@ namespace DaggerfallWorkshop.Game.Minimap
                     BuildingSummary SavedBuilding = new BuildingSummary();
                     buildingDirectory.GetBuildingSummary(building.buildingKey, out SavedBuilding);
 
+                    //skip setting up buildings we don't want any markers for to save cpu cycles.
                     switch (SavedBuilding.BuildingType)
-                    {
-                        case DFLocation.BuildingTypes.Town23:
-                        case DFLocation.BuildingTypes.Town4:
+                    {                       
                         case DFLocation.BuildingTypes.Special1:
                         case DFLocation.BuildingTypes.Special2:
                         case DFLocation.BuildingTypes.Special3:
                         case DFLocation.BuildingTypes.Special4:
                         case DFLocation.BuildingTypes.Ship:
                         case DFLocation.BuildingTypes.None:
+                        case DFLocation.BuildingTypes.Town23:
+                        case DFLocation.BuildingTypes.Town4:
+                            Debug.Log(SavedBuilding.buildingKey + " | " + SavedBuilding.BuildingType + " | " + block.name);
                             continue;
                     }
 
-                    BuildingMarker buildingsInfo = new BuildingMarker();
+                    if (building.size.y > tallestSpot)
+                        tallestSpot = building.size.z + 40;
 
-                    buildingsInfo.staticBuilding = building;
-                    buildingsInfo.buildingSummary = SavedBuilding;
-                    buildingsInfo.buildingKey = SavedBuilding.buildingKey;
-                    buildingsInfo.buildingType = SavedBuilding.BuildingType;
+                    Debug.Log(tallestSpot);
+
+                    //create gameobject for building marker.
+                    GameObject buildingMarkerObject = new GameObject();
+                    //name object for easy finding in editor.
+                    buildingMarkerObject.name = SavedBuilding.BuildingType.ToString() + " Marker " + SavedBuilding.buildingKey;
+                    //place game object where building is.
+                    buildingMarkerObject.transform.position = new Vector3(block.transform.position.x + SavedBuilding.Position.x, locationPosition.y + tallestSpot, block.transform.position.z + SavedBuilding.Position.z);
+                    //attache actual building marker script object to the building game object.
+                    BuildingMarker buildingsInfo = buildingMarkerObject.AddComponent<BuildingMarker>();
+                    //grab and store all building info into the building marker object.
+                    buildingsInfo.marker.staticBuilding = building;
+                    buildingsInfo.marker.buildingSummary = SavedBuilding;
+                    buildingsInfo.marker.buildingKey = SavedBuilding.buildingKey;
+                    buildingsInfo.marker.buildingType = SavedBuilding.BuildingType;
 
                     //buildingPositionList.Add(new Vector3(block.transform.position.x + SavedBuilding.Position.x, SavedBuilding.Position.y, block.transform.position.z + SavedBuilding.Position.z));
-                    buildingsInfo.position = new Vector3(block.transform.position.x + SavedBuilding.Position.x, locationHeight.y, block.transform.position.z + SavedBuilding.Position.z);
+                    buildingsInfo.marker.position = buildingMarkerObject.transform.position;                                        
 
-                    buildingInfoCollection.Add(buildingsInfo);
+                    //setup ref properties for quest resource locator below.
+                    bool pcLearnedAboutExistence = false;
+                    bool receivedDirectionalHints = false;
+                    bool locationWasMarkedOnMapByNPC = false;
+                    string overrideBuildingName = string.Empty;
+
+                    //check if the building contains a quest using quest resouces. If found to contain a quest, mark it so.
+                    if (GameManager.Instance.TalkManager.IsBuildingQuestResource(GameManager.Instance.PlayerGPS.CurrentMapID, buildingsInfo.marker.buildingKey, ref overrideBuildingName, ref pcLearnedAboutExistence, ref receivedDirectionalHints,  ref locationWasMarkedOnMapByNPC))
+                    {
+                        lastQuestMarkerPosition = buildingsInfo.marker.position;
+                        buildingsInfo.marker.questActive = true;
+                    }
+
+                    //save building to building collection. This is more for other modders to use how they wish, since it contains all the building info for every building in a city.
+                    buildingInfoCollection.Add(buildingMarkerObject);
                 }
             }
-
+            //return loaded building collect.
             return buildingInfoCollection;
         }
 
         //creates indicators for all buildings using the building finder list.
         public void SetupBuildingIndicators()
         {
-            if (buildingInfoCollection != null)
+            //if we have a building collection already in the dictionary,
+            //go through and delete all previous marker objects to prep for new
+            //marker setup and storing.
+            if(buildingInfoCollection != null)
             {
-                foreach (BuildingMarker buildingMarker in buildingInfoCollection)
+                foreach (GameObject markerObject in buildingInfoCollection)
                 {
+                    BuildingMarker buildingMarker = markerObject.GetComponent<BuildingMarker>();
+
+                    Destroy(buildingMarker.marker.attachedMesh);
                     Destroy(buildingMarker.marker.attachedIcon);
                     Destroy(buildingMarker.marker.attachedLabel);
-                    Destroy(buildingMarker.marker.attachedMesh);
+                    Destroy(buildingMarker);
+                    Destroy(markerObject);
                 }
-
-                buildingInfoCollection.Clear();
             }
 
+            //setup a new gameobject list.
+            buildingInfoCollection = new List<GameObject>();
+            //grab building markers for the location and assign them to the dictionary.
             buildingInfoCollection = BuildingFinderCollection();
 
-            if (buildingInfoCollection == null)
-                return;
-
-            //finds the tallest building height.
-            foreach (BuildingMarker marker in buildingInfoCollection)
-            {
-                if (marker.staticBuilding.size.y > tallestSpot)
-                    tallestSpot = marker.staticBuilding.size.y;
-            }
-
-            minimapCameraHeight = gameObjectPlayerAdvanced.transform.position.y + tallestSpot + 1f;
-
-            foreach (BuildingMarker buildingInfo in buildingInfoCollection)
-            {
-                //gets buildings largest side size for label multiplier.
-                float sizeMultiplier;
-                if (buildingInfo.staticBuilding.size.x > buildingInfo.staticBuilding.size.y)
-                    sizeMultiplier = buildingInfo.staticBuilding.size.x * .11f;
-                else
-                    sizeMultiplier = buildingInfo.staticBuilding.size.y * .11f;
-
-                //setup and assign the final world position and rotation using the building, block, and tallest spot cordinates. This places the indicators .2f above the original building model.
-                buildingMesh = GameObjectHelper.CreateDaggerfallMeshGameObject(buildingInfo.buildingSummary.ModelID, null, false, null, false);
-                buildingMesh.transform.position = new Vector3(buildingInfo.position.x, buildingInfo.position.y + tallestSpot + 10, buildingInfo.position.z);
-                buildingMesh.transform.Rotate(buildingInfo.buildingSummary.Rotation);
-                buildingMesh.layer = MiniMap;
-                buildingMesh.transform.localScale = new Vector3(1, 0.01f, 1);
-                buildingMesh.name = buildingInfo.buildingSummary.BuildingType.ToString() + " Marker " + buildingInfo.buildingSummary.buildingKey;
-                buildingMesh.GetComponent<MeshRenderer>().shadowCastingMode = 0;
-                //remove collider from mes.
-                Destroy(buildingMesh.GetComponent<Collider>());
-
-                //setup icons for building.
-                Material iconMaterial = new Material(iconMarkerMaterial);
-                buildingIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                buildingIcon.name = "Building Icon";
-                buildingIcon.transform.position = buildingMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, .3f, 0);
-                buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize);
-                buildingIcon.transform.Rotate(0, 180,0);
-                buildingIcon.layer = MiniMap;
-                buildingIcon.GetComponent<MeshRenderer>().material = iconMaterial;
-                buildingIcon.GetComponent<MeshRenderer>().shadowCastingMode = 0;
-                //remove collider from mes.
-                Destroy(buildingMesh.GetComponent<Collider>());
-
-                //sets up text mesh pro object and settings.
-                var textObject = new GameObject();
-                textObject.AddComponent<TMPro.TextMeshPro>();
-                textObject.layer = MiniMap;
-                RectTransform textboxRect = textObject.GetComponent<RectTransform>();
-                textObject.GetComponent<TMPro.TextMeshPro>().enableAutoSizing = true;
-                textboxRect.sizeDelta = new Vector2(100, 100);
-                textObject.GetComponent<TMPro.TextMeshPro>().isOrthographic = true;
-                textObject.GetComponent<TMPro.TextMeshPro>().material = iconMaterial;
-                textObject.GetComponent<TMPro.TextMeshPro>().material.enableInstancing = true;
-                textObject.GetComponent<TMPro.TextMeshPro>().characterSpacing = 5;
-                textObject.GetComponent<TMPro.TextMeshPro>().fontSizeMin = 26;
-                textObject.GetComponent<TMPro.TextMeshPro>().enableWordWrapping = true;
-                textObject.GetComponent<TMPro.TextMeshPro>().fontStyle = TMPro.FontStyles.Bold;
-                textObject.transform.position = buildingMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, .3f, 0);
-                textObject.transform.localScale = new Vector3(buildingInfo.staticBuilding.size.x * .01f, buildingInfo.staticBuilding.size.x * .01f, buildingInfo.staticBuilding.size.x * .01f);
-                textObject.transform.Rotate(new Vector3(90, 0, 0));
-                textObject.GetComponent<TMPro.TextMeshPro>().alignment = TMPro.TextAlignmentOptions.Center;
-                textObject.name = buildingInfo.buildingSummary.BuildingType.ToString() + " Label " + buildingInfo.buildingSummary.buildingKey;
-                textObject.GetComponent<TMPro.TextMeshPro>().text = buildingInfo.buildingSummary.BuildingType.ToString();
-                textObject.GetComponent<TMPro.TextMeshPro>().color = Color.magenta;
-                //remove collider from mes.
-                Destroy(textObject.GetComponent<Collider>());
-                textObject.SetActive(false);
-
-                switch (buildingInfo.buildingSummary.BuildingType)
-                {
-                    case DFLocation.BuildingTypes.Tavern:
-                        buildingInfo.marker.iconGroup = MarkerGroups.Taverns;
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .898f, 0, sizeMultiplier * iconSize);
-                        break;
-                    case DFLocation.BuildingTypes.ClothingStore:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.204", 0, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.88f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(125, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.FurnitureStore:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.200", 14, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .66f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(125, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.Alchemist:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 41, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .885f, 0, sizeMultiplier * iconSize);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.Bank:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 0, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.63f, 0, sizeMultiplier * iconSize * 1.25f);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.Bookseller:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.209", 0, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 2.01f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.GemStore:
-                        //needs updated. THis is copy paste record.
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 19, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.4f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(122, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.GeneralStore:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.37f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(125, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.PawnShop:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 33, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.5f, 0, sizeMultiplier * iconSize * .5f);
-                        textboxRect.sizeDelta = new Vector2(125, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Shops;
-                        break;
-                    case DFLocation.BuildingTypes.Armorer:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.249", 05, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.02f, 0, sizeMultiplier * iconSize * 1.25f);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
-                        break;
-                    case DFLocation.BuildingTypes.WeaponSmith:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.207", 00, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.1f, 0, sizeMultiplier * iconSize * 1.2f);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Blacksmiths;
-                        break;
-                    case DFLocation.BuildingTypes.Temple:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 0, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize * .5f);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
-                        break;
-                    case DFLocation.BuildingTypes.Library:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.253", 28, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .73f, 0, sizeMultiplier * iconSize);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
-                        break;
-                    case DFLocation.BuildingTypes.GuildHall:
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.25f, 0, sizeMultiplier * iconSize * .75f);
-                        textboxRect.sizeDelta = new Vector2(75, 100);
-                        buildingInfo.marker.iconGroup = MarkerGroups.Utilities;
-                        break;
-                    case DFLocation.BuildingTypes.Palace:
-                        buildingInfo.marker.iconGroup = MarkerGroups.Government;
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * .86f, 0, sizeMultiplier * iconSize * .7f);
-                        break;
-                    case DFLocation.BuildingTypes.House1:
-                    case DFLocation.BuildingTypes.House2:
-                    case DFLocation.BuildingTypes.House3:
-                    case DFLocation.BuildingTypes.House4:
-                    case DFLocation.BuildingTypes.House5:
-                    case DFLocation.BuildingTypes.House6:
-                        buildingInfo.marker.iconGroup = MarkerGroups.Houses;
-                        textObject.GetComponent<TMPro.TextMeshPro>().text = "House";
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.211", 37, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize * 1.09f, 0, sizeMultiplier * iconSize);
-                        break;
-                    case DFLocation.BuildingTypes.HouseForSale:
-                        buildingInfo.marker.iconGroup = MarkerGroups.Houses;
-                        textObject.GetComponent<TMPro.TextMeshPro>().text = "House Sale";
-                        buildingIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.212", 4, 0, true, 0);
-                        buildingIcon.transform.localScale = new Vector3(sizeMultiplier * iconSize, 0, sizeMultiplier * iconSize * 1.77f);
-                        break;
-                    case DFLocation.BuildingTypes.None:
-                        Destroy(buildingIcon);
-                        Destroy(textObject);
-                        Destroy(buildingMesh);
-                        continue;
-                }
-                //updates materials based on user settings saved to dictionary.
-                updateMaterials(buildingMesh, iconGroupColors[buildingInfo.marker.iconGroup], iconGroupTransperency[buildingInfo.marker.iconGroup]);
-
-                //attaches all above objects to the marker constructor class.
-                buildingInfo.marker.attachedMesh = buildingMesh;
-                buildingInfo.marker.attachedLabel = textObject;
-                buildingInfo.marker.attachedIcon = buildingIcon;
-                buildingInfo.marker.position = new Vector3(buildingInfo.position.x, buildingInfo.position.y + tallestSpot + 10, buildingInfo.position.z);
-
-                //turn off the indicator once transperency goes below a level it isn't helpful.
-                 buildingMesh.SetActive(true);
-            }
         }
 
         //updates object, as long as object has a material attached to it to update/apply shader to.
         public static Material updateMaterials(GameObject objectWithMat, Color materialColor, float DistortionBlend)
-        {
+        {           
             //grabbing an alpha render shader for the building material. Needed to override default textures and give solid transperent look.
             Material buildingMarkermaterial = new Material(buildingMarkerMaterial);
             buildingMarkermaterial.SetFloat("_DistortionEnabled", 1f);
@@ -859,18 +739,21 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             if (buildingInfoCollection == null)
                 return;
-            foreach (BuildingMarker buildingMarker in buildingInfoCollection)
+            foreach (GameObject markerObject in buildingInfoCollection)
             {
+                BuildingMarker buildingMarker = markerObject.GetComponent<BuildingMarker>();
+
+                if (!buildingMarker.marker.attachedMesh)
+                    continue;
+
                 //updates building mesh material.
                 updateMaterials(buildingMarker.marker.attachedMesh, iconGroupColors[buildingMarker.marker.iconGroup], iconGroupTransperency[buildingMarker.marker.iconGroup]);
                 //grabs icon material.
                 Material iconMaterial = buildingMarker.marker.attachedIcon.GetComponent<MeshRenderer>().material;
                 //sets its transperency level.
-                iconMaterial.color = new Color(1, 1, 1, iconGroupTransperency[buildingMarker.marker.iconGroup]);
+                iconMaterial.SetColor("_Color",new Color (1,1,1, iconGroupTransperency[buildingMarker.marker.iconGroup]));
                 //reassigns it back to icon for update.
                 buildingMarker.marker.attachedIcon.GetComponent<MeshRenderer>().material = iconMaterial;
-
-                buildingMarker.marker.attachedIcon.SetActive(iconGroupActive[buildingMarker.marker.iconGroup]);
             }
         }
 
@@ -891,6 +774,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         //grabs the local dungeon and reveals meshes using hitray calculator.
         void DungeonMinimapCreator()
         {
+            //Debug.Log("CREATING DUNGEON MINIMAP!");
             Vector3 npcMarkerScale = new Vector3(2, .01f, 2);
             dungeonInstance = GameManager.Instance.DungeonParent;
 
@@ -934,7 +818,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             Ray ray = new Ray(mainCamera.transform.position, Vector3.down);
 
-            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << MiniMap);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << layerMinimap);
 
             nearestHit = null;
             float nearestDistance = float.MaxValue;
@@ -949,8 +833,93 @@ namespace DaggerfallWorkshop.Game.Minimap
         }
 
         //grabs streaming world objects, npcs in streaming world objects, and places, sizes, and colors npcs indicator meshes.
-        public List<npcMarker> SetupNPCIndicators()
-        {
+        public void SetupNPCIndicators()
+        {           
+            //set exterior indicator size and material and grab npc objects for assigning below.
+            if (!GameManager.Instance.IsPlayerInside)
+            {
+                DaggerfallLocation location = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                mobileNPCArray = location.GetComponentsInChildren<MobilePersonNPC>();
+                mobileEnemyArray = location.GetComponentsInChildren<DaggerfallEnemy>();
+                flatNPCArray = location.GetComponentsInChildren<StaticNPC>();
+            }
+
+            //set inside building interior indicator size and material and grab npc objects for assigning below.
+            else if (GameManager.Instance.IsPlayerInside && !GameManager.Instance.IsPlayerInsideDungeon)
+            {
+                interiorInstance = GameManager.Instance.InteriorParent;
+                flatNPCArray = interiorInstance.GetComponentsInChildren<StaticNPC>();
+                mobileNPCArray = interiorInstance.GetComponentsInChildren<MobilePersonNPC>();
+                mobileEnemyArray = interiorInstance.GetComponentsInChildren<DaggerfallEnemy>();
+            }
+
+            //set dungeon interior indicator size and material and grab npc objects for assigning below.
+            else if (GameManager.Instance.IsPlayerInside && GameManager.Instance.IsPlayerInsideDungeon)
+            {
+                interiorInstance = GameManager.Instance.InteriorParent;
+                dungeonInstance = GameManager.Instance.DungeonParent;
+                flatNPCArray = dungeonInstance.GetComponentsInChildren<StaticNPC>();
+                mobileNPCArray = dungeonInstance.GetComponentsInChildren<MobilePersonNPC>();
+                mobileEnemyArray = dungeonInstance.GetComponentsInChildren<DaggerfallEnemy>();
+            }
+
+            //count all npcs in the seen to get the total amount.
+            int totalNPCs = flatNPCArray.Length + mobileEnemyArray.Length + mobileNPCArray.Length;
+
+            //if the total amount of npcs match the indicator collection total, stop code execution and return from routine.
+            if (totalNPCs == currentNPCIndicatorCollection.Count)
+                return;
+
+            //if the total npcs didn't match the indicator collections, the setup a new list and begin updated it using loops below.
+            currentNPCIndicatorCollection = new List<npcMarker>();
+
+            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
+            foreach (MobilePersonNPC mobileNPC in mobileNPCArray)
+            {
+                if (!mobileNPC.GetComponent<npcMarker>())
+                {
+                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
+                    float time = +Time.deltaTime;
+                    if (time > addMarkerRandomizer)
+                    {
+                        npcMarker newNPCMarker = mobileNPC.gameObject.AddComponent<npcMarker>();
+                        newNPCMarker.name = "Minimap " + mobileNPC.NameNPC;
+                        currentNPCIndicatorCollection.Add(newNPCMarker);
+                    }
+                }
+            }
+
+            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
+            foreach (DaggerfallEnemy mobileEnemy in mobileEnemyArray)
+            {
+                if (!mobileEnemy.GetComponent<npcMarker>())
+                {
+                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
+                    float time = +Time.deltaTime;
+                    if (time > addMarkerRandomizer)
+                    {
+                        npcMarker newNPCMarker = mobileEnemy.gameObject.AddComponent<npcMarker>();
+                        currentNPCIndicatorCollection.Add(newNPCMarker);
+                    }
+                }
+            }
+
+            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
+            foreach (StaticNPC staticNPC in flatNPCArray)
+            {
+                if (!staticNPC.GetComponent<npcMarker>())
+                {
+                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
+                    float time = +Time.deltaTime;
+                    if (time > addMarkerRandomizer)
+                    {
+                        npcMarker newNPCMarker = staticNPC.gameObject.AddComponent<npcMarker>();
+                        currentNPCIndicatorCollection.Add(newNPCMarker);
+                    }
+                }
+            }
+
+            //remove from list, destroy the marker object that contains all marker objects and data, and destroy marker script itself.
             foreach (npcMarker marker in currentNPCIndicatorCollection)
             {
                 if (!marker)
@@ -960,135 +929,25 @@ namespace DaggerfallWorkshop.Game.Minimap
                     Destroy(marker);
                 }
             }
-
-            //set exterior indicator size and material and grab npc objects for assigning below.
-            if (!GameManager.Instance.IsPlayerInside)
-            {
-                DaggerfallLocation location = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-
-                if (!location)
-                    return null;
-
-                mobileNPCArray = location.GetComponentsInChildren<MobilePersonNPC>();
-                mobileEnemyArray = location.GetComponentsInChildren<DaggerfallEnemy>();
-                flatNPCArray = location.GetComponentsInChildren<StaticNPC>();
-            }
-
-            //set inside building interior indicator size and material and grab npc objects for assigning below.
-            if (GameManager.Instance.IsPlayerInside && !GameManager.Instance.IsPlayerInsideDungeon)
-            {
-                interiorInstance = GameManager.Instance.InteriorParent;
-
-                if (!interiorInstance)
-                    return null;
-
-                flatNPCArray = interiorInstance.GetComponentsInChildren<StaticNPC>();
-                mobileNPCArray = interiorInstance.GetComponentsInChildren<MobilePersonNPC>();
-                mobileEnemyArray = interiorInstance.GetComponentsInChildren<DaggerfallEnemy>();
-            }
-
-            //set dungeon interior indicator size and material and grab npc objects for assigning below.
-            if (GameManager.Instance.IsPlayerInside && GameManager.Instance.IsPlayerInsideDungeon)
-            {
-                dungeonInstance = GameManager.Instance.DungeonParent;
-
-                if (!dungeonInstance)
-                    return null;
-
-                flatNPCArray = dungeonInstance.GetComponentsInChildren<StaticNPC>();
-                mobileNPCArray = dungeonInstance.GetComponentsInChildren<MobilePersonNPC>();
-                mobileEnemyArray = dungeonInstance.GetComponentsInChildren<DaggerfallEnemy>();
-            }
-
-            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
-            foreach (MobilePersonNPC mobileNPC in mobileNPCArray)
-            {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                float time = +Time.deltaTime;
-                npcMarker npcMarkerObject = mobileNPC.GetComponent<npcMarker>();
-
-                if (!npcMarkerObject && time > addMarkerRandomizer)
-                {
-                    npcMarker newNPCMarker = mobileNPC.gameObject.AddComponent<npcMarker>();
-                    newNPCMarker.name = "Minimap " + mobileNPC.NameNPC;
-                    currentNPCIndicatorCollection.Add(newNPCMarker);
-                }
-            }
-
-            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
-            foreach (DaggerfallEnemy mobileEnemy in mobileEnemyArray)
-            {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                float time = +Time.deltaTime;
-
-                npcMarker npcMarkerObject = mobileEnemy.GetComponent<npcMarker>();
-
-                if (!npcMarkerObject && time > addMarkerRandomizer)
-                {
-                    npcMarker newNPCMarker = mobileEnemy.gameObject.AddComponent<npcMarker>();
-                    currentNPCIndicatorCollection.Add(newNPCMarker);
-                }
-            }
-
-            //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
-            foreach (StaticNPC staticNPC in flatNPCArray)
-            {
-                float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                float time = +Time.deltaTime;
-
-                npcMarker npcMarkerObject = staticNPC.GetComponent<npcMarker>();
-
-                if (!npcMarkerObject && time > addMarkerRandomizer)
-                {
-                    npcMarker newNPCMarker = staticNPC.gameObject.AddComponent<npcMarker>();
-                    currentNPCIndicatorCollection.Add(newNPCMarker);
-                }
-            }
-
-
-            return currentNPCIndicatorCollection;
         }
 
         public void UpdateNpcMarkers()
         {
-            if (currentNPCIndicatorCollection == null)
-                return;
-
-            Debug.Log("UPDATING NPC MARKERS");
-
             bool isInside = GameManager.Instance.IsPlayerInside;
-            Vector3 markerScale = new Vector3();
-            Vector3 icoonScale = new Vector3();
+            markerScale = new Vector3();
 
             if (isInside)
             {
-                indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .03f, 1, 3f);
-                npcIconSize = Mathf.Clamp(minimapCamera.orthographicSize * .005f, .25f, 1f);
+                indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .08f, .15f, 6f);
                 markerScale = new Vector3(indicatorSize, .01f, indicatorSize);
-                icoonScale = new Vector3(npcIconSize, npcIconSize, npcIconSize);
             }
             else
             {
-                indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .05f, 1, 5);
-                npcIconSize = Mathf.Clamp(minimapCamera.orthographicSize * .025f, .25f, 1);
+                indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .05f, .15f, 7);
                 markerScale = new Vector3(indicatorSize, .01f, indicatorSize);
-                icoonScale = new Vector3(npcIconSize, npcIconSize, npcIconSize);
             }
-
-            foreach (npcMarker npcMarker in currentNPCIndicatorCollection)
-            {
-                if (npcMarker.marker.markerObject == null)
-                    continue;
-
-                npcMarker.marker.markerObject.transform.localScale = markerScale;
-                npcMarker.marker.markerIcon.transform.localScale = icoonScale;
-                npcMarker.marker.npcMarkerMaterial.color = iconGroupColors[npcMarker.marker.markerType];
-                npcMarker.marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = iconGroupColors[npcMarker.marker.markerType];
-                npcMarker.marker.isActive = iconGroupActive[npcMarker.marker.markerType];
-            }
-
-            lastIndicatorSize = indicatorSize;
         }
+
         //updates the current indicator view.
         void UpdateIndicatorView(bool labelIndicatorActive, bool iconIndicatorActive)
         {
@@ -1096,8 +955,9 @@ namespace DaggerfallWorkshop.Game.Minimap
             if (buildingInfoCollection != null)
             {
                 //if there are markers, check each building/markerinfo
-                foreach (BuildingMarker buildingMarker in buildingInfoCollection)
+                foreach (GameObject markerObject in buildingInfoCollection)
                 {
+                    BuildingMarker buildingMarker = markerObject.GetComponent<BuildingMarker>();
                     //if the marker group type is set to active in markerGroupActive, then pass through smart view triggers.
                     if (iconGroupActive[buildingMarker.marker.iconGroup])
                     {
@@ -1118,7 +978,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                     }
                 }
             }
-
         }
 
         //sets up and updates minimap camera.
@@ -1138,13 +997,13 @@ namespace DaggerfallWorkshop.Game.Minimap
                     minimapCamera.nearClipPlane = nearClipValue - 1.2f;
 
                 minimapCamera.farClipPlane = 2.85f + farClipValue;
-                minimapCamera.orthographicSize = insideZoom;
+                minimapCamera.orthographicSize = minimapViewSize * .25f + 13f;
                 minimapCamera.cullingMask = LayerMask.NameToLayer("Everything");
                 minimapCamera.renderingPath = RenderingPath.VertexLit;
 
                 if (GameManager.Instance.IsPlayerInsideDungeon)
                 {
-                    minimapCamera.cullingMask = 1 << MiniMap;
+                    minimapCamera.cullingMask = 1 << layerMinimap;
                     cameraPos.y = gameObjectPlayerAdvanced.transform.position.y + 2f;
                     minimapCamera.nearClipPlane = nearClipValue;
                     minimapCamera.farClipPlane = farClipValue + 4;
@@ -1155,7 +1014,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 cameraPos.x = mainCamera.transform.position.x + minimapCameraX;
                 cameraPos.y = 800;
                 cameraPos.z = mainCamera.transform.position.z + minimapCameraZ;
-                minimapCamera.orthographicSize = outsideZoom;
+                minimapCamera.orthographicSize = minimapViewSize + 50;
                 minimapCamera.nearClipPlane = 0.3f + nearClipValue;
                 minimapCamera.farClipPlane = 5000 + farClipValue;
                 minimapCamera.cullingMask = LayerMask.NameToLayer("Everything");
@@ -1168,7 +1027,11 @@ namespace DaggerfallWorkshop.Game.Minimap
             //setup the camera angle/view point.
             var cameraRot = transform.rotation;
             cameraRot.x = minimapAngle;
-            minimapCamera.transform.rotation = cameraRot;
+            minimapCamera.transform.rotation = cameraRot;            
+        }
+
+        void SetupMinimapLayers()
+        {
 
             //setup the minimap mask layer size/position in top right corner.
             maskRectTransform.sizeDelta = new Vector2(minimapSize * 1.03f, minimapSize * 1.03f);
@@ -1178,9 +1041,6 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
             minimapInterfaceRectTransform.sizeDelta = new Vector2(minimapSize * 1.03f, minimapSize * 1.13f);
-
-            //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-            minimapDirectionsRectTransform.sizeDelta = new Vector2(minimapSize * .7f, minimapSize * .7f);
 
             if (fullMinimapMode)
             {
@@ -1199,6 +1059,16 @@ namespace DaggerfallWorkshop.Game.Minimap
                 //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
             }
 
+            //force transform updates.
+            canvasRectTransform.ForceUpdateRectTransforms();
+            maskRectTransform.ForceUpdateRectTransforms();
+        }
+
+        public void SetupBearings()
+        {
+            //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
+            minimapDirectionsRectTransform.sizeDelta = new Vector2(minimapSize * .7f, minimapSize * .7f);
+
             //tie the minimap rotation to the players view rotation using eulerAngles.
             var minimapRot = transform.eulerAngles;
             if (minimapControls.autoRotateActive)
@@ -1213,8 +1083,24 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             //force transform updates.
             minimapDirectionsRectTransform.ForceUpdateRectTransforms();
-            canvasRectTransform.ForceUpdateRectTransforms();
-            maskRectTransform.ForceUpdateRectTransforms();
+        }
+
+        public void SetupQuestBearings()
+        {
+            minimapQuestRectTransform.sizeDelta = new Vector2(minimapSize * .7f, minimapSize * .7f);
+
+            //find the vector3 facing direction for the quest bearing indicator.
+            Vector3 targetDir = lastQuestMarkerPosition - GameManager.Instance.PlayerObject.transform.position;
+            Vector3 forward = transform.forward;
+            //returns the direction angle of the quest marker based on where the player is in the world.
+            float angle = Vector3.SignedAngle(targetDir, forward, Vector3.up);
+            //create an empty ueler to store direction angle.
+            var questRot = transform.eulerAngles;
+            questRot.z = angle;
+            //assigns the angle to the quest bearing indicator.
+            minimapQuestRectTransform.transform.eulerAngles = questRot + canvasRectTransform.transform.eulerAngles;
+
+            minimapQuestRectTransform.ForceUpdateRectTransforms();
         }
 
         public void SetupPlayerIndicator()
@@ -1225,50 +1111,34 @@ namespace DaggerfallWorkshop.Game.Minimap
                 gameobjectPlayerMarkerArrow = GameObjectHelper.CreateDaggerfallMeshGameObject(99900, GameManager.Instance.PlayerEntityBehaviour.transform, false, null, true);
                 Destroy(gameobjectPlayerMarkerArrow.GetComponent<MeshCollider>());
                 gameobjectPlayerMarkerArrow.name = "PlayerMarkerArrow";
-                gameobjectPlayerMarkerArrow.layer = MiniMap;
+                gameobjectPlayerMarkerArrow.layer = layerMinimap;
                 updateMaterials(gameobjectPlayerMarkerArrow, Color.yellow, 0f);
             }
 
             //tie player arrow to player position and rotation.
             if (GameManager.Instance.PlayerMotor.IsGrounded)
-                PlayerHeightChanger = GameManager.Instance.PlayerEntityBehaviour.transform.position.y + playerIndicatorHeight + .1f;
-
-            float playerIndicatorSize = 1;
+                PlayerHeightChanger = GameManager.Instance.PlayerEntityBehaviour.transform.position.y + playerIndicatorHeight + .1f;           
 
             //adjust player marker size to make up for camera view size adjustments when inside or outside.
-            if (GameManager.Instance.IsPlayerInside && !GameManager.Instance.IsPlayerInsideDungeon)
-            {
-                playerIndicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .0127f, .5f, 3f);
-                gameobjectPlayerMarkerArrow.transform.localScale = new Vector3(playerIndicatorSize, .1f, playerIndicatorSize);
-            }
+            if (GameManager.Instance.IsPlayerInside)
+                gameobjectPlayerMarkerArrow.transform.localScale = new Vector3(indicatorSize, indicatorSize, indicatorSize);
             else
-            {
-                playerIndicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * .025f, 1f, 6f);
-                gameobjectPlayerMarkerArrow.transform.localScale = new Vector3(playerIndicatorSize, .1f, playerIndicatorSize);
-            }
+                gameobjectPlayerMarkerArrow.transform.localScale = new Vector3(indicatorSize, indicatorSize, indicatorSize);
 
             //continually updates player arrow marker position and rotation.
             gameobjectPlayerMarkerArrow.transform.position = new Vector3(GameManager.Instance.PlayerActivate.transform.position.x, PlayerHeightChanger, GameManager.Instance.PlayerEntityBehaviour.transform.position.z);
             gameobjectPlayerMarkerArrow.transform.rotation = GameManager.Instance.PlayerEntityBehaviour.transform.rotation;
-
-            if (minimapControls.autoRotateActive && lastRotation != GameManager.Instance.PlayerEntityBehaviour.transform.rotation)
-            {
-                foreach(BuildingMarker buildingMarker in buildingInfoCollection)
-                {
-                    buildingMarker.marker.attachedIcon.transform.rotation =  Quaternion.LookRotation(-GameManager.Instance.PlayerEntityBehaviour.transform.forward, GameManager.Instance.PlayerEntityBehaviour.transform.up);
-                    lastRotation = GameManager.Instance.PlayerEntityBehaviour.transform.rotation;
-                }
-            }
-
-
         }
 
         // Update is called once per frame
         void Update()
         {
+            UnityEngine.Profiling.Profiler.BeginSample("Minimap Updates");
+            //stop update loop if any of the below is happening.
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return;
 
+            //turn everything off when player disables minimap, else turn it on.
             if (!minimapActive)
             {
                 publicMinimap.SetActive(false);
@@ -1284,15 +1154,43 @@ namespace DaggerfallWorkshop.Game.Minimap
                 publicDirections.SetActive(true);
             }
 
+            //fps calculator for script optimization. Not using now,
             deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
             fps = 1.0f / deltaTime;
 
-            KeyPressCheck();
+            //if not fast traveling or sleeping and the streaming world is ready for use begin minimap update checks.
 
-            if (GameManager.Instance.IsPlayerInside && minimapCamera.orthographicSize != insideZoom)
-                minimapCamera.orthographicSize = insideZoom;
-            else if(minimapCamera.orthographicSize != outsideZoom)
-                minimapCamera.orthographicSize = outsideZoom;
+            //run keypress check loop. Controls smart keys.
+            KeyPressCheck();
+            SetupNPCIndicators();
+
+            //if player has smart view active....
+            if (minimapControls.smartViewActive)
+            {
+                //check the camera zoom size, if greater than 50 and the size has changed, setup indicators using triggers.
+                if (minimapCamera.orthographicSize > 50 && minimapCamera.orthographicSize != minimapViewSize)
+                {
+                    //if all icons are active, run normal smart view enabled all icons and no labels.
+                    if (minimapControls.iconsIndicatorActive)
+                        UpdateIndicatorView(false, minimapControls.iconsIndicatorActive);
+                    //If they have all icons turned off, turn all icons and labels off.
+                    else
+                        UpdateIndicatorView(false, false);
+                }
+                else if (minimapCamera.orthographicSize < 50 && minimapCamera.orthographicSize != minimapViewSize)
+                {
+                    if (minimapControls.labelIndicatorActive)
+                        UpdateIndicatorView(minimapControls.labelIndicatorActive, false);
+                    else
+                        UpdateIndicatorView(false, false);
+                }
+
+                //if smartview is off, use standard bool triggers setup in the menu to decide what is shown and not.
+                else if (!minimapControls.smartViewActive && minimapCamera.orthographicSize != minimapViewSize)
+                {
+                    UpdateIndicatorView(minimapControls.labelIndicatorActive, minimapControls.iconsIndicatorActive);
+                }
+            }
 
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
             if (!GameManager.Instance.IsPlayerInside)
@@ -1308,59 +1206,84 @@ namespace DaggerfallWorkshop.Game.Minimap
                 currentLocationName = GameManager.Instance.DungeonParent.name;
             }
 
-            //compare current location name with last, and if not the same and if there are buildings, destroy automap, building, and labels and rebuild building gui.
+            //check if location is loaded, if player is in an actual location rect, and if the location has changed by name.
             if (currentLocationName != lastLocationName)
             {
-                if (!GameManager.Instance.IsPlayerInside)
-                    SetupBuildingIndicators();
+                if (!GameManager.Instance.EntityEffectBroker.SyntheticTimeIncrease && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject != null && !GameManager.Instance.StreamingWorld.IsRepositioningPlayer && GameManager.Instance.StreamingWorld.GetCurrentCityNavigation().WorldToScenePosition(GameManager.Instance.PlayerGPS.CurrentMapPixel, true) != null)
+                {
+                    //update location name check and ensure player is not inside.
+                    lastLocationName = currentLocationName;
+                    if (!GameManager.Instance.IsPlayerInside)
+                    {
+                        SetupBuildingIndicators();
+                    }
+                }
 
                 minimapControls.updateMinimapUI();
-
-                lastLocationName = currentLocationName;
+                FindInsideQuestMarker();
             }
 
-            //if plyaer has smart view active....
-            if (minimapControls.smartViewActive && !GameManager.Instance.IsPlayerInside)
+            if (GameManager.Instance.IsPlayerInside)
             {
-                //check the camera zoom size, if greater than 50 and the size has changed, setup indicators using triggers.
-                if (minimapCamera.orthographicSize > 50 && minimapCamera.orthographicSize != outsideZoom)
-                {
-                    //if all icons are active, run normal smart view enabled all icons and no labels.
-                    if (minimapControls.iconsIndicatorActive)
-                        UpdateIndicatorView(false, minimapControls.iconsIndicatorActive);
-                    //If they have all icons turned off, turn all icons and labels off.
-                    else
-                        UpdateIndicatorView(false, false);
-                }
-                else if (minimapCamera.orthographicSize < 50 && minimapCamera.orthographicSize != outsideZoom)
-                {
-                    if (minimapControls.labelIndicatorActive)
-                        UpdateIndicatorView(minimapControls.labelIndicatorActive, false);
-                    else
-                        UpdateIndicatorView(false, false);
-                }
-
-                //if smartview is off, use standard bool triggers setup in the menu to decide what is shown and not.
-                else if (!minimapControls.smartViewActive && minimapCamera.orthographicSize != outsideZoom)
-                {
-                    UpdateIndicatorView(minimapControls.labelIndicatorActive, minimapControls.iconsIndicatorActive);
-                }
+                //if player is inside, this runs continually to create the minimap automap by hijacking the automap. If this doesn't update, dungeon minimap revealed geometry won't update.
+                if (GameManager.Instance.IsPlayerInsideDungeon)
+                    DungeonMinimapCreator();           
             }
 
-            //if player is inside, this runs continually to create the minimap automap by hijacking the automap. If this doesn't update, dungeon minimap revealed geometry won't update.
-            if (GameManager.Instance.IsPlayerInsideDungeon)
-                DungeonMinimapCreator();
-
-            npcIndicatorCollection = SetupNPCIndicators();
-            if (lastIndicatorSize != indicatorSize)
-            {
-                UpdateNpcMarkers();
-            }
-
-            SetupPlayerIndicator();
-
-            //always running to check and update player minimap camera. Ens
+            //always running to check and update player minimap camera.
             SetupMinimapCameras();
+            //setup and run minimap layers.
+            SetupMinimapLayers();
+            //setup and run compass bearing markers
+            SetupBearings();
+            //setup and run compass quest bearing markers
+            SetupQuestBearings();
+            //setup and run compass npc markers
+            SetupPlayerIndicator();
+            
+            UnityEngine.Profiling.Profiler.EndSample();
+        }
+
+        public void FindInsideQuestMarker()
+        {
+
+            QuestMarker spawnMarker;
+            Vector3 buildingOrigin;
+            Vector3 markerPos;
+
+            bool result = GameManager.Instance.QuestMachine.GetCurrentLocationQuestMarker(out spawnMarker, out buildingOrigin);
+
+            if (!result)
+            {
+                publicQuestBearing.SetActive(false);
+                return;
+            }
+            else
+                publicQuestBearing.SetActive(true);
+
+            if (GameManager.Instance.PlayerEnterExit.Interior.FindClosestMarker(
+                  out markerPos,
+                  (DaggerfallInterior.InteriorMarkerTypes)spawnMarker.markerType,
+                  GameManager.Instance.PlayerObject.transform.position))
+            {
+
+                if (markerPos != currentMarkerPost)
+                {
+                    GameObject questIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                    questIcon.name = "Quest Icon";
+                    questIcon.transform.position = markerPos;
+                    questIcon.transform.localScale = new Vector3(indicatorSize, 0, indicatorSize);
+                    questIcon.transform.Rotate(0, 0, 180);
+                    questIcon.layer = layerMinimap;
+                    questIcon.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Legacy Shaders/Transparent/Cutout/Soft Edge Unlit")); ;
+                    questIcon.GetComponent<MeshRenderer>().material.color = Color.white;
+                    questIcon.GetComponent<MeshRenderer>().shadowCastingMode = 0;
+                    questIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.208", 1, 0, true, 0);
+                    //remove collider from mes.
+                    Destroy(questIcon.GetComponent<Collider>());
+                    currentMarkerPost = markerPos;
+                }
+            }
         }
 
         #region TextureLoader
@@ -1393,8 +1316,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 IconGroupTransperency = new Dictionary<MarkerGroups, float>(),
                 IconGroupActive = new Dictionary<MarkerGroups, bool>(),
                 MinimapSizeMult = .25f,
-                OutsideZoom = 40,
-                InsideZoom = 13,
+                MinimapViewSize = 40,
                 MinimapCameraHeight = 100,
                 MinimapRotationValue = 0,
                 AlphaValue = 0,
@@ -1415,8 +1337,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 IconGroupTransperency = iconGroupTransperency,
                 IconGroupActive = iconGroupActive,
                 MinimapSizeMult = minimapSize,
-                InsideZoom = insideZoom,
-                OutsideZoom = outsideZoom,
+                MinimapViewSize = minimapViewSize,
                 MinimapCameraHeight = minimapCameraHeight,
                 MinimapRotationValue = minimapControls.minimapRotationValue,
                 AlphaValue = minimapControls.blendValue,
@@ -1436,8 +1357,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             iconGroupTransperency = myModSaveData.IconGroupTransperency;
             iconGroupActive = myModSaveData.IconGroupActive;
             minimapSize = myModSaveData.MinimapSizeMult;
-            outsideZoom = myModSaveData.OutsideZoom;
-            insideZoom = myModSaveData.InsideZoom;
+            minimapViewSize = myModSaveData.MinimapViewSize;
             minimapCameraHeight = myModSaveData.MinimapCameraHeight;
             minimapControls.minimapRotationValue = myModSaveData.MinimapRotationValue;
             minimapControls.blendValue = myModSaveData.AlphaValue;
