@@ -441,26 +441,26 @@ namespace AmbidexterityModule
             if (attacker == player)
             {
                 // Apply swing modifiers
-                PhysicalCombatArmorPatch.ToHitAndDamageMods swingMods = PhysicalCombatArmorPatch.CalculateSwingModifiers(GameManager.Instance.WeaponManager.ScreenWeapon);
+                FormulaHelper.ToHitAndDamageMods swingMods = FormulaHelper.CalculateSwingModifiers(GameManager.Instance.WeaponManager.ScreenWeapon);
                 damageModifiers += swingMods.damageMod;
                 chanceToHitMod += swingMods.toHitMod;
 
                 // Apply proficiency modifiers
-                PhysicalCombatArmorPatch.ToHitAndDamageMods proficiencyMods = PhysicalCombatArmorPatch.CalculateProficiencyModifiers(attacker, weapon);
+                FormulaHelper.ToHitAndDamageMods proficiencyMods = FormulaHelper.CalculateProficiencyModifiers(attacker, weapon);
                 damageModifiers += proficiencyMods.damageMod;
                 chanceToHitMod += proficiencyMods.toHitMod;
 
                 // Apply racial bonuses
-                PhysicalCombatArmorPatch.ToHitAndDamageMods racialMods = PhysicalCombatArmorPatch.CalculateRacialModifiers(attacker, weapon, player);
+                FormulaHelper.ToHitAndDamageMods racialMods = FormulaHelper.CalculateRacialModifiers(attacker, weapon, player);
                 damageModifiers += racialMods.damageMod;
                 chanceToHitMod += racialMods.toHitMod;
 
-                backstabChance = PhysicalCombatArmorPatch.CalculateBackstabChance(player, null, enemyAnimStateRecord);
+                backstabChance = FormulaHelper.CalculateBackstabChance(player, null, enemyAnimStateRecord);
                 chanceToHitMod += backstabChance;
             }
 
             // Choose struck body part
-            int struckBodyPart = PhysicalCombatArmorPatch.CalculateStruckBodyPart();
+            int struckBodyPart = FormulaHelper.CalculateStruckBodyPart();
 
             // Get damage for weaponless attacks
             if (skillID == (short)DFCareer.Skills.HandToHand)
@@ -469,11 +469,11 @@ namespace AmbidexterityModule
 
                 if (attacker == player || (AIAttacker != null && AIAttacker.EntityType == EntityTypes.EnemyClass))
                 {
-                    if (PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                    if (FormulaHelper.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                     {
-                        damage = PhysicalCombatArmorPatch.CalculateHandToHandAttackDamage(attacker, target, damageModifiers, attacker == player); // Added my own, non-overriden version of this method for modification.
+                        damage = FormulaHelper.CalculateHandToHandAttackDamage(attacker, target, damageModifiers, attacker == player); // Added my own, non-overriden version of this method for modification.
 
-                        damage = PhysicalCombatArmorPatch.CalculateBackstabDamage(damage, backstabChance);
+                        damage = FormulaHelper.CalculateBackstabDamage(damage, backstabChance);
                     }
                 }
                 else if (AIAttacker != null) // attacker is a monster
@@ -514,7 +514,7 @@ namespace AmbidexterityModule
 
                         int reflexesChance = 50 - (10 * ((int)player.Reflexes - 2));
 
-                        if (DFRandom.rand() % 100 < reflexesChance && minBaseDamage > 0 && PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                        if (DFRandom.rand() % 100 < reflexesChance && minBaseDamage > 0 && FormulaHelper.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                         {
                             int hitDamage = UnityEngine.Random.Range(minBaseDamage, maxBaseDamage + 1);
                             // Apply special monster attack effects
@@ -527,7 +527,7 @@ namespace AmbidexterityModule
                         ++attackNumber;
                     }
                     if (damage >= 1)
-                        damage = PhysicalCombatArmorPatch.CalculateHandToHandAttackDamage(attacker, target, damage, attacker == player); // Added my own, non-overriden version of this method for modification.
+                        damage = FormulaHelper.CalculateHandToHandAttackDamage(attacker, target, damage, attacker == player); // Added my own, non-overriden version of this method for modification.
                 }
             }
             // Handle weapon attacks
@@ -536,17 +536,17 @@ namespace AmbidexterityModule
                 weaponAttack = true; // Check for later on if weapon is being used.
 
                 // Apply weapon material modifier.
-                chanceToHitMod += PhysicalCombatArmorPatch.CalculateWeaponToHit(weapon);
+                chanceToHitMod += FormulaHelper.CalculateWeaponToHit(weapon);
 
                 // Mod hook for adjusting final hit chance mod. (is a no-op in DFU)
                 if (PhysicalCombatArmorPatch.archeryModuleCheck)
-                    chanceToHitMod = PhysicalCombatArmorPatch.AdjustWeaponHitChanceMod(attacker, target, chanceToHitMod, weaponAnimTime, weapon);
+                    chanceToHitMod = FormulaHelper.AdjustWeaponHitChanceMod(attacker, target, chanceToHitMod, weaponAnimTime, weapon);
 
-                if (PhysicalCombatArmorPatch.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
+                if (FormulaHelper.CalculateSuccessfulHit(attacker, target, chanceToHitMod, struckBodyPart))
                 {
-                    damage = PhysicalCombatArmorPatch.CalculateWeaponAttackDamage(attacker, target, damageModifiers, weaponAnimTime, weapon);
+                    damage = FormulaHelper.CalculateWeaponAttackDamage(attacker, target, damageModifiers, weaponAnimTime, weapon);
 
-                    damage = PhysicalCombatArmorPatch.CalculateBackstabDamage(damage, backstabChance);
+                    damage = FormulaHelper.CalculateBackstabDamage(damage, backstabChance);
                 }
 
                 // Handle poisoned weapons
@@ -695,7 +695,7 @@ namespace AmbidexterityModule
             if (damage < 1) // Cut off the execution if the damage is still not anything higher than 1 at this point in the method.
                 return damage;
 
-            PhysicalCombatArmorPatch.DamageEquipment(attacker, target, damage, weapon, struckBodyPart); // Might alter this later so that equipment damage is only calculated with the amount that was reduced, not the whole initial amount, will see.
+            FormulaHelper.DamageEquipment(attacker, target, damage, weapon, struckBodyPart); // Might alter this later so that equipment damage is only calculated with the amount that was reduced, not the whole initial amount, will see.
 
             if (((target != player) && (AITarget.EntityType == EntityTypes.EnemyMonster)))
             {

@@ -40,7 +40,8 @@ namespace AmbidexterityModule
 
         void Awake()
         {
-            ModSettings settings = mod.GetSettings();
+            Mod PhysicalCombatAndArmorOverhaul = ModManager.Instance.GetMod("PhysicalCombatAndArmorOverhaul");
+            ModSettings settings = PhysicalCombatAndArmorOverhaul.GetSettings();
             Mod roleplayRealism = ModManager.Instance.GetMod("RoleplayRealism");
             Mod meanerMonsters = ModManager.Instance.GetMod("Meaner Monsters");
             bool equipmentDamageEnhanced = settings.GetBool("Modules", "equipmentDamageEnhanced");
@@ -62,18 +63,18 @@ namespace AmbidexterityModule
                 ralzarMeanerMonstersEdit = true;
             }
 
+            //No need to init
             InitMod(equipmentDamageEnhanced, fadingEnchantedItems, fixedStrengthDamageModifier, armorHitFormulaRedone, conditionBasedEffectiveness, criticalStrikesIncreaseDamage, softMaterialRequirements, rolePlayRealismArcheryModule, ralzarMeanerMonstersEdit);
-
-            mod.IsReady = true;
         }
-
+        
         #region InitMod and Settings
 
         private static void InitMod(bool equipmentDamageEnhanced, bool fadingEnchantedItems, bool fixedStrengthDamageModifier, bool armorHitFormulaRedone, bool conditionBasedEffectiveness, bool criticalStrikesIncreaseDamage, bool softMaterialRequirements, bool rolePlayRealismArcheryModule, bool ralzarMeanerMonstersEdit)
         {
             Debug.Log("Begin mod init: PhysicalCombatAndArmorOverhaul");
 
-            if (equipmentDamageEnhanced)
+            //equipmentDamageEnhanced
+            if (false)
             {
                 FormulaHelper.RegisterOverride(mod, "DamageEquipment", (Func<DaggerfallEntity, DaggerfallEntity, int, DaggerfallUnityItem, int, bool>)DamageEquipment);
 
@@ -102,16 +103,18 @@ namespace AmbidexterityModule
                 Debug.Log("PhysicalCombatAndArmorOverhaul: Fading Enchanted Items Module Disabled");
             }
 
-            if (fixedStrengthDamageModifier)
+            //fixedStrengthDamageModifier
+            if (false)
             {
                 FormulaHelper.RegisterOverride(mod, "DamageModifier", (Func<int, int>)DamageModifier);
 
                 Debug.Log("PhysicalCombatAndArmorOverhaul: Fixed Strength Damage Modifier Module Active");
             }
-            else
-                Debug.Log("PhysicalCombatAndArmorOverhaul: Fixed Strength Damage Modifier Module Disabled");
+            //else
+                //Debug.Log("PhysicalCombatAndArmorOverhaul: Fixed Strength Damage Modifier Module Disabled");
 
-            if (armorHitFormulaRedone)
+            //armorHitFormulaRedone
+            if (false)
             {
                 FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)CalculateAttackDamage);
                 FormulaHelper.RegisterOverride(mod, "CalculateSwingModifiers", (Func<FPSWeapon, ToHitAndDamageMods>)CalculateSwingModifiers);
@@ -136,12 +139,12 @@ namespace AmbidexterityModule
 
                 armorHitFormulaModuleCheck = true;
             }
-            else
-            {
-                Debug.Log("PhysicalCombatAndArmorOverhaul: Armor Hit Formula Redone Module Disabled");
+            //else
+            //{
+                //Debug.Log("PhysicalCombatAndArmorOverhaul: Armor Hit Formula Redone Module Disabled");
 
-                armorHitFormulaModuleCheck = false;
-            }
+                //armorHitFormulaModuleCheck = false;
+            //}
 
             if (criticalStrikesIncreaseDamage)
             {
@@ -203,7 +206,8 @@ namespace AmbidexterityModule
                 Debug.Log("PhysicalCombatAndArmorOverhaul: Soft Material Requirements Module Disabled");
             }
 
-            if (rolePlayRealismArcheryModule)
+            //rolePlayRealismArcheryModule
+            if (false)
             {
                 FormulaHelper.RegisterOverride(mod, "AdjustWeaponHitChanceMod", (Func<DaggerfallEntity, DaggerfallEntity, int, int, DaggerfallUnityItem, int>)AdjustWeaponHitChanceMod);
                 FormulaHelper.RegisterOverride(mod, "AdjustWeaponAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, int, int, DaggerfallUnityItem, int>)AdjustWeaponAttackDamage);
@@ -212,11 +216,11 @@ namespace AmbidexterityModule
 
                 archeryModuleCheck = true;
             }
-            else
-            {
-                archeryModuleCheck = false;
-                Debug.Log("PhysicalCombatAndArmorOverhaul: Roleplay Realism's Archery Module Disabled");
-            }
+            //else
+            //{
+                //archeryModuleCheck = false;
+                //Debug.Log("PhysicalCombatAndArmorOverhaul: Roleplay Realism's Archery Module Disabled");
+            //}
 
             if (ralzarMeanerMonstersEdit)
             {

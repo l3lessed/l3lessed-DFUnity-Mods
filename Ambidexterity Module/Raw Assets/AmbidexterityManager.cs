@@ -184,12 +184,7 @@ namespace AmbidexterityModule
             //attaches and starts the ShieldFormulaHelperObject to run the parry and shield CalculateAttackDamage mod hook adjustments
             GameObject ShieldFormulaHelperObject = new GameObject("ShieldFormulaHelper");
             ShieldFormulaHelper.ShieldFormulaHelperInstance = ShieldFormulaHelperObject.AddComponent<ShieldFormulaHelper>();
-            Debug.Log("Weapons sharpened, cleaned, and equipped.");
-
-            //attaches and starts the ShieldFormulaHelperObject to run the parry and shield CalculateAttackDamage mod hook adjustments
-            GameObject PhysicalCombatArmorPatchObject = new GameObject("PhysicalCombatArmorPatch");
-            PhysicalCombatArmorPatch.PhysicalCombatArmorPatchInstance = ShieldFormulaHelperObject.AddComponent<PhysicalCombatArmorPatch>();
-            Debug.Log("Gear snugged down & ready");
+            Debug.Log("Weapons sharpened, cleaned, and equipped.");            
 
             //initiates mod paramaters for class/script.
             mod = initParams.Mod;
@@ -219,8 +214,11 @@ namespace AmbidexterityModule
             //**MODDERS: This is the formula override you need to replace within your mod to ensure your mod script works properly**\\   
             if (ModManager.Instance.GetMod("PhysicalCombatAndArmorOverhaul") != null)
             {
-                Debug.Log("Physical Combat & overhaul detected. Activated formulas for compatibility");
+                //attaches and starts the ShieldFormulaHelperObject to run the parry and shield CalculateAttackDamage mod hook adjustments
+                GameObject PhysicalCombatArmorPatchObject = new GameObject("PhysicalCombatArmorPatch");
+                PhysicalCombatArmorPatch.PhysicalCombatArmorPatchInstance = PhysicalCombatArmorPatchObject.AddComponent<PhysicalCombatArmorPatch>();
                 FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamagePhysicalCombat);
+                Debug.Log("Physical Combat & overhaul detected. Activated formulas for compatibility");
             }                
             else
                 FormulaHelper.RegisterOverride(mod, "CalculateAttackDamage", (Func<DaggerfallEntity, DaggerfallEntity, bool, int, DaggerfallUnityItem, int>)ShieldFormulaHelper.CalculateAttackDamage);

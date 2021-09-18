@@ -115,6 +115,8 @@ namespace Wenzil.Console
             ConsoleCommandsDatabase.RegisterCommand(PrintLegalRep.name, PrintLegalRep.description, PrintLegalRep.usage, PrintLegalRep.Execute);
             ConsoleCommandsDatabase.RegisterCommand(ClearNegativeLegalRep.name, ClearNegativeLegalRep.description, ClearNegativeLegalRep.usage, ClearNegativeLegalRep.Execute);
 
+            ConsoleCommandsDatabase.RegisterCommand(PrintQuests.name, PrintQuests.description, PrintQuests.usage, PrintQuests.Execute);
+
             ConsoleCommandsDatabase.RegisterCommand(SummonDaedra.name, SummonDaedra.description, SummonDaedra.usage, SummonDaedra.Execute);
             ConsoleCommandsDatabase.RegisterCommand(ChangeModSettings.name, ChangeModSettings.description, ChangeModSettings.usage, ChangeModSettings.Execute);
         }
@@ -441,7 +443,7 @@ namespace Wenzil.Console
                     if (!int.TryParse(args[0], out id))
                         return "Invalid mobile ID.";
 
-                    if (!Enum.IsDefined(typeof(MobileTypes), id))
+                    if (!Enum.IsDefined(typeof(MobileTypes), id) && DaggerfallEntity.GetCustomCareerTemplate(id) == null)
                         return "Invalid mobile ID.";
 
                     int team = 0;
@@ -641,23 +643,25 @@ namespace Wenzil.Console
         private static class SetWalkSpeed
         {
             public static readonly string name = "set_walkspeed";
+            public static readonly string uid = "speedmod_uid";
             public static readonly string error = "Failed to set walk speed - invalid setting or PlayerMotor object not found";
-            public static readonly string description = "Set walk speed by multiplying current walk speed by inserted percentage. Set to -1 to disable speed modifiers. Set to -2 to clear out all speed modifiers";
-            public static readonly string usage = "set_walkspeed [#]";
+            public static readonly string description = "Set or update walk speed by multiplying current walk speed by inserted percentage. To update existing modifier, put in its UID after the updated speed value. Set to -1 to disable or enable speed overrides. Set to -2 to clear out all speed modifiers";
+            public static readonly string usage = "set_walkspeed [#] [uid]";
 
             public static string Execute(params string[] args)
             {
                 float speed;
+                string UID;
                 PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;
 
                 if (speedChanger == null)
                     return error;
 
-                if (args == null || args.Length < 3)
+                if (args == null || args.Length < 1)
                 {
                     try
                     {
-                        Console.Log(string.Format("Current Walk Speed: {0}", speedChanger.currentWalkSpeed));
+                        Console.Log(string.Format("Current Walk Speed: ", speedChanger.RefreshWalkSpeed().ToString()));
                         return HelpCommand.Execute(SetWalkSpeed.name);
 
                     }
@@ -669,7 +673,87 @@ namespace Wenzil.Console
                 }
                 else if (!float.TryParse(args[0], out speed))
                 {
+                    if (speedChanger.RemoveSpeedMod(args[0].ToString()))
+                        return string.Format("Walk speed modifier " + args[0].ToString() + " removed");
+                    else
+                        return error + " Walk speed: " + speedChanger.RefreshWalkSpeed().ToString();
+                }
+                else if (speed != -1 && speed != -2 && speed < 0)
+                {
+                    return error + " Walk speed: " + speedChanger.RefreshWalkSpeed().ToString();
+                }
+                else if (speed == -1)
+                {
+                    speedChanger.walkSpeedOverride = !speedChanger.walkSpeedOverride;
+                    return string.Format("Walk speed override set to: " + speedChanger.walkSpeedOverride);
+                }
+                else if (speed == -2)
+                {
+                    speedChanger.ResetSpeed(true, false);
+                    return string.Format("Walk speed modifiers cleared. Walk speed is " + speedChanger.RefreshWalkSpeed().ToString()); 
+                }
+                else if (args.Count() == 2)
+                {
+                    string uidUpdate;
+                    uidUpdate = args[1].ToString();
+
+                    if (uidUpdate != "")
+                    {
+                        if (speedChanger.WalkSpeedModifierList.ContainsKey(uidUpdate))
+                        {
+                            speedChanger.ModifySpeedMod(uidUpdate, speed, false);
+                            return string.Format("Walk speed modifier updated (UID: " + uidUpdate + "). Walk speed is " + speedChanger.RefreshWalkSpeed().ToString());
+                        }
+                        return string.Format("Walk speed modifier list does not contain modifer" + uidUpdate + ". Ensure you have an existing UID speed modifier value.");
+                    }
+                    return string.Format("Insert existing modifier UID value to update your walk speed modifier");
+                }
+                else
+                {
+                    speedChanger.AddWalkSpeedMod(out UID, speed);
+                    return string.Format("Walk speed Modifier added (UID: " + UID + "). Walk speed is " + speedChanger.RefreshWalkSpeed().ToString());
+                }
+            }
+        }
+
+        private static class SetRunSpeed
+        {
+            public static readonly string name = "set_runspeed";
+            public static readonly string uid = "speedmod_uid";
+            public static readonly string error = "Failed to set run speed - invalid setting or PlayerMotor object not found.";
+            public static readonly string description = "Set run speed by multiplying current run speed by inserted percentage. To update existing modifier, put in its UID after the updated speed value. Set to -1 to disable or enable speed overrides. Set to -2 to clear out all speed modifiers";
+            public static readonly string usage = "set_runspeed [#]";
+
+            public static string Execute(params string[] args)
+            {
+                float speed;
+                string UID;
+                PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;
+
+                if (speedChanger == null)
                     return error;
+
+                if (args == null || args.Length < 1)
+                {
+                    try
+                    {
+                        Console.Log(string.Format("Current Run Speed: {0}", speedChanger.RefreshRunSpeed().ToString()));
+                        return HelpCommand.Execute(SetRunSpeed.name);
+
+                    }
+                    catch
+                    {
+                        return HelpCommand.Execute(SetRunSpeed.name);
+                    }
+
+
+                }
+                else if (!float.TryParse(args[0], out speed))
+                {
+                    if (speedChanger.RemoveSpeedMod(args[0].ToString(), true))
+                        return string.Format("Run speed modifier " + args[0].ToString() + " removed");
+                    else
+                        return error + " Run speed is " + speedChanger.RefreshRunSpeed().ToString();
                 }
                 else if (speed != -1 && speed != -2 && speed < 0)
                 {
@@ -677,75 +761,34 @@ namespace Wenzil.Console
                 }
                 else if (speed == -1)
                 {
-                    speedChanger.walkSpeedOverride = false;
-                    return string.Format("Walk speed modifiers disabled.");
+                    speedChanger.runSpeedOverride = !speedChanger.runSpeedOverride;
+                    return string.Format("Run speed override set to: " + speedChanger.runSpeedOverride.ToString());
                 }
                 else if (speed == -2)
                 {
-                    speedChanger.ResetSpeed(true, false);
-                    return string.Format("Walk speed modifiers cleared.");
+                    speedChanger.ResetSpeed(false, true);
+                    return string.Format("Run speed modifiers cleared. Run speed is " + speedChanger.RefreshRunSpeed().ToString());
+                }
+                else if (args.Count() == 2)
+                {
+                    string uidUpdate;
+                    uidUpdate = args[1].ToString();
+
+                    if (uidUpdate != "")
+                    {
+                        if (speedChanger.RunSpeedModifierList.ContainsKey(uidUpdate))
+                        {
+                            speedChanger.ModifySpeedMod(uidUpdate, speed, true);
+                            return string.Format("Walk speed modifier updated (UID: " + uidUpdate + "). Walk speed is " + speedChanger.RefreshRunSpeed().ToString());
+                        }
+                        return string.Format("Walk speed modifier list does not contain modifer" + uidUpdate + ". Ensure you have an existing UID speed modifier value.");
+                    }
+                    return string.Format("Insert existing modifier UID value to update your walk speed modifier");
                 }
                 else
                 {
-                    speedChanger.AddWalkSpeedMod(speed);
-                    return string.Format("Walk speed set to: {0}", speed);
-                }
-
-            }
-        }
-
-        private static class SetRunSpeed
-        {
-            public static readonly string name = "set_runspeed";
-            public static readonly string error = "Failed to set run speed - invalid setting or PlayerMotor object not found";
-            public static readonly string description = "Set run speed by multiplying current run speed by inserted percentage. Set to -1 to return to default speed/clear run speed modifiers.";
-            public static readonly string usage = "set_runspeed [#]";
-
-            public static string Execute(params string[] args)
-            {
-                float speed;
-                PlayerSpeedChanger speedChanger = GameManager.Instance.SpeedChanger;//GameObject.FindObjectOfType<PlayerMotor>();
-
-                if (speedChanger == null)
-                    return error;
-
-                if (args == null || args.Length < 4)
-                {
-                    try
-                    {
-                        Console.Log(string.Format("Current RunSpeed: {0}", speedChanger.currentRunSpeed));
-                        return HelpCommand.Execute(SetRunSpeed.name);
-
-                    }
-                    catch
-                    {
-                        return HelpCommand.Execute(SetRunSpeed.name);
-                    }
-
-
-                }
-                else if (!float.TryParse(args[0], out speed))
-                {
-                    return error;
-                }
-                else if(speed != -1 && speed != -2 && speed < 0)
-                {
-                    return error;
-                }
-                else if (speed == -1)
-                {
-                    speedChanger.runSpeedOverride = false;
-                    return string.Format("Run speed modifiers disabled.");
-                }
-                else if (speed == -2)
-                {
-                    speedChanger.ResetSpeed(false,true);
-                    return string.Format("Run speed modifiers cleared.");
-                }
-                else
-                {
-                    speedChanger.AddRunSpeedMod(speed);
-                    return string.Format("Run speed set to: {0}", speed);
+                    speedChanger.AddRunSpeedMod(out UID, speed);
+                    return string.Format("Run speed Modifier added (UID: " + UID + "). Run speed is " + speedChanger.RefreshRunSpeed().ToString());
                 }
             }
         }
@@ -2115,10 +2158,11 @@ namespace Wenzil.Console
                         foreach (WeaponMaterialTypes material in weaponMaterials)
                         {
                             Array enumArray = itemHelper.GetEnumArray(ItemGroups.Weapons);
-                            for (int i = 0; i < enumArray.Length-1; i++)
+                            for (int i = 0; i < enumArray.Length - 1; i++)
                             {
                                 newItem = ItemBuilder.CreateWeapon((Weapons)enumArray.GetValue(i), material);
-                                if (args[0] == "magicWeapons") {
+                                if (args[0] == "magicWeapons")
+                                {
                                     newItem.legacyMagic = new DaggerfallEnchantment[] { new DaggerfallEnchantment() { type = EnchantmentTypes.CastWhenUsed, param = 5 } };
                                     newItem.IdentifyItem();
                                 }
@@ -2392,7 +2436,7 @@ namespace Wenzil.Console
 
                 // Poison player
                 Poisons poisonType = (Poisons)index + 128;
-                DaggerfallWorkshop.Game.Formulas.FormulaHelper.InflictPoison(GameManager.Instance.PlayerEntity, poisonType, true);
+                FormulaHelper.InflictPoison(GameManager.Instance.PlayerEntity, GameManager.Instance.PlayerEntity, poisonType, true);
 
                 return string.Format("Player poisoned with {0}", poisonType.ToString());
             }
@@ -2622,6 +2666,48 @@ namespace Wenzil.Console
                 else
                 {
                     return "Could not read legal reputation data.";
+                }
+
+                return output;
+            }
+        }
+
+        private static class PrintQuests
+        {
+            public static readonly string name = "print_quests";
+            public static readonly string description = "Output current quests running on quest machine.";
+            public static readonly string usage = "print_quests";
+
+            public static string Execute(params string[] args)
+            {
+                string output = string.Empty;
+
+                ulong[] allQuests = QuestMachine.Instance.GetAllQuests();
+                if (allQuests != null && allQuests.Length > 0)
+                {
+                    for (int i = 0; i < allQuests.Length; i++)
+                    {
+                        Quest quest = QuestMachine.Instance.GetQuest(allQuests[i]);
+
+                        string status = string.Empty;
+                        if (!quest.QuestComplete)
+                        {
+                            status = HUDQuestDebugger.questRunning;
+                        }
+                        else
+                        {
+                            if (quest.QuestSuccess)
+                                status = HUDQuestDebugger.questFinishedSuccess;
+                            else
+                                status = HUDQuestDebugger.questFinishedEnded;
+                        }
+
+                        output += string.Format("{0} '{1}' [UID={2}] - {3}\n", quest.QuestName, quest.DisplayName, quest.UID, status);
+                    }
+                }
+                else
+                {
+                    output = HUDQuestDebugger.noQuestsRunning;
                 }
 
                 return output;
