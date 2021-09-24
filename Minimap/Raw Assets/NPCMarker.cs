@@ -44,6 +44,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         //object general properties.
         public Vector3 markerScale;
+        public npcMarker NPCControlScript;
         public float frameTime;
         private bool startMarkerUpdates;
         private float timePass;
@@ -51,26 +52,27 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         private void Start()
         {
-
             MobilePersonNPC mobileNPC = GetComponentInParent<MobilePersonNPC>();
             DaggerfallEnemy mobileEnemy = GetComponentInParent<DaggerfallEnemy>();
             StaticNPC flatNPC = GetComponentInParent<StaticNPC>();
 
             //setup base npc marker object and properties.
-                marker.markerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                marker.markerObject.GetComponentInChildren<MeshRenderer>().material = Minimap.updateMaterials(marker.markerObject, Color.white, 0);
-                marker.npcMarkerMaterial = marker.markerObject.GetComponentInChildren<MeshRenderer>().material;
-                Destroy(marker.markerObject.GetComponent<Collider>());
-                marker.markerObject.transform.SetParent(transform, false);
-                marker.markerObject.layer = Minimap.layerMinimap;
+            marker.markerObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.markerObject.name = "NPC Marker";
+            marker.markerObject.GetComponentInChildren<MeshRenderer>().material = Minimap.updateMaterials(marker.markerObject, Color.white, 0);
+            marker.npcMarkerMaterial = marker.markerObject.GetComponentInChildren<MeshRenderer>().material;
+            Destroy(marker.markerObject.GetComponent<Collider>());
+            marker.markerObject.transform.SetParent(transform, false);
+            marker.markerObject.layer = Minimap.layerMinimap;
 
-                marker.markerIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material = new Material(Minimap.iconMarkerMaterial);
-                marker.npcIconMaterial = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material;
-                Destroy(marker.markerIcon.GetComponent<Collider>());
-                marker.markerIcon.transform.SetParent(transform, false);
-                marker.markerIcon.layer = Minimap.layerMinimap;
-                marker.markerIcon.SetActive(false);
+            marker.markerIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            marker.markerIcon.name = "NPC Icon";
+            marker.markerIcon.GetComponentInChildren<MeshRenderer>().material = new Material(Minimap.iconMarkerMaterial);
+            marker.npcIconMaterial = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material;
+            Destroy(marker.markerIcon.GetComponent<Collider>());
+            marker.markerIcon.transform.SetParent(transform, false);
+            marker.markerIcon.layer = Minimap.layerMinimap;
+            marker.markerIcon.SetActive(false);
 
             marker.isActive = true;
 
@@ -225,22 +227,27 @@ namespace DaggerfallWorkshop.Game.Minimap
                     }
                 }
 
+                //if the object isn't existing exit update for error stopping.
                 if (marker.markerObject == null)
                     return;
 
-                marker.markerObject.transform.localScale =  Minimap.markerScale;
+                //update marker material color using saved dictionary.
                 marker.npcMarkerMaterial.color = Minimap.iconGroupColors[marker.markerType];
 
+                //if the icon isn't existing exit update for error stopping.
                 if (marker.markerIcon == null || marker.npcIconTexture == null)
                     return;
 
-                float size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .001f) * Minimap.iconSizes[marker.markerType];                
+                //Updates indicator icon size size based on marker texture size itself.
+                float size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .00085f) * Minimap.iconSizes[marker.markerType];
 
+                //Updates indicator icon size size based on marker texture size itself for dream mod textures/
                 if (Minimap.dreamModInstalled)
-                    size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .0001f) * Minimap.iconSizes[marker.markerType];
+                    size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .000085f) * Minimap.iconSizes[marker.markerType];
 
+                //run updates to update icon and object.
                 marker.markerIcon.transform.localScale = new Vector3(size, .01f, size);
-                marker.markerObject.transform.localScale = marker.markerObject.transform.localScale * Minimap.iconSizes[marker.markerType];
+                marker.markerObject.transform.localScale = Minimap.markerScale * Minimap.iconSizes[marker.markerType];
 
                 marker.markerIcon.transform.rotation = Quaternion.Euler(marker.markerIcon.transform.rotation.x, 0, marker.markerIcon.transform.rotation.z);
 

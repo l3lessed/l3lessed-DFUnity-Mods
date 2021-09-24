@@ -33,7 +33,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public int selectedIconInt = 0;
 
         public bool iconGroupActive;
-        public bool npcFlatActive;
+        public bool npcFlatActive = false;
         public float lastIconSize;
         private bool lastNpcFlatActive;
         private bool lastIconGroupActive;
@@ -55,7 +55,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         public bool doorIndicatorActive = true;
         public bool cameraDetectionEnabled;
 
-        private string selectedIcon = "Shops";
+        public string selectedIcon = "Shops";
 
         private void Start()
         {
@@ -217,6 +217,9 @@ namespace DaggerfallWorkshop.Game.Minimap
             GUI.Label(new Rect(10, 274, 50, 25), "Clear", currentStyle);
             GUI.Label(new Rect(10, 297, 50, 25), "Size", currentStyle);
 
+            Debug.Log("Controls: " + selectedIconInt + " | " + (Minimap.MarkerGroups)selectedIconInt);
+            Debug.Log("Controls: " + Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt]);
+
             //setup RGB sliders.
             redValue = GUI.HorizontalSlider(new Rect(60, 210, 160, 25), redValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(220, 203, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(redValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out redValue);
@@ -226,19 +229,19 @@ namespace DaggerfallWorkshop.Game.Minimap
             float.TryParse(GUI.TextField(new Rect(220, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
             blendValue = GUI.HorizontalSlider(new Rect(60, 279, 160, 25), blendValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(220, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
-            iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), iconSize, 0, 3);
+            iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 3);
             float.TryParse(GUI.TextField(new Rect(220, 295, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(iconSize, 0f, 3f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out iconSize);
 
-            iconGroupActive = GUI.Toggle(new Rect(15, 318, 120, 25), iconGroupActive, "Detect Soul", currentToggleStyle);
+            Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 318, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Detect Soul", currentToggleStyle);
 
-            if(selectedIconInt == 6 || selectedIconInt == 7 || selectedIconInt == 8)
-                npcFlatActive = GUI.Toggle(new Rect(135, 318, 120, 25), npcFlatActive, "Scan Soul", currentToggleStyle);
+            if(selectedIconInt >= 6 && selectedIconInt <= 8)
+                Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(135, 318, 120, 25), Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Soul", currentToggleStyle);
 
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
 
             //check if any controls have been updated, and if so, pushed window trigger update.
-            if (doorIndicatorActive != lastdoorIndicatorActive || lastInsideViewSize != Minimap.MinimapInstance.insideViewSize|| lastOutsideViewSize != Minimap.MinimapInstance.outsideViewSize || Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] != lastIconSize || lastColor != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt] != lastBlend || Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt] != lastAlphaValue || labelsActive != lastLabelsActive || iconsActive != lastIconsActive || lastIconGroupActive != Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] || lastNpcFlatActive != npcFlatActive)
+            if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt])
             {
                 updateMinimapUI();
             }
@@ -246,32 +249,10 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         public void updateMinimapUI()
         {
-            //sets icon group color and blend/transperency value.
-            Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = lastColor;
-            Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt] = lastBlend;
-            Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = lastIconSize;
-            Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = lastIconGroupActive;
-            Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = lastNpcFlatActive;
+            Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = iconSize;
+            Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
 
-            //sets minimap transperency level.
-            Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, .01f);
-            Minimap.MinimapInstance.publicMinimapRender.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
-            Minimap.MinimapInstance.publicCompass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
-
-            //sets stores current values to check for changes as update loops.
-            lastColor = colorSelector;
-            lastBlend = blendValue;
-            lastIconSize = iconSize;
-            lastNpcFlatActive = npcFlatActive;
-            lastIconGroupActive = iconGroupActive;
-
-            lastInsideViewSize = Minimap.MinimapInstance.insideViewSize;
-            lastOutsideViewSize = Minimap.MinimapInstance.outsideViewSize;
-            lastdoorIndicatorActive = doorIndicatorActive;
-            lastLabelsActive = labelsActive;
-            lastIconsActive = iconsActive;
-            lastIndicatorSize = Minimap.indicatorSize;
-
+            Minimap.MinimapInstance.UpdateNpcMarkers();
             //runs indicator code, which destroys and rebuilds indicators to refresh them.
             //need to add a refresh routine, so don't have to keep rebuilding anytime we want to refresh.
             Minimap.MinimapInstance.SetupMinimapCameras();
@@ -279,9 +260,12 @@ namespace DaggerfallWorkshop.Game.Minimap
             Minimap.MinimapInstance.SetupPlayerIndicator();
 
             if (!GameManager.Instance.IsPlayerInside)
-                Minimap.MinimapInstance.UpdateBuildingMarkers();
+                    Minimap.MinimapInstance.UpdateBuildingMarkers();
 
-            Minimap.MinimapInstance.UpdateNpcMarkers();
+            //sets minimap transperency level.
+            Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, .01f);
+            Minimap.MinimapInstance.publicMinimapRender.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicCompass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
         }
     }
 }

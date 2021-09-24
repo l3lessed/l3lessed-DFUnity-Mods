@@ -55,16 +55,12 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         // Creating an Instance (an Object) of the marker class to store and update specific object properties once initiated.
         public Marker marker = new Marker();
-
-        private CityNavigation cityNavigation;
         private float sizeMultiplier;
 
         void Start()
         {
             if (marker.buildingSummary.BuildingType == DFLocation.BuildingTypes.AllValid)
                 return;
-
-            cityNavigation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponent<CityNavigation>();
 
             //gets buildings largest side size for label multiplier.
             sizeMultiplier = (marker.staticBuilding.size.x + marker.staticBuilding.size.z) * .5f * Minimap.minimapControls.iconSize;
@@ -111,9 +107,9 @@ namespace DaggerfallWorkshop.Game.Minimap
             doorlabelutility.fontStyle = TMPro.FontStyles.Bold;
             doorlabelutility.outlineColor = Color.black;
             doorlabelutility.outlineWidth = .3f;
-            marker.attachedDoorIcon.transform.position = new Vector3(marker.doorPosition.x, marker.position.y + 5f, marker.doorPosition.z);
+            marker.attachedDoorIcon.transform.position = new Vector3(marker.doorPosition.x, marker.position.y, marker.doorPosition.z);
             marker.attachedDoorIcon.transform.Rotate(new Vector3(90, 0, 0));
-            marker.attachedDoorIcon.transform.localScale =  Vector3.ClampMagnitude(new Vector3(marker.staticBuilding.size.x * .005f, marker.staticBuilding.size.x * .005f, marker.staticBuilding.size.x * .005f), .125f);
+            marker.attachedDoorIcon.transform.localScale =  Vector3.ClampMagnitude(new Vector3(marker.staticBuilding.size.x * .005f, marker.staticBuilding.size.x * .005f, .0001f), .125f);
             doorlabelutility.text = "D";
             doorlabelutility.color = new Color32(219, 61, 36, 255);
             //remove collider from mes.
@@ -239,7 +235,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                     break;
                 case DFLocation.BuildingTypes.PawnShop:
                     marker.attachedIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.216", 33, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.5f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .5f);
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.5f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .37f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
@@ -269,7 +265,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                     break;
                 case DFLocation.BuildingTypes.GuildHall:
                     marker.attachedIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.25f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .75f);
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.25f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .625f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Utilities;
                     break;
@@ -312,6 +308,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         void Update()
         {
+            //updates rotation for each icon, if they are existing.
             if (marker.attachedQuestIcon)
                 marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
             if (marker.attachedIcon)
@@ -323,16 +320,19 @@ namespace DaggerfallWorkshop.Game.Minimap
             if (marker.attachedDoorIcon)
                 marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
 
+            //Enables/disables door icon.
             if (!Minimap.minimapControls.doorIndicatorActive && marker.attachedDoorIcon)
                 marker.attachedDoorIcon.SetActive(false);
             else if(marker.attachedDoorIcon)
                 marker.attachedDoorIcon.SetActive(true);
 
-            if(!Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
+            //Enables/disables quest icon.
+            if (!Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
                 marker.attachedQuestIcon.SetActive(false);
             else if(Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
             {
-                if (ObjectInView() && GameManager.Instance.PlayerMotor.DistanceToPlayer(marker.attachedQuestIcon.transform.position) < Minimap.MinimapInstance.minimapCamera.orthographicSize - 10)
+                //flips off quest icon based on it being in minimap camera view and within view size distance.
+                if (ObjectInView() && GameManager.Instance.PlayerMotor.DistanceToPlayer(marker.attachedQuestIcon.transform.position) < Minimap.MinimapInstance.minimapCamera.orthographicSize - 25f)
                 {
                     Minimap.MinimapInstance.publicQuestBearing.SetActive(false);
                 }
@@ -342,18 +342,20 @@ namespace DaggerfallWorkshop.Game.Minimap
                 }
             }
 
+            //updates icons and labels position and size based on their active states.
             if (marker.attachedLabel && marker.attachedLabel.activeSelf && marker.attachedIcon && marker.attachedIcon.activeSelf)
             {
                 marker.attachedIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.max + new Vector3(-1.5f, 4f, -1.5f);
-                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f);
+                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f) * Minimap.iconSizes[marker.iconGroup];
             }
             else if(marker.attachedIcon && marker.attachedIcon.activeSelf)
             {
                 marker.attachedIcon.transform.position = marker.attachedMesh.transform.position;
-                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize) * Minimap.iconSizes[marker.iconGroup];
             }
         }
 
+        //checks if quest icon is in minimap camera view.
         public bool ObjectInView()
         {
             Bounds markerBounds = marker.attachedQuestIcon.GetComponent<MeshRenderer>().GetComponent<Renderer>().bounds;
