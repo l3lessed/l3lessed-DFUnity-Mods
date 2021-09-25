@@ -75,6 +75,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         #endregion
 
         #region properties
+        [SerializeField]
         //classes for setup and use.
         private static Mod mod;
         private static ModSettings settings;
@@ -98,13 +99,9 @@ namespace DaggerfallWorkshop.Game.Minimap
         private Automap automap;
         public DaggerfallRMBBlock[] blockArray;
         public Camera minimapCamera;
-        private CityNavigation cityNavigation;
 
         //game objects for storing and manipulating.
-        private GameObject gameObjectPlayerAdvanced;
         public GameObject minimapMaterialObject;
-        private GameObject buildingMesh;
-        private GameObject buildingIcon;
         public GameObject gameobjectBeaconPlayerPosition;
         public GameObject gameobjectPlayerMarkerArrow;
         public GameObject mainCamera;
@@ -112,7 +109,6 @@ namespace DaggerfallWorkshop.Game.Minimap
         public GameObject minimapRenderTexture;
         private GameObject gameobjectAutomap;
         public GameObject hitObject;
-        private GameObject lastHitObject;
         public GameObject dungeonObject;
         public GameObject interiorInstance;
         public GameObject dungeonInstance;
@@ -145,13 +141,11 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         //ints for controlling minimap
         public static int layerMinimap;
-        private int lastNPCCount = -1; //starts at a negative to insure it updates on new game load.
 
         //floats for controlling minimap properties.
-        public float PlayerHeightChanger { get; private set; }
-        public bool WorldScenePositionFound { get; private set; }
+        public float PlayerHeightChanger;
 
-        [SerializeField] public float minimapSize = 400;
+        public float minimapSize = 400;
         public float minimapAngle = 1;
         public float minimapminimapRotationZ;
         public float minimapminimapRotationY;
@@ -159,7 +153,6 @@ namespace DaggerfallWorkshop.Game.Minimap
         public float minimapCameraX;
         public float minimapCameraZ;
         private float savedMinimapSize;
-        private float savedMinimapViewSize;
         public float nearClipValue;
         public float farClipValue;
         public static float tallestSpot;
@@ -174,7 +167,6 @@ namespace DaggerfallWorkshop.Game.Minimap
         public static float iconScaler = 50f;
         public float insideViewSize = 20f;
         public float outsideViewSize = 100f;
-        private float lastIndicatorSize;
 
         //strings
         private string currentLocationName;
@@ -307,6 +299,9 @@ namespace DaggerfallWorkshop.Game.Minimap
         };
         private Vector3 locationPosition;
         private bool fastTravelFinished;
+        private int minimapLayerMaskOutside;
+        private int minimapLayerMaskInside;
+        private int lastLocationId;
         #endregion
 
         #region enums
@@ -332,15 +327,15 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             SetupMinimap();
             SaveLoadManager.OnLoad += OnLoadEvent;
-            DaggerfallTravelPopUp.OnPostFastTravel += postTravel;
+            DaggerfallTravelPopUp.OnPostFastTravel += postTravel;            
         }
 
         //use this to repopulate any loads that are missing these dictionaries because they are running an older version of the mod.
         //without this would break older saves.
         void OnLoadEvent(SaveData_v1 saveData)
         {
-
-            if(iconGroupColors == null)
+            currentLocationName = "Loading";
+            if (iconGroupColors == null)
             {
                 iconGroupColors = new Dictionary<MarkerGroups, Color>()
                 {
@@ -357,7 +352,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 };
             }
 
-            if (iconGroupColors == null)
+            if (iconGroupTransperency == null)
             {
                 iconGroupTransperency = new Dictionary<MarkerGroups, float>()
                 {
@@ -424,6 +419,18 @@ namespace DaggerfallWorkshop.Game.Minimap
                     {MarkerGroups.None, 1f}
                 };
             }
+            if(minimapSizeMult == 0)
+                minimapSizeMult = .25f;
+            if (outsideViewSize == 0)
+                outsideViewSize = 100f;
+            if (insideViewSize == 0)
+                insideViewSize = 20f;
+            if (minimapCameraHeight == 0)
+                minimapCameraHeight = 100;
+            if (minimapSensingRadius == 0)
+                minimapSensingRadius = 35f;
+
+            minimapControls.updateMinimapUI();
         }
 
         void postTravel()
@@ -434,6 +441,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         //main code to clear out and setup all needed canvas, camera, and other objects for minimap mod.
         public void SetupMinimap()
         {
+            currentLocationName = "Starting";
             //AUTO PATCHERS FOR DIFFERING MODS\\
             //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
             if (ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
@@ -471,7 +479,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //sets up quest bearing directions canvas layer.
             publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), 0);
             //sets up bearing directions canvas layer.
-            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
+            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .675f, .675f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
             //sets up the golden compass canvas layer.
             publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1f, 1.13f, new Vector3((minimapSize * .46f) * -1, (minimapSize * .365f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassRedGem.png"), 1);
             //attaches rendering canvas to the main minimap mask canvas.
@@ -483,9 +491,9 @@ namespace DaggerfallWorkshop.Game.Minimap
             //attaches golden compass canvas to main screen layer canvas.
             publicCompass.transform.SetParent(GameObject.Find("Canvas Screen Space").transform);
             //zeros out quest bearings canvas position so it centers on its parent canvas layer.
-            publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(1, 1, 0);
+            publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(-0.5F, -1, 0);
             //zeros out bearings canvas position so it centers on its parent canvas layer.
-            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(1, 1, 0);
+            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, -1, 0);
             //zeros out rendering canvas position so it centers on its parent canvas layer.
             publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //sets the golden compass canvas to the proper screen position on the main screen space layer so it sits right on top of the rendreing canvas.
@@ -525,9 +533,10 @@ namespace DaggerfallWorkshop.Game.Minimap
                 layerMinimap = 31;
             }
             //sets up a new layer mask to assign to minimap Camera.
-            LayerMask minimapLayerMask = (1 << LayerMask.NameToLayer("Default")) | (1 << 31) | (1 << LayerMask.NameToLayer("Enemies")) | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water"));
+            minimapLayerMaskOutside = (1 << LayerMask.NameToLayer("Default")) | (1 << 31) | (1 << LayerMask.NameToLayer("Enemies")) | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water"));
+            minimapLayerMaskInside = (1 << 31) | (1 << LayerMask.NameToLayer("Automap")) | (1 << LayerMask.NameToLayer("Enemies")) | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water"));
             //assigns minimap layer mask for proper camera object rendering.
-            minimapCamera.cullingMask = minimapLayerMask;
+            minimapCamera.cullingMask = minimapLayerMaskOutside;
             //removes games automap layer so it doesn't show on minimap
             minimapCamera.cullingMask = minimapCamera.cullingMask ^ (1 << 10);
             //removes minimap layer from main camera to ensure it doesn't show minimap objects.
@@ -571,7 +580,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                 //remove collider from mes.
                 Destroy(mouseOverLabel.GetComponent<Collider>());
             }
-
             minimapControls.updateMinimapUI();
         }
         
@@ -603,15 +611,17 @@ namespace DaggerfallWorkshop.Game.Minimap
                 publicDirections.SetActive(true);
             }
 
+            //check if player has fast travelled and if city data is ready.
             if(fastTravelFinished && GameManager.Instance.StreamingWorld.GetCurrentCityNavigation() != null)
             {
+                //reset fast travel switch and setup building indicator.
                 fastTravelFinished = false;
                 SetupBuildingIndicators();
             }
 
             //fps calculator for script optimization. Not using now,
-            deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
-            fps = 1.0f / deltaTime;
+            //deltaTime += (Time.unscaledDeltaTime - deltaTime) * 0.1f;
+            //fps = 1.0f / deltaTime;
 
             //if player is inside, this runs continually to create the minimap automap by hijacking the automap. If this doesn't update, dungeon minimap revealed geometry won't update.
             if (GameManager.Instance.IsPlayerInsideDungeon)
@@ -631,16 +641,16 @@ namespace DaggerfallWorkshop.Game.Minimap
             SetupNPCIndicators();
 
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
-            if (!GameManager.Instance.IsPlayerInside && GameManager.Instance.PlayerGPS.IsPlayerInLocationRect)
+            if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady)
             {
-                DaggerfallLocation currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-
-                if (currentLocation == null)
-                    currentLocationName = "Wilderness " + GameManager.Instance.PlayerGPS.CurrentMapPixel;
-                else if (GameManager.Instance.StreamingWorld.GetCurrentCityNavigation() != null)
-                {
-                    currentLocationName = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.name;
-                }
+                //set minimap camera to outside rendering layer mask
+                minimapCamera.cullingMask = minimapLayerMaskOutside;
+                //make unique location name based on in a unique location or out in a wilderness area.
+                if (GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject != null)
+                    currentLocationName = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.LocationName + GameManager.Instance.StreamingWorld.MapPixelX.ToString() + GameManager.Instance.StreamingWorld.MapPixelY.ToString();
+                else
+                    currentLocationName = "Wilderness " + GameManager.Instance.StreamingWorld.MapPixelX.ToString() + GameManager.Instance.StreamingWorld.MapPixelY.ToString();
+                Debug.Log(currentLocationName);
             }
             else if (GameManager.Instance.IsPlayerInside && !GameManager.Instance.IsPlayerInsideDungeon)
             {
@@ -648,25 +658,29 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
             else if (GameManager.Instance.IsPlayerInsideDungeon && GameManager.Instance.PlayerEnterExit.Dungeon)
             {
+                minimapCamera.cullingMask = minimapLayerMaskInside;
                 currentLocationName = GameManager.Instance.PlayerEnterExit.Dungeon.name;
             }
 
             //check if location is loaded, if player is in an actual location rect, and if the location has changed by name.
             if (currentLocationName != lastLocationName)
             {
+                Debug.Log("Changed Locations");
                 //update location names for trigger update.
                 lastLocationName = currentLocationName;
                 //cleanup all markers for new location generation.
                 CleanUpMarkers(true, true);
                 //if player is outside and the streaming world is ready/generated for play setup building indicators.
                 if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.IsPlayerInsideDungeon)
+                {
+                    //find and setup building markers.
                     SetupBuildingIndicators();
+                }
                 //if not inside, setup all inside indicators (doors and quest for now only).
                 else if (GameManager.Instance.IsPlayerInside)
                 {
                     //create blank door array.
                     StaticDoor[] doors;
-
                     //grab doors in interior based on dungeon or building.
                     if (GameManager.Instance.IsPlayerInsideDungeon)
                         doors = DaggerfallStaticDoors.FindDoorsInCollections(GameManager.Instance.PlayerEnterExit.Dungeon.StaticDoorCollections, DoorTypes.DungeonExit);
@@ -784,7 +798,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                 else
                     insideViewSize += .6f;
 
-                minimapControls.updateMinimapUI();
                 playerInput.Clear();
             }
 
@@ -796,7 +809,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                     insideViewSize -= .6f;
 
                 playerInput.Clear();
-                minimapControls.updateMinimapUI();
             }
 
             if (timePass > .25f)
@@ -808,6 +820,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             //if the player has qued up an input routine and .16 seconds have passed, do...     
             while (playerInput.Count == 2 && timePass < .2f)
             {
+                minimapControls.updateMinimapUI();
                 //if both buttons press, clear input, and que up parry.
                 if (playerInput.Contains(1) && playerInput.Contains(0))
                 {
@@ -849,8 +862,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                             outsideViewSize = outsideViewSize * .5f;
                             insideViewSize = insideViewSize * .5f;
                         }
-
-                        minimapControls.updateMinimapUI();
                     }
 
                 }
@@ -889,6 +900,9 @@ namespace DaggerfallWorkshop.Game.Minimap
                 var MarkerObjects = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "Marker Container");
                 var DoorObjects = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "Entrance Door");
 
+                if (buildingInfoCollection == null || buildingInfoCollection.Count == 0)
+                    return;
+
                 foreach (GameObject markerObject in buildingInfoCollection)
                 {
                     BuildingMarker buildingMarker = markerObject.GetComponent<BuildingMarker>();
@@ -901,8 +915,11 @@ namespace DaggerfallWorkshop.Game.Minimap
                     Destroy(markerObject);
                 }
 
-                foreach (GameObject doorObject in DoorObjects)
-                    Destroy(doorObject);
+                if(DoorObjects != null)
+                {
+                    foreach (GameObject doorObject in DoorObjects)
+                        Destroy(doorObject);
+                }
 
                 buildingInfoCollection = new List<GameObject>();
             }
@@ -914,17 +931,25 @@ namespace DaggerfallWorkshop.Game.Minimap
                 var NPCIcons = Resources.FindObjectsOfTypeAll<GameObject>().Where(obj => obj.name == "NPC Icon");
                 var NPCMarkerScripts = Resources.FindObjectsOfTypeAll<npcMarker>();
 
-                foreach (GameObject npcMarker in NPCMarkers)
-                    Destroy(npcMarker);
+                if(NPCMarkers != null)
+                {
+                    foreach (GameObject npcMarker in NPCMarkers)
+                        Destroy(npcMarker);
+                }
 
-                foreach (GameObject npcIcon in NPCIcons)
-                    Destroy(npcIcon);
+                if (NPCIcons != null)
+                {
+                    foreach (GameObject npcIcon in NPCIcons)
+                        Destroy(npcIcon);
+                }
 
-                foreach (npcMarker npcMarkerScripts in NPCMarkerScripts)
-                    Destroy(npcMarkerScripts);
+                if(NPCMarkerScripts != null)
+                {
+                    foreach (npcMarker npcMarkerScripts in NPCMarkerScripts)
+                        Destroy(npcMarkerScripts);
+                }
 
-                currentNPCIndicatorCollection.Clear();
-
+                    currentNPCIndicatorCollection = new List<npcMarker>();
             }
 
             Debug.Log("CLEANING DONE!");
@@ -948,7 +973,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             if (buildingDirectory == null)
                 return buildingInfoCollection;
 
-            Vector3 position = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation().WorldToScenePosition(new DFPosition(Dflocation.Summary.MapPixelX, Dflocation.Summary.MapPixelX));
+            Vector3 position = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation().WorldToScenePosition(new DFPosition(Dflocation.Summary.MapPixelX, Dflocation.Summary.MapPixelX),true);
 
             if (position == null)
                 return buildingInfoCollection;
@@ -983,8 +1008,8 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                     Vector3 markerPosition = new Vector3(0, 0, 0);
 
-                    if (building.size.y > tallestSpot)
-                        markerPosition = new Vector3(locationPosition.x, position.y + building.size.y + 40, locationPosition.z);
+                    if (building.size.z > tallestSpot)
+                        markerPosition = new Vector3(locationPosition.x, position.y + building.size.z + 25f, locationPosition.z);
 
                     //create gameobject for building marker.
                     GameObject buildingMarkerObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -1192,8 +1217,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                 {
                     //grab mesh as game object.
                     hitObject = nearestHit.Value.transform.gameObject;
-                    //set last hit object and enable mesh.
-                    lastHitObject = hitObject;
                     hitObject.transform.GetComponent<MeshRenderer>().enabled = true;
                 }
             }
@@ -1204,7 +1227,7 @@ namespace DaggerfallWorkshop.Game.Minimap
         {
             Ray ray = new Ray(mainCamera.transform.position, Vector3.down);
 
-            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << layerMinimap);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << 10);
 
             nearestHit = null;
             float nearestDistance = float.MaxValue;
@@ -1372,7 +1395,6 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                 minimapCamera.farClipPlane = 2.65f + farClipValue;
                 minimapCamera.orthographicSize = insideViewSize;
-                minimapCamera.cullingMask = LayerMask.NameToLayer("Everything");
                 minimapCamera.renderingPath = RenderingPath.VertexLit;
 
                 if (GameManager.Instance.IsPlayerInsideDungeon)
@@ -1389,7 +1411,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
                 if (locationPosition.y < -1f)
                 {
-                    testNearClip = locationPosition.y - 250;
+                    testNearClip = locationPosition.y - 300;
                     minimapCamera.nearClipPlane = locationPosition.y + testNearClip;
                     minimapCamera.farClipPlane = 100;
                     cameraPos.y = locationPosition.y - minimapCamera.nearClipPlane * .25f;
@@ -1397,9 +1419,9 @@ namespace DaggerfallWorkshop.Game.Minimap
                 else
                 {
                     minimapCamera.nearClipPlane = -10f;
-                    testFarClip = locationPosition.y + 250;
+                    testFarClip = locationPosition.y + 300;
                     minimapCamera.farClipPlane = locationPosition.y + testFarClip;
-                    cameraPos.y = locationPosition.y + minimapCamera.farClipPlane * .75f;
+                    cameraPos.y = locationPosition.y + minimapCamera.farClipPlane * .25f;
                 }
 
                 cameraPos.x = mainCamera.transform.position.x;                

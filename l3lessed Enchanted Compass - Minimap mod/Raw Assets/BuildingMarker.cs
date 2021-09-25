@@ -14,6 +14,7 @@ namespace DaggerfallWorkshop.Game.Minimap
     {
 
         //object constructor class and properties for setting up, storing, and manipulating specific object properties.
+        [SerializeField]
         public class Marker
         {
             public GameObject attachedMesh;
@@ -308,17 +309,34 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         void Update()
         {
-            //updates rotation for each icon, if they are existing.
-            if (marker.attachedQuestIcon)
-                marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-            if (marker.attachedIcon)
-                marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-            if (marker.attachedLabel)
-                marker.attachedLabel.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-            if (marker.attachedQuestIcon)
-                marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-            if (marker.attachedDoorIcon)
-                marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+            if (!Minimap.minimapControls.autoRotateActive)
+            {
+                //updates rotation for each icon, if they are existing.
+                if (marker.attachedQuestIcon)
+                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                if (marker.attachedIcon)
+                    marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                if (marker.attachedLabel)
+                    marker.attachedLabel.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                if (marker.attachedQuestIcon)
+                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                if (marker.attachedDoorIcon)
+                    marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+            }
+            else
+            {
+                //updates rotation for each icon, if they are existing.
+                if (marker.attachedQuestIcon)
+                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                if (marker.attachedIcon)
+                    marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                if (marker.attachedLabel)
+                    marker.attachedLabel.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
+                if (marker.attachedQuestIcon)
+                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                if (marker.attachedDoorIcon)
+                    marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
+            }
 
             //Enables/disables door icon.
             if (!Minimap.minimapControls.doorIndicatorActive && marker.attachedDoorIcon)

@@ -7,6 +7,7 @@ namespace DaggerfallWorkshop.Game.Minimap
     public class npcMarker : MonoBehaviour
     {
         //object constructor class and properties for setting up, storing, and manipulating specific object properties.
+        [SerializeField]
         public class Marker
         {
             public GameObject markerObject;
