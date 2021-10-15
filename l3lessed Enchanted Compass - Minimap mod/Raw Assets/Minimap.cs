@@ -16,6 +16,7 @@ using Wenzil.Console;
 using DaggerfallWorkshop.Game.Utility;
 using TMPro;
 using DaggerfallConnect.Utility;
+using DaggerfallWorkshop.Game.Formulas;
 
 namespace DaggerfallWorkshop.Game.Minimap
 {
@@ -92,13 +93,20 @@ namespace DaggerfallWorkshop.Game.Minimap
         UserInterfaceManager uiManager = new UserInterfaceManager();
         private DaggerfallAutomapWindow dfAutomapWindow;
         private DaggerfallExteriorAutomapWindow dfExteriorAutomapWindow;
-        private Texture2D greenCrystalCompass;
-        private Texture2D redCrystalCompass;
         public BuildingDirectory buildingDirectory;
         public DaggerfallStaticBuildings staticBuildingContainer;
         private Automap automap;
         public DaggerfallRMBBlock[] blockArray;
         public Camera minimapCamera;
+
+        private Texture2D greenCrystalCompass;
+        private Texture2D redCrystalCompass;
+        public List<Texture2D> bloodEffectList = new List<Texture2D>();
+        public List<Texture2D> activeEffectList = new List<Texture2D>();
+        public List<Texture2D> dirtEffectList = new List<Texture2D>();
+        public List<Texture2D> damageEffectList = new List<Texture2D>();
+        public List<Texture2D> rainEffectList = new List<Texture2D>();
+        public List<Texture2D> mudEffectList = new List<Texture2D>();
 
         //game objects for storing and manipulating.
         public GameObject minimapMaterialObject;
@@ -113,6 +121,8 @@ namespace DaggerfallWorkshop.Game.Minimap
         public GameObject interiorInstance;
         public GameObject dungeonInstance;
         public GameObject publicDirections;
+        public GameObject publicCompassGlass;
+        private GameObject publicBloodEffect;
         public GameObject publicQuestBearing;
         public GameObject publicMinimap;
         public GameObject publicCompass;
@@ -180,7 +190,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         //bools
         private bool attackKeyPressed;
-        private bool fullMinimapMode;
+        public bool fullMinimapMode;
         private bool minimapActive = true;
         private bool currentLocationHasQuestMarker;
         public static bool dreamModInstalled;
@@ -195,6 +205,8 @@ namespace DaggerfallWorkshop.Game.Minimap
         public RectTransform canvasRectTransform;
         public RectTransform minimapInterfaceRectTransform;
         public RectTransform minimapDirectionsRectTransform;
+        private RectTransform minimapGlassRectTransform;
+        private RectTransform minimapBloodRectTransform;
         public RectTransform minimapQuestRectTransform;
 
         //lists
@@ -302,6 +314,33 @@ namespace DaggerfallWorkshop.Game.Minimap
         private int minimapLayerMaskOutside;
         private int minimapLayerMaskInside;
         private int lastLocationId;
+        private float glassW = .675f;
+        private float glassH = .675f;
+        public GameObject canvasContainer;
+        public RectTransform canvasScreenSpaceRectTransform;
+        public float compassW = 1.16f;
+        public float compassH = 1.27f;
+        public float compassX = .4933f;
+        public float compassY= .43282f;
+        public float bearingsW = .73f;
+        public float bearingsH = .73f;
+        public float glassAlpha = 1;
+        public float effectDuration = 30;
+        public float lastHealth;
+        public int currentBloodTextureID;
+        private float bloodTimer;
+        private float dustTimer;
+        public GameObject dustEffect;
+        public EffectManager dustEffectInstance;
+        private GameObject frostEffect;
+        private EffectManager frostEffectInstance;
+        public float frostTimer;
+        public float dirtTimer;
+        private GameObject raineffect;
+        private EffectManager rainEffectInstance;
+        private float rainTimer;
+        private float mudTimer;
+        private float cleanUpTimer;
         #endregion
 
         #region enums
@@ -322,12 +361,76 @@ namespace DaggerfallWorkshop.Game.Minimap
         }
         #endregion
 
+        void Awake()
+        {
+            DirectoryInfo di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/blood");
+            FileInfo[] FileInfoArray = di.GetFiles("*.png");
+            foreach (FileInfo textureFile in FileInfoArray)
+            {
+                Texture2D singleTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/blood/" + textureFile.Name);
+
+                if (singleTexture == null)
+                    return;
+
+                bloodEffectList.Add(singleTexture);
+            }
+
+            di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/dirt");
+            FileInfoArray = di.GetFiles("*.png");
+            foreach (FileInfo textureFile in FileInfoArray)
+            {
+                Texture2D singleTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/dirt/" + textureFile.Name);
+
+                if (singleTexture == null)
+                    return;
+
+                dirtEffectList.Add(singleTexture);
+            }
+
+            di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/damage");
+            FileInfoArray = di.GetFiles("*.png");
+            foreach (FileInfo textureFile in FileInfoArray)
+            {
+                Texture2D singleTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/damage/" + textureFile.Name);
+
+                if (singleTexture == null)
+                    return;
+
+                damageEffectList.Add(singleTexture);
+            }
+
+            di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/rain");
+            FileInfoArray = di.GetFiles("*.png");
+            foreach (FileInfo textureFile in FileInfoArray)
+            {
+                Texture2D singleTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/rain/" + textureFile.Name);
+
+                if (singleTexture == null)
+                    return;
+
+                rainEffectList.Add(singleTexture);
+            }
+
+            di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/mud");
+            FileInfoArray = di.GetFiles("*.png");
+            foreach (FileInfo textureFile in FileInfoArray)
+            {
+                Texture2D singleTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/mud/" + textureFile.Name);
+
+                if (singleTexture == null)
+                    return;
+
+                mudEffectList.Add(singleTexture);
+            }
+
+        }
+
         //Run the minimap setup routine to setup all needed objects and setup load event for dictionary repopulation.
         void Start()
-        {
+        {            
             SetupMinimap();
             SaveLoadManager.OnLoad += OnLoadEvent;
-            DaggerfallTravelPopUp.OnPostFastTravel += postTravel;            
+            DaggerfallTravelPopUp.OnPostFastTravel += postTravel;
         }
 
         //use this to repopulate any loads that are missing these dictionaries because they are running an older version of the mod.
@@ -429,7 +532,8 @@ namespace DaggerfallWorkshop.Game.Minimap
                 minimapCameraHeight = 100;
             if (minimapSensingRadius == 0)
                 minimapSensingRadius = 35f;
-
+            CleanUpMarkers(true,true);
+            SetupBuildingIndicators();
             minimapControls.updateMinimapUI();
         }
 
@@ -462,6 +566,24 @@ namespace DaggerfallWorkshop.Game.Minimap
             minimapCamera = minimapCameraObject.GetComponent<Camera>();
             minimapCamera.clearFlags = CameraClearFlags.SolidColor;
 
+            dustEffect = new GameObject();
+            dustEffectInstance = dustEffect.AddComponent<EffectManager>();
+            dustEffectInstance.textureColor = new Color(1, 1, 1, 0);
+            dustEffectInstance.effectType = 1;
+            dustEffectInstance.effectTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/Dust.png");
+
+            frostEffect = new GameObject();
+            frostEffectInstance = frostEffect.AddComponent<EffectManager>();
+            frostEffectInstance.textureColor = new Color(1, 1, 1, 0);
+            frostEffectInstance.effectType = 1;
+            frostEffectInstance.effectTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/frost.png");
+
+            raineffect = new GameObject();
+            rainEffectInstance = raineffect.AddComponent<EffectManager>();
+            rainEffectInstance.textureColor = new Color(1, 1, 1, 0);
+            rainEffectInstance.effectType = 1;
+            rainEffectInstance.effectTexture = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/rainBase.png");
+
             //initiate minimap camera.
             minimapCamera = Instantiate(minimapCamera);
 
@@ -473,31 +595,34 @@ namespace DaggerfallWorkshop.Game.Minimap
             minimapSize = Screen.width * minimapSizeMult;
 
             //sets up minimap canvas, including the screen space canvas container.
-            publicMinimap = CanvasConstructor(true, "Minimap Layer", false, false, true, true, false, 1f, 1f, new Vector3((minimapSize * .455f) * -1, (minimapSize * .455f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/MinimapMask.png"), 1);
+            publicMinimap = CanvasConstructor(true, "Minimap Layer", false, false, true, true, false, 1f, 1f, new Vector3((minimapSize * .455f) * -1, (minimapSize * .455f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/MinimapMask.png"), new Color(1, 1, 1, 1), 1);
             //sets up minimap render canvas that render camera texture it projected to.
-            publicMinimapRender = CanvasConstructor(false, "Rendering Layer", false, false, true, true, false, 1, 1, new Vector3(0, 0, 0), minimapTexture, 0);
+            publicMinimapRender = CanvasConstructor(false, "Rendering Layer", false, false, true, true, false, 1, 1, new Vector3(0, 0, 0), minimapTexture, new Color(1, 1, 1, 1), 0);
             //sets up quest bearing directions canvas layer.
-            publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), 0);
+            publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, .69f, .69f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
             //sets up bearing directions canvas layer.
-            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, .675f, .675f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), 0);
+            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, bearingsW, bearingsH, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
+            publicCompassGlass = CanvasConstructor(false, "Glass Layer", false, false, true, true, false, .675f, .675f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/Glass/cleanGlass.png"), new Color(1,1,1,1), 0);
             //sets up the golden compass canvas layer.
-            publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1f, 1.13f, new Vector3((minimapSize * .46f) * -1, (minimapSize * .365f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassRedGem.png"), 1);
+            publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1f, 1.13f, new Vector3((minimapSize * .46f) * -1, (minimapSize * .46f) * -1, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassRedGem.png"), new Color(1, 1, 1, 1), 1);
             //attaches rendering canvas to the main minimap mask canvas.
             publicMinimapRender.transform.SetParent(publicMinimap.transform);
             //attaches the bearing directions canvas to the minimap canvas.
             publicDirections.transform.SetParent(publicMinimap.transform);
+            publicCompassGlass.transform.SetParent(publicMinimap.transform);
             //attaches the quest bearing directions canvas to the minimap canvas.
             publicQuestBearing.transform.SetParent(publicMinimap.transform);
             //attaches golden compass canvas to main screen layer canvas.
             publicCompass.transform.SetParent(GameObject.Find("Canvas Screen Space").transform);
             //zeros out quest bearings canvas position so it centers on its parent canvas layer.
-            publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(-0.5F, -1, 0);
+            publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //zeros out bearings canvas position so it centers on its parent canvas layer.
-            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, -1, 0);
+            publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
+            publicCompassGlass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //zeros out rendering canvas position so it centers on its parent canvas layer.
             publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //sets the golden compass canvas to the proper screen position on the main screen space layer so it sits right on top of the rendreing canvas.
-            publicCompass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3((minimapSize * .46f) * -1, (minimapSize * .365f) * -1, 0);
+            publicCompass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3((minimapSize * .565f) * -1, (minimapSize * .565f) * -1, 0);
 
             //assign the camera view and the render texture output.
             minimapCamera.targetTexture = minimapTexture;
@@ -511,9 +636,12 @@ namespace DaggerfallWorkshop.Game.Minimap
             canvasRectTransform = publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             minimapInterfaceRectTransform = publicCompass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             minimapDirectionsRectTransform = publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
+            minimapGlassRectTransform = publicCompassGlass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             minimapQuestRectTransform = publicQuestBearing.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             dfAutomapWindow = (DaggerfallAutomapWindow)UIWindowFactory.GetInstance(UIWindowType.Automap, uiManager);
             dfExteriorAutomapWindow = (DaggerfallExteriorAutomapWindow)UIWindowFactory.GetInstance(UIWindowType.ExteriorAutomap, uiManager);
+
+            publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, glassAlpha);
 
             //setup minimap keys using mod key settings.
             zoomInKey = settings.GetValue<string>("CompassKeys", "ZoomIn:FullViewCompass");
@@ -597,6 +725,49 @@ namespace DaggerfallWorkshop.Game.Minimap
             //turn everything off when player disables minimap, is loading, or they are fast traveling, else turn it on.
             if (!minimapActive || GameManager.Instance.SaveLoadManager.LoadInProgress)
             {
+                if (cleanUpTimer < 5)
+                    cleanUpTimer += Time.deltaTime;
+
+                GameObject foundEffect;
+                if (cleanUpTimer > 5 && cleanUpTimer != 10)
+                {
+                    cleanUpTimer = 10;
+                    DaggerfallUI.Instance.PopupMessage("Compass Cleaned");
+                    foreach (Texture2D texture in dirtEffectList)
+                    {
+                        if (activeEffectList.Contains(texture))
+                        {
+                            foundEffect = GameObject.Find("Dirt Effect " + dirtEffectList.IndexOf(texture));
+                            Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                            Destroy(foundEffect);
+                        }
+                    }
+
+                    foreach (Texture2D texture in bloodEffectList)
+                    {
+                        if (activeEffectList.Contains(texture))
+                        {
+                            foundEffect = GameObject.Find("Blood Effect " + bloodEffectList.IndexOf(texture));
+                            Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                            Destroy(foundEffect);
+                        }
+                    }
+
+                    foreach (Texture2D texture in bloodEffectList)
+                    {
+                        if (activeEffectList.Contains(texture))
+                        {
+                            foundEffect = GameObject.Find("Mud Effect " + bloodEffectList.IndexOf(texture));
+                            Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                            Destroy(foundEffect);
+                        }
+                    }
+
+                    dustTimer = 0;
+                    frostTimer = 0;
+                    mudTimer = 0;
+                }
+
                 publicMinimap.SetActive(false);
                 publicMinimapRender.SetActive(false);
                 publicCompass.SetActive(false);
@@ -605,6 +776,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
             else
             {
+                cleanUpTimer = 0;
                 publicMinimap.SetActive(true);
                 publicMinimapRender.SetActive(true);
                 publicCompass.SetActive(true);
@@ -639,6 +811,8 @@ namespace DaggerfallWorkshop.Game.Minimap
             SetupPlayerIndicator();
             //setup and run compass npc markers
             SetupNPCIndicators();
+            //setup and run differing compass glass effects.
+            SetupEffects();
 
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
             if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady)
@@ -770,6 +944,296 @@ namespace DaggerfallWorkshop.Game.Minimap
             UnityEngine.Profiling.Profiler.EndSample();
         }
 
+        public void SetupEffects()
+        {
+            //BLOOD EFFECT\\
+            //setup health damage blood layer effects. If players health changes run effect code.
+            if (lastHealth != GameManager.Instance.PlayerEntity.CurrentHealthPercent)
+            {
+                //grab health from player and subtract it from last health amount to get the difference in damage.
+                float difference = lastHealth - GameManager.Instance.PlayerEntity.CurrentHealthPercent;
+                //set last health to current health.
+                lastHealth = GameManager.Instance.PlayerEntity.CurrentHealthPercent;
+                //setup system random object and randomly int for blood effect list.
+                System.Random random = new System.Random();
+                int bloodeffect = random.Next(1, 7);
+                currentBloodTextureID = random.Next(1, bloodEffectList.Count());
+
+                //check if the texture is currently being used, and it not set as new effect texture.
+                foreach (Texture2D texture in bloodEffectList)
+                {
+                    if (!activeEffectList.Contains(texture))
+                        currentBloodTextureID = bloodEffectList.IndexOf(texture);
+                }
+
+                //if the difference  is greater than a certain random amount setup blood effect.
+                if (difference > (float)bloodeffect * .01f)
+                {
+                    //if the current effect isn't in the active effect list, create it, and add to list.
+                    if (!activeEffectList.Contains(bloodEffectList[currentBloodTextureID]))
+                    {
+                        GameObject newBloodEffect = new GameObject();
+                        EffectManager effectInstance = newBloodEffect.AddComponent<EffectManager>();
+                        newBloodEffect.name = "Blood Effect " + currentBloodTextureID;
+                        effectInstance.effectType = 0;
+                        effectInstance.effectTexture = bloodEffectList[currentBloodTextureID];
+                        activeEffectList.Add(bloodEffectList[currentBloodTextureID]);
+                    }
+                    //if not in the list, then destroy the current one and create the new one.
+                    else
+                    {
+                        GameObject foundEffect = GameObject.Find("Blood Effect " + currentBloodTextureID);
+                        Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                        Destroy(foundEffect);
+                        GameObject newBloodEffect = new GameObject();
+                        EffectManager effectInstance = newBloodEffect.AddComponent<EffectManager>();
+                        newBloodEffect.name = "Blood Effect " + currentBloodTextureID;
+                        effectInstance.effectType = 0;
+                        effectInstance.effectTexture = bloodEffectList[currentBloodTextureID];
+                    }
+                }
+            }
+
+            //grab season and climate for adjusting affects.
+            DaggerfallDateTime.Seasons playerSeason = DaggerfallUnity.Instance.WorldTime.Now.SeasonValue;
+            int playerClimateIndex = GameManager.Instance.PlayerGPS.CurrentClimateIndex;
+
+            //FROST EFFECT\\
+            //set time for frost to fade in.
+            float frostDuration = 60;
+
+            //cut frost time in half when snowing.
+            if (GameManager.Instance.WeatherManager.IsSnowing)
+                frostDuration = frostDuration * .5f;
+
+
+            if ((playerClimateIndex == 230 || playerClimateIndex == 226 || playerClimateIndex == 231) && !GameManager.Instance.IsPlayerInside && (playerSeason == DaggerfallDateTime.Seasons.Winter || GameManager.Instance.WeatherManager.IsSnowing || (DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < DaggerfallDateTime.DawnHour)))
+            {
+                if (frostTimer < frostDuration)
+                    frostTimer += Time.deltaTime;              
+
+                frostEffectInstance.RawImage.color = new Color(1, 1, 1, Mathf.Lerp(0, .9f, frostTimer / frostDuration));
+            }
+            else
+            {
+                if (frostTimer > 0)
+                    frostTimer -= Time.deltaTime * 2;
+
+                frostEffectInstance.RawImage.color = new Color(1, 1, 1, Mathf.Lerp(0, .9f, frostTimer / frostDuration));
+            }
+
+            //MUD EFFECT\\
+            //if moving start mud effect code.
+            if (!GameManager.Instance.PlayerMotor.IsStandingStill)
+            {
+                //setup and call random to get random texture list #.
+                System.Random random = new System.Random();
+                int currentMudTextureID = random.Next(0, mudEffectList.Count);
+
+                //check if the texture is currently being used, and it not set as new effect texture.
+                foreach (Texture2D texture in mudEffectList)
+                {
+                    if (!activeEffectList.Contains(texture))
+                        currentMudTextureID = mudEffectList.IndexOf(texture);
+                }
+                //counts up mud timer.
+                mudTimer += Time.deltaTime;
+                //sets duration before mud check is done.
+                float mudDuration = 30;
+                int chanceRollCheck = 3;
+                //adjusts for seasons.
+                if (playerSeason == DaggerfallDateTime.Seasons.Winter)
+                {
+                    mudDuration = mudDuration * 2f;
+                    chanceRollCheck = 2;
+                }
+                if (playerSeason == DaggerfallDateTime.Seasons.Fall)
+                {
+                    mudDuration = mudDuration * .75f;
+                    chanceRollCheck = 4;
+                }
+                if (playerSeason == DaggerfallDateTime.Seasons.Spring)
+                {
+                    mudDuration = mudDuration * .75f;
+                    chanceRollCheck = 4;
+                }
+                //once timer and chance are trigger, apply mud effect.
+                if (mudTimer > mudDuration && random.Next(0, 9) < 5)
+                {
+                    //reset mud timer.
+                    mudTimer = 0;
+                    //if the current effect isn't in the active effect list, create it, and add to list.
+                    if (!activeEffectList.Contains(mudEffectList[currentMudTextureID]))
+                    {
+                        GameObject newMudEffect = new GameObject();
+                        EffectManager effectInstance = newMudEffect.AddComponent<EffectManager>();
+                        newMudEffect.name = "Mud Effect " + currentMudTextureID;
+                        effectInstance.effectType = 4;
+                        effectInstance.effectTexture = mudEffectList[currentMudTextureID];
+                        activeEffectList.Add(mudEffectList[currentMudTextureID]);
+                    }
+                    //if not in the list, then destroy the current one and create the new one.
+                    else
+                    {
+                        GameObject foundEffect = GameObject.Find("Mud Effect " + currentMudTextureID);
+                        Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                        Destroy(foundEffect);
+                        GameObject newBloodEffect = new GameObject();
+                        EffectManager effectInstance = newBloodEffect.AddComponent<EffectManager>();
+                        newBloodEffect.name = "Mud Effect " + currentMudTextureID;
+                        effectInstance.effectType = 4;
+                        effectInstance.effectTexture = mudEffectList[currentMudTextureID];
+                    }
+                }
+            }
+
+            //RAIN EFFECT\\
+            //if raining start rain effect code.
+            if (GameManager.Instance.WeatherManager.IsRaining || GameManager.Instance.WeatherManager.IsStorming)
+            {
+                GameObject foundEffect;
+                //setup and call random to get random texture list #.
+                System.Random random = new System.Random();
+                int currentRainTextureID = random.Next(0, rainEffectList.Count());
+                //count up rain timer.
+                rainTimer += Time.deltaTime;
+                //setup base texture
+                rainEffectInstance.RawImage.color = new Color(1, 1, 1, .5f);
+                //check if the texture is currently being used, and it not set as new effect texture.
+                foreach (Texture2D texture in rainEffectList)
+                {
+                    if (!activeEffectList.Contains(texture))
+                        currentRainTextureID = rainEffectList.IndexOf(texture);
+                }
+                //if half a second to 1.5 seconds pass start rain effect.
+                if(rainTimer > random.Next(0, 3))
+                {
+                    //reset rain timer.
+                    rainTimer = 0;
+                    //if the current effect isn't in the active effect list, create it, and add to list.
+                    if (!activeEffectList.Contains(rainEffectList[currentRainTextureID]))
+                    {
+                        GameObject newRainEffect = new GameObject();
+                        newRainEffect.name = "Rain Effect " + currentRainTextureID;
+                        EffectManager effectInstance = newRainEffect.AddComponent<EffectManager>();
+                        effectInstance.effectType = 3;
+                        effectInstance.effectTexture = rainEffectList[currentRainTextureID];
+                        activeEffectList.Add(rainEffectList[currentRainTextureID]);
+                    }
+                }               
+
+                //clean up old blood, dirt, frost, and dust textures.
+                foreach (Texture2D texture in dirtEffectList)
+                {
+                    if (activeEffectList.Contains(texture))
+                    {
+                        foundEffect = GameObject.Find("Dirt Effect " + dirtEffectList.IndexOf(texture));
+                        Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                        Destroy(foundEffect);
+                    }
+                }
+
+                foreach (Texture2D texture in bloodEffectList)
+                {
+                    if (activeEffectList.Contains(texture))
+                    {
+                        foundEffect = GameObject.Find("Blood Effect " + bloodEffectList.IndexOf(texture));
+                        Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                        Destroy(foundEffect);
+                    }
+                }
+
+                dustTimer = 0;
+                frostTimer = 0;
+            }
+            else
+                rainEffectInstance.RawImage.color = new Color(1, 1, 1, 0);
+
+
+
+            //DIRT EFFECT\\
+            //if moving start dirt effect code.
+            if (!GameManager.Instance.PlayerMotor.IsStandingStill && (playerClimateIndex == 231 || playerClimateIndex == 232 || playerClimateIndex == 228 || playerClimateIndex == 227 || GameManager.Instance.IsPlayerInsideDungeon))
+            {
+                float dirtDuration = 120;
+                int chanceRollCheck = 3;
+
+                if (playerSeason == DaggerfallDateTime.Seasons.Winter)
+                {
+                    dirtDuration = dirtDuration * 4f;
+                    chanceRollCheck = 2;
+                }
+                if (playerSeason == DaggerfallDateTime.Seasons.Fall)
+                {
+                    dirtDuration = dirtDuration * 1.5f;
+                    chanceRollCheck = 4;
+                }
+                if (playerSeason == DaggerfallDateTime.Seasons.Spring)
+                {
+                    dirtDuration = dirtDuration * 1.5f;
+                    chanceRollCheck = 4;
+                }
+
+                dirtTimer += Time.deltaTime;
+
+                System.Random randomTest = new System.Random();
+                int currentDirtTextureID = randomTest.Next(0, 2);
+
+                if (dirtTimer > dirtDuration && randomTest.Next(0, 9) < chanceRollCheck)
+                {
+                    dirtTimer = 0;
+                    //check if the texture is currently being used, and it not set as new effect texture.
+                    foreach (Texture2D texture in dirtEffectList)
+                    {
+                        if (!activeEffectList.Contains(texture))
+                            currentDirtTextureID = dirtEffectList.IndexOf(texture);
+                    }
+
+                    //if the current effect isn't in the active effect list, create it, and add to list.
+                    if (!activeEffectList.Contains(dirtEffectList[currentDirtTextureID]))
+                    {
+                        GameObject newDirtEffect = new GameObject();
+                        EffectManager effectInstance = newDirtEffect.AddComponent<EffectManager>();
+                        newDirtEffect.name = "Dirt Effect " + currentDirtTextureID;
+                        effectInstance.effectType = 2;
+                        effectInstance.effectTexture = dirtEffectList[currentDirtTextureID];
+                        activeEffectList.Add(dirtEffectList[currentDirtTextureID]);
+                    }
+                    //if not in the list, then destroy the current one and create the new one.
+                    else
+                    {
+                        GameObject foundEffect = GameObject.Find("Dirt Effect " + currentDirtTextureID);
+                        Destroy(foundEffect.GetComponent<EffectManager>().newEffect);
+                        Destroy(foundEffect);
+                        GameObject newDirtEffect = new GameObject();
+                        EffectManager effectInstance = newDirtEffect.AddComponent<EffectManager>();
+                        newDirtEffect.name = "Dirt Effect " + currentDirtTextureID;
+                        effectInstance.effectType = 2;
+                        effectInstance.effectTexture = dirtEffectList[currentDirtTextureID];
+                        activeEffectList.Add(dirtEffectList[currentDirtTextureID]);
+                    }
+                }
+            }
+                
+            //setup dust layer. If the player is moving, count move time and slowly fade in dust effect.
+            if (!GameManager.Instance.PlayerMotor.IsStandingStill)
+            {
+                float dustDuration = 700;
+
+                if(playerClimateIndex == 227 || playerClimateIndex == 229)
+                    dustDuration = 900;
+                if (playerClimateIndex == 224 || playerClimateIndex == 225)
+                    dustDuration = 300;
+                if (playerClimateIndex == 226 || playerClimateIndex == 230 || playerClimateIndex == 231)
+                    dustDuration = 600;
+
+                if (dustTimer < dustDuration)
+                    dustTimer += Time.deltaTime;
+
+                dustEffectInstance.RawImage.color = new Color(1, 1, 1, Mathf.Lerp(0, 1, dustTimer / dustDuration));
+            }
+        }
+
         void KeyPressCheck()
         {
 
@@ -818,7 +1282,7 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
 
             //if the player has qued up an input routine and .16 seconds have passed, do...     
-            while (playerInput.Count == 2 && timePass < .2f)
+            while (playerInput.Count >= 2 && timePass < .18f)
             {
                 minimapControls.updateMinimapUI();
                 //if both buttons press, clear input, and que up parry.
@@ -836,9 +1300,6 @@ namespace DaggerfallWorkshop.Game.Minimap
                         minimapActive = true;
                 }
 
-                if (!minimapActive)
-                    return;
-
                 int count = 0;
                 foreach (int input in playerInput)
                 {
@@ -851,7 +1312,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                         {
                             fullMinimapMode = true;
                             savedMinimapSize = minimapSize;
-                            minimapSize = Screen.width * .58f;
+                            minimapSize = Screen.height * .75f;
                             outsideViewSize = outsideViewSize * 2;
                             insideViewSize = insideViewSize * 2;
                         }
@@ -1168,20 +1629,6 @@ namespace DaggerfallWorkshop.Game.Minimap
             }
         }
 
-        //makes quick flat 2d colored texture. Used for coloring ui components.
-        private Texture2D MakeTex(int width, int height, Color col)
-        {
-            Color[] pix = new Color[width * height];
-            for (int i = 0; i < pix.Length; ++i)
-            {
-                pix[i] = col;
-            }
-            Texture2D result = new Texture2D(width, height);
-            result.SetPixels(pix);
-            result.Apply();
-            return result;
-        }
-
         //grabs the local dungeon and reveals meshes using hitray calculator.
         void DungeonMinimapCreator()
         {
@@ -1443,30 +1890,18 @@ namespace DaggerfallWorkshop.Game.Minimap
         void SetupMinimapLayers()
         {
             //setup the minimap mask layer size/position in top right corner.
-            maskRectTransform.sizeDelta = new Vector2(minimapSize * 1.03f, minimapSize * 1.03f);
+            maskRectTransform.sizeDelta = new Vector2(minimapSize * 1.155f, minimapSize * 1.155f);
 
             //setup the minimap render layer size/position in top right corner.
             canvasRectTransform.sizeDelta = new Vector2(minimapSize, minimapSize);
 
             //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-            minimapInterfaceRectTransform.sizeDelta = new Vector2(minimapSize * 1.03f, minimapSize * 1.13f);
-
-            if (fullMinimapMode)
-            {
-                //setup the minimap mask layer size/position in top right corner.
-                maskRectTransform.anchoredPosition3D = new Vector3((Screen.width * .5f) * -1, (Screen.height * .51f) * -1, 0);
-                //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-                minimapInterfaceRectTransform.anchoredPosition3D = new Vector3((Screen.width * .5f) * -1, (Screen.height * .415f) * -1, 0);
-                //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-            }
-            else
-            {
-                //setup the minimap mask layer size/position in top right corner.
-                maskRectTransform.anchoredPosition3D = new Vector3((minimapSize * .455f) * -1, (minimapSize * .465f) * -1, 0);
-                //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-                minimapInterfaceRectTransform.anchoredPosition3D = new Vector3((minimapSize * .46f) * -1, (minimapSize * .375f) * -1, 0);
-                //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-            }
+            minimapInterfaceRectTransform.sizeDelta = new Vector2(minimapSize * compassW, minimapSize * compassH);
+            //setup the minimap mask layer size/position in top right corner.
+            maskRectTransform.anchoredPosition3D = new Vector3((minimapSize * .49444f) * -1, (minimapSize * .5368f) * -1, 0);
+            //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
+            minimapInterfaceRectTransform.anchoredPosition3D = new Vector3((minimapSize * compassX) * -1, (minimapSize * compassY) * -1, 0);
+            //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.  
 
             //force transform updates.
             canvasRectTransform.ForceUpdateRectTransforms();
@@ -1476,7 +1911,8 @@ namespace DaggerfallWorkshop.Game.Minimap
         public void SetupBearings()
         {
             //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
-            minimapDirectionsRectTransform.sizeDelta = new Vector2(minimapSize * .7f, minimapSize * .7f);
+            minimapDirectionsRectTransform.sizeDelta = new Vector2(minimapSize * bearingsW, minimapSize * bearingsH);
+            minimapGlassRectTransform.sizeDelta = new Vector2(minimapSize * .9054f, minimapSize * .8719f);
             var minimapRot = transform.eulerAngles;
 
             if (fullMinimapMode && !minimapControls.minimapMenuEnabled && Input.GetMouseButton(0))
@@ -1577,6 +2013,7 @@ namespace DaggerfallWorkshop.Game.Minimap
 
             //force transform updates.
             minimapDirectionsRectTransform.ForceUpdateRectTransforms();
+            minimapGlassRectTransform.ForceUpdateRectTransforms();
         }
 
         public void SetupQuestBearings()
@@ -1698,12 +2135,12 @@ namespace DaggerfallWorkshop.Game.Minimap
 
         #region canvasConstructor
         //Sets up an object class to create a game object that contains the canvas screen space overlay and any sub canvas layers for things like indicators or overlays.
-        GameObject CanvasConstructor(bool giveParentContainer, string canvasName, bool canvasScaler, bool canvasRenderer, bool mask, bool rawImage, bool graphicRaycaster, float width, float height, Vector3 positioning, Texture canvasTexture = null, int screenPosition = 0)
+        public GameObject CanvasConstructor(bool giveParentContainer, string canvasName, bool canvasScaler, bool canvasRenderer, bool mask, bool rawImage, bool graphicRaycaster, float width, float height, Vector3 positioning,Texture canvasTexture, Color textureColor, int screenPosition = 0)
         {
             //sets up main canvas screen space overlay for containing all sub-layers.
             //this covers the full screen as an invisible layer to hold all sub ui layers.
             //creates empty objects.
-            GameObject canvasContainer = new GameObject();
+            canvasContainer = new GameObject();
             if (giveParentContainer)
             {
                 //names it/
@@ -1716,6 +2153,7 @@ namespace DaggerfallWorkshop.Game.Minimap
                 canvasContainer.AddComponent<GraphicRaycaster>();
                 //grabs the canvas object.
                 Canvas containerCanvas = canvasContainer.GetComponent<Canvas>();
+                canvasScreenSpaceRectTransform = canvasContainer.GetComponent<RectTransform>();
                 //sets the screen space to full screen overlay.
                 containerCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             }
@@ -1749,6 +2187,8 @@ namespace DaggerfallWorkshop.Game.Minimap
             if (canvasTexture != null)
                 newCanvasObject.GetComponent<RawImage>().texture = canvasTexture;
 
+            newCanvasObject.GetComponent<RawImage>().color = textureColor;
+
             //custom screen positioning method. Coder chooses 0 through 1 for differing screen positions.
             //center in screen/container.
             if (screenPosition == 0)
@@ -1772,8 +2212,8 @@ namespace DaggerfallWorkshop.Game.Minimap
             //returns the objects for the cover to drop into an empty object at any place or anytime they want.
             return newCanvasObject;
         }
-#endregion
-
+        
+        #endregion
         public object NewSaveData()
         {
             return new MyModSaveData
