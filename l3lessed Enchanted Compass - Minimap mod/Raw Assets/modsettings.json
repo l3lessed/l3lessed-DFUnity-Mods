@@ -1,0 +1,104 @@
+{
+    "Version": null,
+    "Sections": [
+        {
+            "Name": "CompassSettings",
+            "Description": "Setup how the compass operates in game.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "EquippableCompass",
+                    "Description": "Do you want the compass to be an item that must be equipped to use?",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
+            "Name": "CompassGraphics",
+            "Description": "Setup how the compass looks in game.",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Min": 0.0,
+                    "Max": 1.0,
+                    "Value": 0.2,
+                    "Name": "GlassTransperency",
+                    "Description": "How frosted do you want the glass? The lower the value the clearer the glass.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Min": 0.0,
+                    "Max": 600.0,
+                    "Value": 300.0,
+                    "Name": "FrostFadeIn",
+                    "Description": "How many seconds for the frost effect to fully appear? Seasons & weather will affect this.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Min": 0.0,
+                    "Max": 600.0,
+                    "Value": 60.0,
+                    "Name": "MudLoopTimer",
+                    "Description": "How many seconds while moving until you possibly get mud on your compass? Seasons & weather will affect this.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Min": 0.0,
+                    "Max": 600.0,
+                    "Value": 120.0,
+                    "Name": "DirtLoopTimer",
+                    "Description": "How many seconds while moving until you possibly get dirt on your compass? Seasons & weather will affect this.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Min": 0.0,
+                    "Max": 1800.0,
+                    "Value": 600.0,
+                    "Name": "DustFadeIn",
+                    "Description": "How many seconds for the dust effect to fully appear? Seasons & weather will affect this.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
+                    "Min": 0.0,
+                    "Max": 100.0,
+                    "Value": 6.0,
+                    "Name": "MaxBloodDamageTrigger",
+                    "Description": "What is the highest percentage of health must be lost before the blood effect can do a random check? It is a random check from (this number * .25f) to this number.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
+            "Name": "CompassKeys",
+            "Description": "Enchanted Compass Settings",
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": "KeypadPlus",
+                    "Name": "ZoomIn:FullViewCompass",
+                    "Description": "Hold to zoom in; double tap for full view.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                },
+                {
+                    "Value": "KeypadMinus",
+                    "Name": "ZoomOut:SettingScroll",
+                    "Description": "Hold to zoom out; double tap for setting scroll.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                }
+            ],
+            "$version": "v1"
+        }
+    ]
+}

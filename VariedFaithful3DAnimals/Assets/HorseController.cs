@@ -1,5 +1,6 @@
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -19,10 +20,9 @@ namespace DaggerfallWorkshop.Game.RandomVariations
         [SerializeField]
         public Vector3 spawnPosition;
         public Vector3 currentPosition;
-        private float timer;
+        private float followerTimer;
         private Vector3 startPosition;
         public Vector3 movePosition;
-        private Vector3 targetDirection;
         public Vector3 roamingForwardLimit;
         public Vector3 roamingBackwardLimit;
         public Vector3 roamingLeftLimit;
@@ -43,7 +43,7 @@ namespace DaggerfallWorkshop.Game.RandomVariations
         [SerializeField]
         public Dictionary<AnimationType, string> horseAnimationList;
 
-
+        [SerializeField]
         public Animation tailAnimation = new Animation();
         private bool walking;
         private float idleTimer;
@@ -52,16 +52,23 @@ namespace DaggerfallWorkshop.Game.RandomVariations
         private float roamingRadius = 25;
         private float movementTimer;
         private float movementPercentage;
-        public float walkSpeed = .6f;
-        public float runSpeed = 1.75f;
+        public float walkSpeed = .4f;
+        public float runSpeed = .8f;
         private CharacterController controller;
-        public float currentMovementSpeed = 12;
+        public float currentMovementSpeed = 0;
         public float minWalk = 0;
-        public float maxWalk = 1;
+        public float maxWalk = .8f;
+        [SerializeField]
+        public List<Vector3> playersLastPos = new List<Vector3>();
+        public List<GameObject> followerMarkerList = new List<GameObject>();
 
         public float Acceleration = .9f;
         public Vector3 velocity;
+        Task walkRoutine;
         public float rotationCheckValue;
+        private bool moving;
+        private float myAng;
+        private float timer;
 
         public enum AnimationType
         {
@@ -79,9 +86,9 @@ namespace DaggerfallWorkshop.Game.RandomVariations
 
         public enum BehaviorState
         {
-            idle,
-            trot,
+            idle,            
             walk,
+            follow,
         }
 
         private void Awake()
@@ -139,7 +146,16 @@ namespace DaggerfallWorkshop.Game.RandomVariations
 
         private void Update()
         {
+            //runs and sets object states to decide what it should do.
             HorseBrain();
+            float gSpeed = 0;
+            if (controller.isGrounded)
+            {
+                gSpeed = 0;
+            }
+
+            gSpeed -= 100f * Time.deltaTime;
+            controller.Move(new Vector3(0, gSpeed, 0) * Time.deltaTime);
         }
 
 
@@ -147,104 +163,315 @@ namespace DaggerfallWorkshop.Game.RandomVariations
         {
             if (horseState == BehaviorState.walk)
             {
-                float distanceMoved = Vector3.Distance(transform.position, movePosition);
-                movementPercentage = distanceMoved / totalMoveDistance;
+                //if there is a assigned walk routine and it isn't running yet, start it.
+                if (walkRoutine != null && !walkRoutine.Running)
+                    walkRoutine.Start();
 
-                var forward = transform.TransformDirection(Vector3.forward);
-
-                Debug.Log("Move Distance: " + distanceMoved + "Total Distance:  " + totalMoveDistance + " Move %: " + movementPercentage + " velocity: " + controller.velocity.magnitude);
-
+                //play walk animations with blended tail.
                 if (!mainAnimation.isPlaying)
                     mainAnimation.Blend(horseAnimationList[AnimationType.walk], 1f);
 
                 if (!mainAnimation.IsPlaying(horseAnimationList[AnimationType.tail_swoosh]))
                     mainAnimation.Blend(horseAnimationList[AnimationType.idle_bay_tail], .2f);
-
-                Vector3 rotationVector = Vector3.RotateTowards(forward.normalized, targetDirection.normalized, .6f * Time.fixedDeltaTime, 0);
-                transform.rotation = Quaternion.LookRotation(rotationVector);
-                rotationCheckValue = Quaternion.Dot(transform.rotation, Quaternion.LookRotation(targetDirection));
-                if (rotationCheckValue >= 0.9f)
-                {
-                    velocity = controller.velocity;
-
-                    velocity += forward.normalized * currentMovementSpeed;
-
-                    velocity *= Acceleration;                    
-
-                    Vector3.ClampMagnitude(velocity, 1);
-
-                    controller.SimpleMove(velocity * Time.fixedDeltaTime);
-                    mainAnimation[horseAnimationList[AnimationType.walk]].speed = controller.velocity.magnitude * 1.45f;
-                }
-                else
-                {
-                    controller.SimpleMove(forward.normalized * (currentMovementSpeed * .05f) * Time.fixedDeltaTime);
-                    mainAnimation[horseAnimationList[AnimationType.walk]].speed = 1;
-                }
-
-                //idle horse when it reaches position.
-                if (movementPercentage < .05f)
-                {
-                    mainAnimation.CrossFade(horseAnimationList[AnimationType.idle_bay], 1);
-                    horseState = BehaviorState.idle;
-                }
-
             }
 
-            if(horseState == BehaviorState.trot)
+            if(horseState == BehaviorState.follow)
             {
-                //will add specialized running/trotting code here
+                FollowPlayer();
             }
 
+            //if horse brian is idle, start playing random idle animations and begin looking for a new move place.
             if (horseState == BehaviorState.idle)
             {
+                //set base animation for blending as idle animation.
                 if (!mainAnimation.IsPlaying(horseAnimationList[AnimationType.idle_bay]))
                     mainAnimation.Blend(horseAnimationList[AnimationType.idle_bay], .65f, .5f);
 
+                //run idle timer to set rbadom idle animation plays.
                 idleTimer += Time.deltaTime;
                 if (idleTimer > UnityEngine.Random.Range(1.5f, 3))
                 {
                     UnityEngine.Random.InitState(System.DateTime.Now.Millisecond);
                     idleTimer = 0;
-                    mainAnimation.Blend(horseAnimationList[(AnimationType)idleAnimationList[UnityEngine.Random.Range(0, idleAnimationList.Length)]],.65f,.5f);                 
+                    mainAnimation.Blend(horseAnimationList[(AnimationType)idleAnimationList[UnityEngine.Random.Range(0, idleAnimationList.Length)]], .65f, .5f);
                     mainAnimation.Blend(horseAnimationList[AnimationType.idle_bay_tail], .5f, .5f);
                 }
 
-                FindMoveDestination();
+                //if found a place to move to, tell horse brain to walk so it can begin processing walk code/intelligence.
+                FindMoveDestination(out movePosition);
             }
 
-            void FindMoveDestination()
+        }
+
+        //finds a move destination and outputs it as a vector3 for further processing by brain code.
+        bool FindMoveDestination(out Vector3 movePosition)
+        {
+            //set a move timer so it checks at set interval.
+            timer += Time.deltaTime;
+            //set if a spot has been found to default to false.
+            bool foundMoveSpot = false;
+            //set move position as empty vector3.
+            movePosition = new Vector3 (0,0,0);
+
+            //after very 10 to 30 seconds, run a find move position check.
+            if (timer > UnityEngine.Random.Range(10, 30))
             {
-                timer += Time.deltaTime;
-                if (timer > UnityEngine.Random.Range(10, 30))
+                //reset check timer and reassign random seed.
+                UnityEngine.Random.InitState(System.DateTime.Now.Millisecond);
+                timer = 0;
+                //setup blank ray objects for finding new move position.
+                Ray ray = new Ray();
+                RaycastHit parameterCast;
+
+                //create ray object.
+                ray = new Ray(controller.transform.position, Quaternion.Euler(0, UnityEngine.Random.Range(0, 360), 0) * -transform.forward);
+
+                //use spherecast to try and ensure position is a place the object can get to/fit in.
+                if (Physics.SphereCast(ray, 3, out parameterCast, UnityEngine.Random.Range(5, roamingRadius)))
+                    moveBoundCheck = parameterCast.point;
+                //If nothing is hit, return the end point.
+                else
+                    moveBoundCheck = ray.GetPoint(UnityEngine.Random.Range(5, roamingRadius));
+
+                Debug.Log(Vector3.Distance(moveBoundCheck, transform.position) + " | " + Vector3.Distance(moveBoundCheck, spawnPosition));
+
+                //if the distance is less than 10 meters or outside return that there is no found spot to go to.
+                if (Vector3.Distance(moveBoundCheck, transform.position) < 5 || Vector3.Distance(moveBoundCheck, spawnPosition) > roamingRadius)
+                    foundMoveSpot = false;
+                else
                 {
-                    UnityEngine.Random.InitState(System.DateTime.Now.Millisecond);
-                    timer = 0;
-                    Ray ray = new Ray();
-                    RaycastHit parameterCast;
-                    roamingLimiteArray = new List<Vector3>();
+                    //if there is a walk routine and is is running, stop it.
+                    if (walkRoutine!= null && walkRoutine.Running)
+                        walkRoutine.Stop();
 
-                    ray = new Ray(transform.position, Quaternion.Euler(0, UnityEngine.Random.Range(0, 360), 0) * -transform.forward);
-
-                    if (Physics.SphereCast(ray, 2, out parameterCast, UnityEngine.Random.Range(10, roamingRadius)))
-                        moveBoundCheck = parameterCast.point;
-                    else
-                        moveBoundCheck = ray.GetPoint(UnityEngine.Random.Range(10, roamingRadius));
-                    Debug.DrawRay(ray.origin, ray.direction, Color.green, 2000);
-
-                    if (Vector3.Distance(moveBoundCheck, transform.position) < 10)
-                        return;
-
-                    horseState = BehaviorState.walk;
-
-                    startPosition = transform.position;
-                    movePosition = moveBoundCheck;
-                    targetDirection = movePosition - transform.position;
-
-                    totalMoveDistance = Vector3.Distance(movePosition, startPosition);
+                    //setup debug move sphere to see where npc is placing move destination.
+                    Debug.Log("FOUND SPOT!!");
+                    GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    markerSphere.transform.position = moveBoundCheck;
+                    Destroy(markerSphere, 10);
+                    //crossfade previous animation into a walk.
                     mainAnimation.CrossFade(horseAnimationList[AnimationType.walk]);
+                    //setup a new walk routine using the position data from the raycasts.
+                    walkRoutine = new Task(MoveToDestination(transform.position,moveBoundCheck, 1),false);
+                    //tell horse brain/code to begin walking state/code
+                    horseState = BehaviorState.walk;
+                    //return that we found a spot to move to as true.
+                    foundMoveSpot = true;
                 }
             }
+            //return if spot was found or not.
+            return foundMoveSpot;
         }
+
+        //Uses inputed positions to move object to destination.
+        IEnumerator MoveToDestination(Vector3 startPosition, Vector3 moveDestination, float SpeedModifier)
+        {
+            while (true)
+            {
+                Vector3 targetDirection = (moveDestination - transform.position).normalized;
+
+                if(Vector3.Distance(transform.position, moveDestination) > 2f)
+                {
+                    currentMovementSpeed = currentMovementSpeed * SpeedModifier;
+
+                    //var forward = transform.TransformDirection(Vector3.forward);
+
+                    velocity = transform.forward * currentMovementSpeed;
+
+                    Vector3 rotationVector = Vector3.RotateTowards(transform.forward, targetDirection, 2 * Time.deltaTime, 0);
+                    transform.rotation = Quaternion.LookRotation(new Vector3(rotationVector.x, 0, rotationVector.z));
+
+                    Debug.Log(" velocity: " + controller.velocity.magnitude + " Rotation: " + rotationCheckValue);
+
+                    rotationCheckValue = Quaternion.Dot(transform.rotation, Quaternion.LookRotation(targetDirection));
+                    if (rotationCheckValue >= 0.95f)
+                    {
+                        currentMovementSpeed = Mathf.Clamp(currentMovementSpeed += maxWalk * Time.deltaTime, 1, walkSpeed);
+                        //Vector3.ClampMagnitude(velocity, Acceleration);
+                        controller.Move(velocity * Time.deltaTime);
+                        mainAnimation[horseAnimationList[AnimationType.walk]].speed = controller.velocity.magnitude * .66f;
+                    }
+                    else
+                    {
+                        if(currentMovementSpeed != 0)
+                            currentMovementSpeed = Mathf.Clamp(currentMovementSpeed -= maxWalk, 2, walkSpeed);
+                        else
+                            currentMovementSpeed = Mathf.Clamp(currentMovementSpeed += maxWalk, 2, walkSpeed);
+
+                        controller.Move((velocity * .5f) * Time.deltaTime);
+                        mainAnimation[horseAnimationList[AnimationType.walk]].speed = 1;
+                    }
+                }
+                else
+                {
+                    mainAnimation.CrossFade(horseAnimationList[AnimationType.idle_bay], 1);
+
+                    if (horseState != BehaviorState.follow)
+                        horseState = BehaviorState.idle;
+
+                    moving = false;
+                    currentMovementSpeed = 0;
+                    walkRoutine.Stop();
+                    yield break;
+                }
+                yield return new WaitForEndOfFrame();
+            }
+        }
+
+        void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            myAng = Vector3.Angle(Vector3.up, hit.normal); //Calc angle between normal and character
+        }
+
+        void FollowPlayer()
+        {
+            followerTimer += Time.deltaTime;
+            if(followerTimer > .008f)
+            {
+                RaycastHit lineOfSightHit;
+
+               if (NPCinLOS(out lineOfSightHit))
+                {
+                    if(playersLastPos.Count > 1)
+                    {
+                        playersLastPos.Clear();
+
+                        foreach(GameObject markerObject in followerMarkerList)
+                        {
+                            Destroy(markerObject);
+                        }
+                        followerMarkerList.Clear();
+                    }                        
+
+                    followerTimer = 0;
+                    if (playersLastPos.Count == 0)
+                    {
+                        playersLastPos.Add(GameManager.Instance.PlayerController.transform.position);
+                        GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        markerSphere.transform.localScale = new Vector3(.35f, .35f, .35f);
+                        markerSphere.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                        Destroy(markerSphere.GetComponent<SphereCollider>());
+                        markerSphere.name = "Follower Marker: " + (playersLastPos.Count - 1).ToString();
+                        markerSphere.transform.position = GameManager.Instance.PlayerController.transform.position;
+                        followerMarkerList.Add(markerSphere);
+                    }
+                    else if (Vector3.Distance(GameManager.Instance.PlayerController.transform.position, playersLastPos[playersLastPos.Count - 1]) > 3)
+                    {
+                        Destroy(followerMarkerList[0]);
+                        followerMarkerList.RemoveAt(0);
+                        playersLastPos.RemoveAt(0);
+                        walkRoutine.Stop();
+                        playersLastPos.Add(GameManager.Instance.PlayerController.transform.position);
+                        GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        markerSphere.transform.localScale = new Vector3(.35f, .35f, .35f);
+                        markerSphere.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                        Destroy(markerSphere.GetComponent<SphereCollider>());
+                        markerSphere.name = "Follower Marker: " + (playersLastPos.Count - 1).ToString();
+                        markerSphere.transform.position = GameManager.Instance.PlayerController.transform.position;
+                        followerMarkerList.Add(markerSphere);
+                    }
+                }
+                else if (!NPCinLOS(out lineOfSightHit))
+                {
+                    followerTimer = 0;
+                    if (playersLastPos.Count > 19 && Vector3.Distance(GameManager.Instance.PlayerController.transform.position, playersLastPos[playersLastPos.Count - 1]) > 3)
+                    {
+                        walkRoutine.Stop();
+                        playersLastPos.RemoveAt(0);
+                        playersLastPos.Add(GameManager.Instance.PlayerController.transform.position);
+                        GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        markerSphere.transform.localScale = new Vector3(.35f, .35f, .35f);
+                        markerSphere.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                        Destroy(markerSphere.GetComponent<SphereCollider>());
+                        markerSphere.name = "Follower Marker: " + (playersLastPos.Count - 1).ToString();
+                        markerSphere.transform.position = GameManager.Instance.PlayerController.transform.position;
+                        followerMarkerList.Add(markerSphere);
+                    }
+                    else if (playersLastPos.Count != 0 && Vector3.Distance(GameManager.Instance.PlayerController.transform.position, playersLastPos[playersLastPos.Count - 1]) > 3)
+                    {
+                        playersLastPos.Add(GameManager.Instance.PlayerController.transform.position);
+                        GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        markerSphere.transform.localScale = new Vector3(.35f, .35f, .35f);
+                        markerSphere.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                        Destroy(markerSphere.GetComponent<SphereCollider>());
+                        markerSphere.name = "Follower Marker: " + (playersLastPos.Count - 1).ToString();
+                        markerSphere.transform.position = GameManager.Instance.PlayerController.transform.position;
+                        followerMarkerList.Add(markerSphere);
+                    }
+                    else if(playersLastPos.Count == 0)
+                    {
+                        playersLastPos.Add(GameManager.Instance.PlayerController.transform.position);
+                        GameObject markerSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                        markerSphere.transform.localScale = new Vector3(.35f, .35f, .35f);
+                        markerSphere.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                        Destroy(markerSphere.GetComponent<SphereCollider>());
+                        markerSphere.name = "Follower Marker: " + (playersLastPos.Count - 1).ToString();
+                        markerSphere.transform.position = GameManager.Instance.PlayerController.transform.position;
+                        followerMarkerList.Add(markerSphere);
+                    }
+                }
+            }
+ 
+
+            if (playersLastPos.Count != 0)
+            {
+                if(walkRoutine == null)
+                {
+                    walkRoutine = new Task(MoveToDestination(transform.position, playersLastPos[0], 1));
+                    mainAnimation.CrossFade(horseAnimationList[AnimationType.walk]);
+                }                    
+
+                if (walkRoutine != null && !walkRoutine.Running)
+                {
+                    walkRoutine = new Task(MoveToDestination(transform.position, playersLastPos[0], 1));
+                    mainAnimation.CrossFade(horseAnimationList[AnimationType.walk]);
+                }
+
+                if (Vector3.Distance(transform.position, playersLastPos[0]) <= 3f)
+                {
+                    Destroy(followerMarkerList[0]);
+                    followerMarkerList.RemoveAt(0);
+                    playersLastPos.RemoveAt(0);
+                    walkRoutine.Stop();
+                }
+            }
+            else
+            {
+                currentMovementSpeed = 0;
+                mainAnimation.CrossFade(horseAnimationList[AnimationType.idle_bay], 1);
+                //set base animation for blending as idle animation.
+                if (!mainAnimation.IsPlaying(horseAnimationList[AnimationType.idle_bay]))
+                    mainAnimation.Blend(horseAnimationList[AnimationType.idle_bay], .65f, .5f);
+
+                //run idle timer to set rbadom idle animation plays.
+                idleTimer += Time.deltaTime;
+                if (idleTimer > UnityEngine.Random.Range(1.5f, 3))
+                {
+                    UnityEngine.Random.InitState(System.DateTime.Now.Millisecond);
+                    idleTimer = 0;
+                    mainAnimation.Blend(horseAnimationList[(AnimationType)idleAnimationList[UnityEngine.Random.Range(0, idleAnimationList.Length)]], .65f, .5f);
+                    mainAnimation.Blend(horseAnimationList[AnimationType.idle_bay_tail], .5f, .5f);
+                }
+            }
+
+        }
+
+        bool NPCinLOS(out RaycastHit hitPosition)
+        {
+            bool inSight = false;
+            Vector3 playerDir = GameManager.Instance.PlayerController.transform.position - transform.position;           
+            Ray ray = new Ray(transform.position + transform.up, playerDir * 100);
+            Debug.DrawRay(transform.position + transform.up , playerDir * 100,Color.red);
+            if (Physics.SphereCast(ray.origin,2,ray.direction,out hitPosition))
+            {
+                CharacterController playerCheck = hitPosition.transform.GetComponent<CharacterController>();
+
+                if (playerCheck != null && playerCheck.gameObject.name == "PlayerAdvanced")
+                    inSight = true;
+            }
+
+            Debug.Log(inSight);           
+            return inSight;
+        }    
     }
 }

@@ -1,0 +1,26 @@
+{
+    "ModTitle": "Minimap",
+    "ModVersion": "2.5",
+    "ModAuthor": "l3lessed",
+    "DFUnity_Version": "0.13.0",
+    "ModDescription": "A Magical compass to show you your surroundings.",
+    "GUID": "160ddbb2-b085-48a6-9f3b-295711d1abec",
+    "Files": [
+        "Assets/Scripts/Mods/Minimap/MinimapMaterialObject.prefab",
+        "Assets/Scripts/Mods/Minimap/BuildingMarker.cs",
+        "Assets/Scripts/Mods/Minimap/NPCMarker.cs",
+        "Assets/Scripts/Mods/Minimap/Minimap.cs",
+        "Assets/Scripts/Mods/Minimap/meshMaterial.mat",
+        "Assets/Scripts/Mods/Minimap/EffectManager.cs",
+        "Assets/Scripts/Mods/Minimap/minimapMaterial.mat",
+        "Assets/Scripts/Mods/Minimap/MinimapControls.cs",
+        "Assets/Scripts/Mods/Minimap/iconMaterial.mat",
+        "Assets/Scripts/Mods/Minimap/MinimapCamera.prefab",
+        "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+        "Assets/TextMesh Pro/Resources/Shaders/TMP_SDF-Mobile.shader",
+        "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+        "Assets/Scripts/Game/NoFogCamera.cs",
+        "Assets/Game/Mods/Minimap/modsettings.json",
+        "Assets/Game/Mods/Minimap/Minimap.dfmod.json"
+    ]
+}
