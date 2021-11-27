@@ -1,6 +1,5 @@
 using System;
 using DaggerfallWorkshop.Game;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,14 +18,14 @@ namespace Minimap
 
         public Color lastColor;
 
-        public float redValue = Minimap.MinimapInstance.iconGroupColors[Minimap.MarkerGroups.Shops].r;
-        public float blueValue = Minimap.MinimapInstance.iconGroupColors[Minimap.MarkerGroups.Shops].b;
-        public float greenValue = Minimap.MinimapInstance.iconGroupColors[Minimap.MarkerGroups.Shops].g;
+        public float redValue;
+        public float blueValue;
+        public float greenValue;
         public float alphaValue = 1f;
         public float blendValue = 1f;
         public float iconSize = 1f;
         public float minimapRotationValue;
-        public static Color colorSelector = Minimap.MinimapInstance.iconGroupColors[Minimap.MarkerGroups.Shops];
+        public static Color colorSelector;
         public float lastBlend;
         public float lastAlphaValue;
         public float lastIndicatorSize;
@@ -57,15 +56,20 @@ namespace Minimap
         public bool cameraDetectionEnabled;
 
         public string selectedIcon = "Shops";
+        private float lastMinimapSize;
 
         private void Start()
         {
             compassMenu = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/ScrollCleaned.png");
+            colorSelector = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops];
+            redValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].r;
+            blueValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].b;
+            greenValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].g;
         }
 
         void OnGUI()
         {
-            if (!minimapMenuEnabled || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.SaveLoadManager.LoadInProgress || Minimap.MinimapInstance.currentEquippedCompass == null)
+            if (!Minimap.MinimapInstance.minimapActive || !minimapMenuEnabled)
                 return;
 
             if (currentStyle == null)
@@ -120,12 +124,12 @@ namespace Minimap
 
             if (GUI.RepeatButton(new Rect(95, 68, 25, 25), "+", currentStyle))
             {
-                Minimap.MinimapInstance.minimapSize += Screen.width * .001f;
+                Minimap.MinimapInstance.minimapSize += .5f;
             }
 
             if (GUI.RepeatButton(new Rect(115, 68, 25, 25), "-", currentStyle) && Minimap.MinimapInstance.minimapCamera.orthographicSize > 0)
             {
-                Minimap.MinimapInstance.minimapSize -= Screen.width * .001f;
+                Minimap.MinimapInstance.minimapSize -= .5f;
             }
 
             //auto rotate button and rotation value buttons below., which are enabled only when auto rotate is off
@@ -185,10 +189,10 @@ namespace Minimap
                 {
                     selectedIconInt = selectedIconInt - 1;
                     selectedIcon = Enum.GetValues(typeof(Minimap.MarkerGroups)).GetValue(selectedIconInt).ToString();
-                    redValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].r;
-                    greenValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].g;
-                    blueValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].b;
-                    blendValue = Minimap.MinimapInstance.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt];
+                    redValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].r;
+                    greenValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].g;
+                    blueValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].b;
+                    blendValue = Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt];
                 }
             }
 
@@ -202,11 +206,11 @@ namespace Minimap
                 {
                     selectedIconInt = selectedIconInt + 1;
                     selectedIcon = Enum.GetValues(typeof(Minimap.MarkerGroups)).GetValue(selectedIconInt).ToString();
-                    redValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].r;
-                    greenValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].g;
-                    blueValue = Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].b;
-                    blendValue = Minimap.MinimapInstance.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt];
-                    iconSize = Minimap.MinimapInstance.iconSizes[(Minimap.MarkerGroups)selectedIconInt];
+                    redValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].r;
+                    greenValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].g;
+                    blueValue = Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt].b;
+                    blendValue = Minimap.iconGroupTransperency[(Minimap.MarkerGroups)selectedIconInt];
+                    iconSize = Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt];
                 }
 
             }
@@ -218,9 +222,6 @@ namespace Minimap
             GUI.Label(new Rect(10, 274, 50, 25), "Clear", currentStyle);
             GUI.Label(new Rect(10, 297, 50, 25), "Size", currentStyle);
 
-            Debug.Log("Controls: " + selectedIconInt + " | " + (Minimap.MarkerGroups)selectedIconInt);
-            Debug.Log("Controls: " + Minimap.MinimapInstance.iconSizes[(Minimap.MarkerGroups)selectedIconInt]);
-
             //setup RGB sliders.
             redValue = GUI.HorizontalSlider(new Rect(60, 210, 160, 25), redValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(220, 203, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(redValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out redValue);
@@ -230,38 +231,41 @@ namespace Minimap
             float.TryParse(GUI.TextField(new Rect(220, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
             blendValue = GUI.HorizontalSlider(new Rect(60, 279, 160, 25), blendValue, 0, 1);
             float.TryParse(GUI.TextField(new Rect(220, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
-            iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.MinimapInstance.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 3);
+            iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 3);
             float.TryParse(GUI.TextField(new Rect(220, 295, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(iconSize, 0f, 3f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out iconSize);
 
-            Minimap.MinimapInstance.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 318, 120, 25), Minimap.MinimapInstance.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Detect Soul", currentToggleStyle);
+            Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 318, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Detect Soul", currentToggleStyle);
 
             if(selectedIconInt >= 6 && selectedIconInt <= 8)
-                Minimap.MinimapInstance.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(135, 318, 120, 25), Minimap.MinimapInstance.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Soul", currentToggleStyle);
+                Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(135, 318, 120, 25), Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Soul", currentToggleStyle);
 
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
-
+            updateMinimap = false;
             //check if any controls have been updated, and if so, pushed window trigger update.
-            if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.MinimapInstance.iconSizes[(Minimap.MarkerGroups)selectedIconInt])
+            if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] || Minimap.MinimapInstance.minimapSize != lastMinimapSize)
             {
+                lastMinimapSize = Minimap.MinimapInstance.minimapSize;
+                updateMinimap = true;
                 updateMinimapUI();
             }
         }       
 
         public void updateMinimapUI()
         {
-            Minimap.MinimapInstance.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = iconSize;
-            Minimap.MinimapInstance.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
+            Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = iconSize;
+            Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
 
-            Minimap.MinimapInstance.UpdateNpcMarkers();
-            //runs indicator code, which destroys and rebuilds indicators to refresh them.
-            //need to add a refresh routine, so don't have to keep rebuilding anytime we want to refresh.
-            Minimap.MinimapInstance.SetupMinimapCameras();
-            Minimap.MinimapInstance.SetupNPCIndicators();
-            Minimap.MinimapInstance.SetupPlayerIndicator();
-
-            if (!GameManager.Instance.IsPlayerInside)
-                    Minimap.MinimapInstance.UpdateBuildingMarkers();
+            if (GameManager.Instance.IsPlayerInside)
+            {
+                Minimap.indicatorSize = Mathf.Clamp(Minimap.MinimapInstance.minimapCamera.orthographicSize * .06f, .15f, 2f);
+                Minimap.markerScale = new Vector3(Minimap.indicatorSize, .01f, Minimap.indicatorSize);
+            }                
+            else
+            {
+                Minimap.indicatorSize = Mathf.Clamp(Minimap.MinimapInstance.minimapCamera.orthographicSize * .0435f, .15f, 7f);
+                Minimap.markerScale = new Vector3(Minimap.indicatorSize, .01f, Minimap.indicatorSize);
+            }
 
             //sets minimap transperency level.
             Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, .01f);

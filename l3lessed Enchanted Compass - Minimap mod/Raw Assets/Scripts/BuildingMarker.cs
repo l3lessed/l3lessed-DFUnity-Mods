@@ -24,6 +24,7 @@ namespace Minimap
             public GameObject attachedIcon;
             public GameObject attachedDoorIcon;
             public GameObject attachedQuestIcon;
+            public Material buildingMarkerMaterial;
             public Vector3 doorPosition;
             public StaticBuilding staticBuilding;
             public BuildingSummary buildingSummary;
@@ -45,6 +46,8 @@ namespace Minimap
                 attachedLabel = null;
                 attachedIcon = null;
                 attachedQuestIcon = null;
+                attachedDoorIcon = null;
+                buildingMarkerMaterial = null;
                 doorPosition = new Vector3(0,0,0);
                 buildingLocation = new DFLocation();
                 position = new Vector3();
@@ -60,30 +63,220 @@ namespace Minimap
         // Creating an Instance (an Object) of the marker class to store and update specific object properties once initiated.
         public Marker marker = new Marker();        
         private float sizeMultiplier;
+        private float lastRotation;
+        private float timePass;
+        private float startTimer;
+        private float randomDelay;
+        private bool generatedMarker;
+        private int maxBuildingIconSpawn = Minimap.buildingSpawnTime;
 
         void Start()
         {
-            if (marker.buildingSummary.BuildingType == DFLocation.BuildingTypes.AllValid)
+            marker.attachedMesh.GetComponentInChildren<MeshRenderer>().material = marker.buildingMarkerMaterial;
+            randomDelay = Minimap.randomNumGenerator.Next(0, maxBuildingIconSpawn) * .01f;
+        }
+
+        void Update()
+        {            
+            if (!Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside)
                 return;
 
+            if (startTimer <= randomDelay + 1)
+            {
+                startTimer += Time.deltaTime;
+                return;
+            }
+
+            if (startTimer >= randomDelay && !generatedMarker)
+            {
+                GenerateMarker();
+                generatedMarker = true;
+                return;
+            }           
+
+            if (!Minimap.minimapControls.autoRotateActive)
+            {
+                if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation)
+                {
+                    lastRotation = GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 4;
+                    //updates rotation for each icon, if they are existing.
+                    if (marker.attachedQuestIcon)
+                        marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                    if (marker.attachedIcon)
+                        marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                    if (marker.attachedLabel)
+                        marker.attachedLabel.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                    if (marker.attachedQuestIcon)
+                        marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                    if (marker.attachedDoorIcon)
+                        marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
+                }
+            }
+            else
+            {
+                if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation)
+                {
+                    lastRotation = Minimap.minimapControls.minimapRotationValue + 4;
+                    //updates rotation for each icon, if they are existing.
+                    if (marker.attachedQuestIcon)
+                        marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                    if (marker.attachedIcon)
+                        marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                    if (marker.attachedLabel)
+                        marker.attachedLabel.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
+                    if (marker.attachedQuestIcon)
+                        marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
+                    if (marker.attachedDoorIcon)
+                        marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
+                }
+            }
+
+            timePass += Time.deltaTime;
+
+            //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
+            if (timePass > .1f)
+            {
+                timePass = 0;
+
+
+                if (Minimap.frustrumCallingEnabled && marker.attachedMesh != null)
+                {
+                    if (!BuildingIconInView() && marker.attachedMesh.activeSelf)
+                    {
+                        marker.attachedMesh.SetActive(false);
+                        marker.attachedIcon.SetActive(false);
+                        marker.attachedLabel.SetActive(false);
+                        marker.attachedDoorIcon.SetActive(false);
+                        if (marker.attachedQuestIcon != null)
+                            marker.attachedQuestIcon.SetActive(false);
+                        return;
+                    }
+                    else if (BuildingIconInView() && !marker.attachedMesh.activeSelf)
+                    {
+                        marker.attachedMesh.SetActive(true);
+                        marker.attachedDoorIcon.SetActive(true);
+
+                        if (Minimap.minimapControls.smartViewActive)
+                        {
+                            if (Minimap.MinimapInstance.minimapCamera.orthographicSize > 80)
+                            {
+                                marker.attachedIcon.SetActive(true);
+                                marker.attachedLabel.SetActive(false);
+                            }
+                            else
+                            {
+                                marker.attachedIcon.SetActive(false);
+                                marker.attachedLabel.SetActive(true);
+                            }
+                        }
+                        else
+                        {
+                            if (Minimap.minimapControls.labelsActive)
+                                marker.attachedLabel.SetActive(true);
+                            else
+                                marker.attachedLabel.SetActive(false);
+
+                            if (Minimap.minimapControls.iconsActive)
+                                marker.attachedIcon.SetActive(true);
+                            else
+                                marker.attachedIcon.SetActive(false);
+                        }
+                    }
+                }
+                else if(marker.attachedMesh != null && !marker.attachedMesh.activeSelf)
+                {
+                    marker.attachedMesh.SetActive(true);
+                    marker.attachedDoorIcon.SetActive(true);
+
+                    if (Minimap.minimapControls.smartViewActive)
+                    {
+                        if (Minimap.MinimapInstance.minimapCamera.orthographicSize > 80)
+                        {
+                            marker.attachedIcon.SetActive(true);
+                            marker.attachedLabel.SetActive(false);
+                        }
+                        else
+                        {
+                            marker.attachedIcon.SetActive(false);
+                            marker.attachedLabel.SetActive(true);
+                        }
+                    }
+                    else
+                    {
+                        if (Minimap.minimapControls.labelsActive)
+                            marker.attachedLabel.SetActive(true);
+                        else
+                            marker.attachedLabel.SetActive(false);
+
+                        if (Minimap.minimapControls.iconsActive)
+                            marker.attachedIcon.SetActive(true);
+                        else
+                            marker.attachedIcon.SetActive(false);
+                    }
+                }
+
+                //Enables/disables door icon.
+                if (!Minimap.minimapControls.doorIndicatorActive && marker.attachedDoorIcon)
+                    marker.attachedDoorIcon.SetActive(false);
+                else if(!Minimap.minimapControls.doorIndicatorActive && marker.attachedDoorIcon)
+                    marker.attachedDoorIcon.SetActive(true);
+
+                //Enables/disables quest icon.
+                if (!Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
+                    marker.attachedQuestIcon.SetActive(false);
+                else if(Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
+                {
+                    marker.attachedQuestIcon.SetActive(true);
+                    //flips off quest icon based on it being in minimap camera view and within view size distance.
+                    if (QuestIconInView())
+                        Minimap.MinimapInstance.publicQuestBearing.SetActive(false);
+                    else
+                        Minimap.MinimapInstance.publicQuestBearing.SetActive(true);
+                }
+
+                //updates icons and labels position and size based on their active states.
+                if (marker.attachedLabel && marker.attachedLabel.activeSelf && marker.attachedIcon && marker.attachedIcon.activeSelf)
+                {
+                    marker.attachedIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.max + new Vector3(-1.5f, 4f, -1.5f);
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f) * Minimap.iconSizes[marker.iconGroup];
+                }
+                else if(marker.attachedIcon && marker.attachedIcon.activeSelf)
+                {
+                    marker.attachedIcon.transform.position = marker.attachedMesh.transform.position;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize) * Minimap.iconSizes[marker.iconGroup];
+                }
+
+                //update marker material color using saved dictionary.
+                marker.buildingMarkerMaterial.color = Minimap.iconGroupColors[marker.iconGroup];
+            }            
+        }
+
+        //checks if quest icon is in minimap camera view.
+        public bool QuestIconInView()
+        {
+            Bounds markerBounds = marker.attachedQuestIcon.GetComponent<MeshRenderer>().GetComponent<Renderer>().bounds;
+            markerBounds.size = new Vector3(.01f, .01f, .01f);
+            if (GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(Minimap.MinimapInstance.minimapCamera), markerBounds) && GameManager.Instance.PlayerMotor.DistanceToPlayer(marker.attachedQuestIcon.transform.position) < Minimap.MinimapInstance.minimapCamera.orthographicSize - 25f)
+                return true;
+            else
+                return false;
+        }
+
+        void GenerateMarker()
+        {
+            if (marker.buildingSummary.BuildingType == DFLocation.BuildingTypes.AllValid)
+                return;
             //gets buildings largest side size for label multiplier.
             sizeMultiplier = (marker.staticBuilding.size.x + marker.staticBuilding.size.z) * .5f * Minimap.minimapControls.iconSize;
 
             //setup and assign the final world position and rotation using the building, block, and tallest spot cordinates. This places the indicators .2f above the original building model.
-            marker.attachedMesh = GameObjectHelper.CreateDaggerfallMeshGameObject(marker.buildingSummary.ModelID, null, false, null, true);
-            marker.attachedMesh.transform.position = new Vector3(marker.position.x, marker.position.y, marker.position.z);
-            marker.attachedMesh.transform.Rotate(marker.buildingSummary.Rotation);
-            marker.attachedMesh.layer = Minimap.layerMinimap;
-            marker.attachedMesh.transform.localScale = new Vector3(1, 0.01f, 1);
-            marker.attachedMesh.name = marker.buildingSummary.BuildingType.ToString() + " Marker " + marker.buildingSummary.buildingKey;
-            marker.attachedMesh.GetComponent<MeshRenderer>().shadowCastingMode = 0;
             //remove collider from mes.
             //marker.attachedMesh.GetComponent<Collider>().name = marker.attachedMesh.name;
 
             //setup icons for building.
             Material iconMaterial = new Material(Minimap.iconMarkerMaterial);
             marker.attachedIcon = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            marker.attachedIcon.name = marker.buildingSummary.BuildingType.ToString() + " Icon " + marker.buildingSummary.buildingKey; ;
+            marker.attachedIcon.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Icon ", marker.buildingSummary.buildingKey);
             marker.attachedIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, 1f, 0);
             marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
             marker.attachedIcon.transform.Rotate(0, 180, 0);
@@ -95,7 +288,7 @@ namespace Minimap
             Destroy(marker.attachedIcon.GetComponent<Collider>());
 
             marker.attachedDoorIcon = new GameObject();
-            marker.attachedDoorIcon.name = marker.buildingSummary.BuildingType.ToString() + " Door " + marker.buildingSummary.buildingKey;
+            marker.attachedDoorIcon.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Door ", marker.buildingSummary.buildingKey);
             TextMeshPro doorlabelutility = marker.attachedDoorIcon.AddComponent<TMPro.TextMeshPro>();
             marker.attachedDoorIcon.layer = Minimap.layerMinimap;
             RectTransform doortextboxRect = marker.attachedDoorIcon.GetComponent<RectTransform>();
@@ -113,7 +306,7 @@ namespace Minimap
             doorlabelutility.outlineWidth = .3f;
             marker.attachedDoorIcon.transform.position = new Vector3(marker.doorPosition.x, marker.position.y, marker.doorPosition.z);
             marker.attachedDoorIcon.transform.Rotate(new Vector3(90, 0, 0));
-            marker.attachedDoorIcon.transform.localScale =  Vector3.ClampMagnitude(new Vector3(marker.staticBuilding.size.x * .005f, marker.staticBuilding.size.x * .005f, .0001f), .125f);
+            marker.attachedDoorIcon.transform.localScale = Vector3.ClampMagnitude(new Vector3(marker.staticBuilding.size.x * .005f, marker.staticBuilding.size.x * .005f, .0001f), .125f);
             doorlabelutility.text = "D";
             doorlabelutility.color = new Color32(219, 61, 36, 255);
             //remove collider from mes.
@@ -162,7 +355,7 @@ namespace Minimap
 
             marker.attachedLabel.transform.Rotate(new Vector3(90, 0, 0));
             labelutility.alignment = TMPro.TextAlignmentOptions.Center;
-            marker.attachedLabel.name = marker.buildingSummary.BuildingType.ToString() + " Label " + marker.buildingSummary.buildingKey;
+            marker.attachedLabel.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Label ", marker.buildingSummary.buildingKey);
             labelutility.ForceMeshUpdate();
 
             var words =
@@ -307,81 +500,21 @@ namespace Minimap
             marker.position = new Vector3(marker.position.x, marker.position.y, marker.position.z);
 
             //updates materials based on user settings saved to dictionary.
-            Minimap.updateMaterials(marker.attachedMesh, Minimap.MinimapInstance.iconGroupColors[marker.iconGroup], Minimap.MinimapInstance.iconGroupTransperency[marker.iconGroup]);
+            Minimap.updateMaterials(marker.attachedMesh, Minimap.iconGroupColors[marker.iconGroup], Minimap.iconGroupTransperency[marker.iconGroup]);
         }
 
-        void Update()
+        //gets npc/marker is within the camera view by using camera angle calcuations.
+        public bool BuildingIconInView()
         {
-            if (!Minimap.minimapControls.autoRotateActive)
-            {
-                //updates rotation for each icon, if they are existing.
-                if (marker.attachedQuestIcon)
-                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-                if (marker.attachedIcon)
-                    marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-                if (marker.attachedLabel)
-                    marker.attachedLabel.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-                if (marker.attachedQuestIcon)
-                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-                if (marker.attachedDoorIcon)
-                    marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-            }
+            if (marker.attachedMesh == null)
+                return false;
+
+            Bounds markerBounds = marker.attachedMesh.GetComponent<MeshRenderer>().GetComponent<Renderer>().bounds;
+            //markerBounds.size = new Vector3(.01f, .01f, .01f);
+            if (GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(Minimap.MinimapInstance.minimapCamera), markerBounds))
+                return true;
             else
-            {
-                //updates rotation for each icon, if they are existing.
-                if (marker.attachedQuestIcon)
-                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
-                if (marker.attachedIcon)
-                    marker.attachedIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
-                if (marker.attachedLabel)
-                    marker.attachedLabel.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
-                if (marker.attachedQuestIcon)
-                    marker.attachedQuestIcon.transform.rotation = Quaternion.Euler(0, 180 + Minimap.minimapControls.minimapRotationValue, 0);
-                if (marker.attachedDoorIcon)
-                    marker.attachedDoorIcon.transform.rotation = Quaternion.Euler(90, Minimap.minimapControls.minimapRotationValue, 0);
-            }
-
-            //Enables/disables door icon.
-            if (!Minimap.minimapControls.doorIndicatorActive && marker.attachedDoorIcon)
-                marker.attachedDoorIcon.SetActive(false);
-            else if(marker.attachedDoorIcon)
-                marker.attachedDoorIcon.SetActive(true);
-
-            //Enables/disables quest icon.
-            if (!Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
-                marker.attachedQuestIcon.SetActive(false);
-            else if(Minimap.minimapControls.questIndicatorActive && marker.attachedQuestIcon)
-            {
-                //flips off quest icon based on it being in minimap camera view and within view size distance.
-                if (ObjectInView() && GameManager.Instance.PlayerMotor.DistanceToPlayer(marker.attachedQuestIcon.transform.position) < Minimap.MinimapInstance.minimapCamera.orthographicSize - 25f)
-                {
-                    Minimap.MinimapInstance.publicQuestBearing.SetActive(false);
-                }
-                else
-                {
-                    Minimap.MinimapInstance.publicQuestBearing.SetActive(true);
-                }
-            }
-
-            //updates icons and labels position and size based on their active states.
-            if (marker.attachedLabel && marker.attachedLabel.activeSelf && marker.attachedIcon && marker.attachedIcon.activeSelf)
-            {
-                marker.attachedIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.max + new Vector3(-1.5f, 4f, -1.5f);
-                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .35f) * Minimap.MinimapInstance.iconSizes[marker.iconGroup];
-            }
-            else if(marker.attachedIcon && marker.attachedIcon.activeSelf)
-            {
-                marker.attachedIcon.transform.position = marker.attachedMesh.transform.position;
-                marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize) * Minimap.MinimapInstance.iconSizes[marker.iconGroup];
-            }
-        }
-
-        //checks if quest icon is in minimap camera view.
-        public bool ObjectInView()
-        {
-            Bounds markerBounds = marker.attachedQuestIcon.GetComponent<MeshRenderer>().GetComponent<Renderer>().bounds;
-            markerBounds.size = new Vector3(.01f, .01f, .01f);
-            return GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(Minimap.MinimapInstance.minimapCamera), markerBounds);
+                return false;
         }
     }
 }

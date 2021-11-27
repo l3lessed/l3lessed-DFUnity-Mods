@@ -3,8 +3,6 @@
 // License:         MIT License (http://www.opensource.org/licenses/mit-license.php)
 // Author:          Hazelnut
 
-using DaggerfallConnect;
-using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 
@@ -22,6 +20,11 @@ namespace Minimap
         public override int InventoryTextureArchive
         {
             get { return templateIndex; }
+        }
+
+        public override bool IsStackable()
+        {
+            return true;
         }
 
         public override int InventoryTextureRecord

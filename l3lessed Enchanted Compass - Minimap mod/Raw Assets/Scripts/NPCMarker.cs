@@ -2,7 +2,6 @@ using DaggerfallWorkshop.Utility;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop;
-using System.Collections;
 using UnityEngine;
 
 namespace Minimap
@@ -10,7 +9,6 @@ namespace Minimap
     public class npcMarker : MonoBehaviour
     {
         //object constructor class and properties for setting up, storing, and manipulating specific object properties.
-        [SerializeField]
         public class Marker
         {
             public GameObject markerObject;
@@ -56,8 +54,9 @@ namespace Minimap
         private MobilePersonNPC mobileNPC;
         private DaggerfallEnemy mobileEnemy;
         private StaticNPC flatNPC;
+        private Texture2D markerTexture;
 
-        private void Start()
+        void Start()
         {
             mobileNPC = GetComponentInParent<MobilePersonNPC>();
             mobileEnemy = GetComponentInParent<DaggerfallEnemy>();
@@ -97,7 +96,6 @@ namespace Minimap
 
             //set marker object scale.
             marker.markerObject.transform.localScale = markerScale;
-
             //if friendly npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
             if (mobileNPC != null)
             {
@@ -121,7 +119,9 @@ namespace Minimap
                             break;
                     }
                 }
-                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + textures[mobileNPC.PersonOutfitVariant], 5, 0, true, 0);
+
+                markerTexture = ImageReader.GetTexture("TEXTURE." + textures[mobileNPC.PersonOutfitVariant], 5, 0, true, 0);
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
                 marker.npcIconTexture = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture;
 
                 marker.npcIconMaterial.color = Color.green;
@@ -137,9 +137,11 @@ namespace Minimap
 
                 // Monster genders are always unspecified as there is no male/female variant
                 if (mobileUnit.Summary.Enemy.Gender == MobileGender.Male || mobileUnit.Summary.Enemy.Gender == MobileGender.Unspecified)
-                    marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.MaleTexture, 0, 0, true, 0);
+                    markerTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.MaleTexture, 0, 0, true, 0);
                 else
-                    marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.FemaleTexture, 0, 0, true, 0);
+                    markerTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.FemaleTexture, 0, 0, true, 0);
+
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
 
                 marker.npcIconTexture = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture;
                 marker.npcIconMaterial.color = Color.red;
@@ -153,10 +155,10 @@ namespace Minimap
             {
                 DaggerfallBillboard flatBillboard = GetComponentInParent<DaggerfallBillboard>();
 
-                Debug.Log(flatBillboard.Summary.Archive + " | " + flatBillboard.Summary.Record + " | " + flatBillboard.Summary.ImportedTextures);
                 marker.npcIconMaterial.color = Color.yellow;
                 marker.npcMarkerMaterial.color = Color.yellow;
-                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE." + flatBillboard.Summary.Archive, flatBillboard.Summary.Record, 0, true, 0);
+                markerTexture = ImageReader.GetTexture("TEXTURE." + flatBillboard.Summary.Archive, flatBillboard.Summary.Record, 0, true, 0);
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
                 marker.npcIconTexture = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture;
                 marker.markerType = Minimap.MarkerGroups.Resident;
                 marker.markerObject.SetActive(false);
@@ -169,44 +171,33 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive || GameManager.Instance.SaveLoadManager.LoadInProgress || (!GameManager.Instance.PlayerEntity.ItemEquipTable.IsEquipped(Minimap.MinimapInstance.currentEquippedCompass) && Minimap.MinimapInstance.equippableCompass))
+            if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-            if ((mobileNPC == null && mobileEnemy == null && flatNPC == null) || marker == null || gameObject == null)
-            {
-                Destroy(marker.markerObject);
-                Destroy(marker.markerIcon);
-                Destroy(marker.npcMarkerMaterial);
-                Destroy(this);
-                return;
-            }
-
-            UnityEngine.Profiling.Profiler.BeginSample("NPC Scripts");
             timePass += Time.deltaTime;
-
             //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
-            if(timePass > Random.Range(.33f,.99f))
+            if(timePass > .33f)
             {
                 //if the marker is turned off compleetly, turn off marker object and stop any further updates.
-                marker.isActive = Minimap.MinimapInstance.iconGroupActive[marker.markerType];
+                marker.isActive = Minimap.iconGroupActive[marker.markerType];
                 if (!marker.isActive)
                 {
                     marker.markerObject.SetActive(false);
                     marker.markerIcon.SetActive(false);
                     return;
                 }
-                else if (!Minimap.MinimapInstance.npcFlatActive[marker.markerType] && marker.markerIcon.activeSelf)
+                else if (!Minimap.npcFlatActive[marker.markerType] && marker.markerIcon.activeSelf)
                 {
                     marker.markerIcon.SetActive(false);
                 }
-                else if (Minimap.MinimapInstance.npcFlatActive[marker.markerType] && marker.markerObject.activeSelf)
+                else if (Minimap.npcFlatActive[marker.markerType] && marker.markerObject.activeSelf)
                 {
                     marker.markerObject.SetActive(false);
                 }
                 //if player has camera detect and realistic detection off, enable npc marker. This setting turns on all markers.
                 else if (!Minimap.minimapControls.cameraDetectionEnabled && !Minimap.minimapControls.realDetectionEnabled)
                 {
-                    if (!Minimap.MinimapInstance.npcFlatActive[(Minimap.MarkerGroups)Minimap.minimapControls.selectedIconInt])
+                    if (!Minimap.npcFlatActive[(Minimap.MarkerGroups)Minimap.minimapControls.selectedIconInt])
                         marker.markerObject.SetActive(true);
                     else
                         marker.markerIcon.SetActive(true);
@@ -217,14 +208,14 @@ namespace Minimap
                 {
                     if (!ObjectInView() && (marker.markerObject.activeSelf || marker.markerIcon.activeSelf))
                     {
-                        if (!Minimap.MinimapInstance.npcFlatActive[marker.markerType])
+                        if (!Minimap.npcFlatActive[marker.markerType])
                             marker.markerObject.SetActive(false);
                         else
                             marker.markerIcon.SetActive(false);
                     }
                     else if (ObjectInView() && (!marker.markerObject.activeSelf || !marker.markerIcon.activeSelf))
                     {
-                        if (!Minimap.MinimapInstance.npcFlatActive[marker.markerType])
+                        if (!Minimap.npcFlatActive[marker.markerType])
                             marker.markerObject.SetActive(true);
                         else
                             marker.markerIcon.SetActive(true);
@@ -237,14 +228,14 @@ namespace Minimap
                 {
                     if ((!marker.markerObject.activeSelf || !marker.markerIcon.activeSelf) && NPCinLOS() && ObjectInView())
                     {
-                        if (!Minimap.MinimapInstance.npcFlatActive[marker.markerType])
+                        if (!Minimap.npcFlatActive[marker.markerType])
                             marker.markerObject.SetActive(true);
                         else
                             marker.markerIcon.SetActive(true);
                     }
                     else if ((marker.markerObject.activeSelf || marker.markerIcon.activeSelf) && MarkerDistanceFromPlayer() > Minimap.minimapSensingRadius / 2 && !ObjectInView())
                     {
-                        if (!Minimap.MinimapInstance.npcFlatActive[marker.markerType])
+                        if (!Minimap.npcFlatActive[marker.markerType])
                             marker.markerObject.SetActive(false);
                         else
                             marker.markerIcon.SetActive(false);
@@ -256,30 +247,28 @@ namespace Minimap
                     return;
 
                 //update marker material color using saved dictionary.
-                marker.npcMarkerMaterial.color = Minimap.MinimapInstance.iconGroupColors[marker.markerType];
+                marker.npcMarkerMaterial.color = Minimap.iconGroupColors[marker.markerType];
 
                 //if the icon isn't existing exit update for error stopping.
                 if (marker.markerIcon == null || marker.npcIconTexture == null)
                     return;
 
                 //Updates indicator icon size size based on marker texture size itself.
-                float size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .00085f) * Minimap.MinimapInstance.iconSizes[marker.markerType];
+                float size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .00085f) * Minimap.iconSizes[marker.markerType];
 
                 //Updates indicator icon size size based on marker texture size itself for dream mod textures/
                 if (Minimap.dreamModInstalled)
-                    size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .000085f) * Minimap.MinimapInstance.iconSizes[marker.markerType];
+                    size = Minimap.indicatorSize * ((marker.npcIconTexture.height + marker.npcIconTexture.width) * .000085f) * Minimap.iconSizes[marker.markerType];
 
                 //run updates to update icon and object.
                 marker.markerIcon.transform.localScale = new Vector3(size, .01f, size);
-                marker.markerObject.transform.localScale = Minimap.markerScale * Minimap.MinimapInstance.iconSizes[marker.markerType];
+                marker.markerObject.transform.localScale = Minimap.markerScale * Minimap.iconSizes[marker.markerType];
 
                 marker.markerIcon.transform.rotation = Quaternion.Euler(marker.markerIcon.transform.rotation.x, 0, marker.markerIcon.transform.rotation.z);
 
-                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = Minimap.MinimapInstance.iconGroupColors[marker.markerType];
+                marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.color = Minimap.iconGroupColors[marker.markerType];
                 timePass = 0;
-            }
-                
-            UnityEngine.Profiling.Profiler.EndSample();
+            }               
         }       
 
         public bool NPCinLOS()

@@ -3,8 +3,6 @@
 // License:         MIT License (http://www.opensource.org/licenses/mit-license.php)
 // Author:          Hazelnut
 
-using DaggerfallConnect;
-using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 
@@ -16,7 +14,7 @@ namespace Minimap
 
         public ItemMagicalCompass() : base(ItemGroups.MagicItems, templateIndex)
         {
-        }
+        }        
 
         // Always use same archive for both genders as the same image set is used
         public override int InventoryTextureArchive

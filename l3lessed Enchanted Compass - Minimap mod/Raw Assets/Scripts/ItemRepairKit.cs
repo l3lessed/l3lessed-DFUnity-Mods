@@ -36,38 +36,37 @@ namespace Minimap
 
         public override bool UseItem(ItemCollection collection)
         {
-            if (Minimap.MinimapInstance.repairingCompass)
-                ;
+            List<DaggerfallUnityItem> dwemerGearsList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
+            List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
+            if(Minimap.currentEquippedCompass.ConditionPercentage >= 90)
+            {
+                DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "Your compass is in fine shape");
+                confirmBox.Show();
+                return false;
+            }
+
+            if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)
+            {
+                DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "You steady your hands and concentrate on repairing the compass. Don't move or you'll drop something.");
+                confirmBox.Show();
+                if (EffectManager.compassDirty)
+                    EffectManager.cleaningCompass = true;
+
+                EffectManager.repairingCompass = true;
+                Minimap.MinimapInstance.minimapActive = false;
+            }
             else
             {
-                List<DaggerfallUnityItem> dwemerGearsList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
-                List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
+                string missingItems = "";
 
-                if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)
-                {
-                    DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "You steady your hands and concentrate on repairing the compass");
-                    DaggerfallUI.Instance.InventoryWindow.CloseWindow();
-                    confirmBox.Show();
-
-                    if (Minimap.MinimapInstance.activeEffectList.Count != 0)
-                        Minimap.MinimapInstance.cleaningCompass = true;
-
-                    Minimap.MinimapInstance.repairingCompass = true;
-
-                }
+                if (cutGlassList.Count == 0)
+                    missingItems = "Cut Glass";
+                if (missingItems == "")
+                    missingItems = "Dwemer Gears";
                 else
-                {
-                    string missingItems = "";
+                    missingItems = missingItems + " and Dwemer Gears";
 
-                    if (cutGlassList.Count == 0)
-                        missingItems = "Cut Glass";
-                    if (missingItems == "")
-                        missingItems = "Dwemer Gears";
-                    else
-                        missingItems = missingItems + " and Dwemer Gears";
-
-                    DaggerfallUI.MessageBox("You do not have " + missingItems + " to fix your compass");
-                }
+                DaggerfallUI.MessageBox("You do not have " + missingItems + " to fix your compass");
             }
 
             return true;
