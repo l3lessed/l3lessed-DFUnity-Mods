@@ -85,11 +85,13 @@ namespace Minimap
             //grab the building direction object so we can figure out what the individual buildings are based on their key value.
             buildingDirectory = Dflocation.GetComponentInChildren<BuildingDirectory>();
             //start to loop through blocks from the block array created above.
+            CityNavigation currentCityNav = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation();
 
-            if (buildingDirectory == null)
+            if (buildingDirectory == null || currentCityNav == null)
                 return;
 
-            Vector3 position = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation().WorldToScenePosition(new DFPosition(Dflocation.Summary.MapPixelX, Dflocation.Summary.MapPixelX), true);
+
+            Vector3 position = currentCityNav.WorldToScenePosition(new DFPosition(Dflocation.Summary.MapPixelX, Dflocation.Summary.MapPixelX), true);
             List<BuildingSummary> housesForSaleList = buildingDirectory.GetHousesForSale();
 
             if (position == null)

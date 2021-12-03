@@ -630,6 +630,7 @@ namespace Minimap
         private float glassSize = 1.111f;
         private int lastTotalEffects = 1;
         private float lastMinimapSize;
+        private DaggerfallUnityItem permCompass;
         #endregion
 
         #region enums
@@ -789,7 +790,7 @@ namespace Minimap
             minimapDirectionsRectTransform.localScale = new Vector2(1, 1);
             minimapQuestRectTransform.localScale = new Vector2(1, 1);
             minimapGlassRectTransform.localScale = new Vector2(1, 1);
-            publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, glassTransperency);
+            publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.5f, .5f, .5f, glassTransperency);
 
             //sets up individual textures
             greenCrystalCompass = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassGreenGem.png");
@@ -852,6 +853,10 @@ namespace Minimap
                 Destroy(mouseOverLabel.GetComponent<Collider>());
             }
 
+            if (!equippableCompass)
+            {
+                permCompass = ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex);
+            }
             minimapControls.updateMinimapUI();
         }
 
@@ -871,10 +876,7 @@ namespace Minimap
             if (minimapToggle && MinimapInputManager.DblePress)
                 minimapToggle = false;
             else if (MinimapInputManager.DblePress)
-            {
-                GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex));
                 minimapToggle = true;
-            }
 
             if (!minimapToggle || !GameManager.HasInstance | GameManager.Instance.SaveLoadManager.LoadInProgress || onstartMenu || !GameManager.Instance.IsPlayerOnHUD || EffectManager.repairingCompass || EffectManager.cleaningCompass)
             {
@@ -901,39 +903,53 @@ namespace Minimap
             //run keypress check loop. Controls smart keys.
             MinimapControls();
 
-            //default to false, so when the compass is changed to a new one, it updates everything only once.
-            changedCompass = false;
-            bool Amulet0Changed = false;
-
-            DaggerfallUnityItem Amulet0Item = null;
-            Amulet0Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0);
-            if(Amulet0Item != null && lastAmuletID != Amulet0Item.UID)
-            {           
-                lastCompassCondition = 0;
-                //if there is a equipped item in compass slot loaded and its a magical compass, then.
-                if (equippableCompass && Amulet0Item != null && Amulet0Item.TemplateIndex == 720)
-                {
-                    lastAmuletID = Amulet0Item.UID;
-                    //assign current compass.
-                    currentEquippedCompass = Amulet0Item;
-                    //update the last compass condition for script operation.
-                    lastCompassCondition = currentEquippedCompass.currentCondition;
-                    //activate minimap.
-                    changedCompass = true;
-                }                  
-            }
-            else if(Amulet0Item == null && lastAmuletID != 0)
+            if (equippableCompass)
             {
-                lastAmuletID = 0;
-                currentEquippedCompass = null;
-                minimapActive = false;
+                //default to false, so when the compass is changed to a new one, it updates everything only once.
+                changedCompass = false;
+                bool Amulet0Changed = false;
+
+                DaggerfallUnityItem Amulet0Item = null;
+                Amulet0Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0);
+                if (Amulet0Item != null && lastAmuletID != Amulet0Item.UID)
+                {
+                    lastCompassCondition = 0;
+                    //if there is a equipped item in compass slot loaded and its a magical compass, then.
+                    if (equippableCompass && Amulet0Item != null && Amulet0Item.TemplateIndex == 720)
+                    {
+                        lastAmuletID = Amulet0Item.UID;
+                        //assign current compass.
+                        currentEquippedCompass = Amulet0Item;
+                        //update the last compass condition for script operation.
+                        lastCompassCondition = currentEquippedCompass.currentCondition;
+                        //activate minimap.
+                        changedCompass = true;
+                    }
+                }
+                else if (Amulet0Item == null && lastAmuletID != 0)
+                {
+                    lastAmuletID = 0;
+                    currentEquippedCompass = null;
+                    minimapActive = false;
+                }
+
+                if (currentEquippedCompass != null && minimapToggle && !minimapActive)
+                    minimapActive = true;
+
+                if (currentEquippedCompass != null)
+                    compassHealth = currentEquippedCompass.currentCondition;
+            }
+            else
+            {
+                if (currentEquippedCompass == null || currentEquippedCompass.UID != permCompass.UID)
+                {
+                    currentEquippedCompass = permCompass;
+                    currentEquippedCompass.currentCondition = 100;
+                }
+
+                minimapActive = true;
             }
 
-            if (currentEquippedCompass != null && minimapToggle && !minimapActive)
-                minimapActive = true;
-
-            if (currentEquippedCompass != null)
-                compassHealth = currentEquippedCompass.currentCondition;
             //if compass is equipped, disabled, has a "dirty" effect, and isn't currently being cleaned, start cleaning cycle.
             //else, if compass is disabled, or game is loading or there is no compass equipped, disable compass.
             if (!minimapActive)
@@ -950,7 +966,7 @@ namespace Minimap
             //setup and run compass bearing markers
             SetupBearings();
             //setup and run compass quest bearing markers
-            //if(AllActiveQuestDetails != null)
+            if(AllActiveQuestDetails != null)
                 SetupQuestBearings();
             //setup and run compass npc markers
             SetupPlayerIndicator();
@@ -1329,7 +1345,7 @@ namespace Minimap
                 minimapRectTransform.localScale = new Vector3(minimapSize/ 256, minimapSize / 256, 0);
 
                 //setup/change glass layer;
-                publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, glassTransperency);
+                publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.5f, .5f, .5f, glassTransperency);
 
                 //setup the minimap UI layer size/position in top right corner. This is the N/E/S/W ring around the rendering minimap.
                 minimapGoldCompassRectTransform.localScale = new Vector3(minimapSize / 256, minimapSize / 256, 0);
@@ -1467,7 +1483,6 @@ namespace Minimap
             }            
 
             publicCompass.GetComponentInChildren<RawImage>().texture = greenCrystalCompass;
-            minimapQuestRectTransform.sizeDelta = new Vector2(minimapSize, minimapSize);
 
             //find the vector3 facing direction for the quest bearing indicator.
             Vector3 targetDir = lastQuestMarkerPosition - GameManager.Instance.MainCamera.transform.position;
@@ -1502,7 +1517,7 @@ namespace Minimap
                 questIcon.transform.localScale = new Vector3(indicatorSize * .1f, 0, indicatorSize * .1f);
                 questIcon.transform.Rotate(0, 0, 180);
                 questIcon.layer = layerMinimap;
-                questIcon.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Legacy Shaders/Transparent/Cutout/Soft Edge Unlit")); ;
+                questIcon.GetComponent<MeshRenderer>().material = iconMarkerMaterial;
                 questIcon.GetComponent<MeshRenderer>().material.color = Color.white;
                 questIcon.GetComponent<MeshRenderer>().shadowCastingMode = 0;
                 questIcon.GetComponent<MeshRenderer>().material.mainTexture = ImageReader.GetTexture("TEXTURE.208", 1, 0, true, 0);
