@@ -1,5 +1,4 @@
 using DaggerfallConnect;
-using DaggerfallConnect.Utility;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Utility;
@@ -10,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+
 namespace Minimap
 {
     public class BuildingManager : MonoBehaviour
@@ -121,7 +121,7 @@ namespace Minimap
                 Destroy(combinedMarker);
 
             combinedMarkerList.Clear();
-            CombinedMarkerMeshes();
+            SetupMarkerMeshes();
             BuildingMarker.labelActive = true;
             Minimap.minimapControls.updateMinimap = true;
             yield break;
@@ -269,7 +269,7 @@ namespace Minimap
             markersGenerated = true;
         }
 
-        void CombinedMarkerMeshes()
+        void SetupMarkerMeshes()
         {
             List<BuildingMarker> houseIconObjectList = new List<BuildingMarker>();
             List<BuildingMarker> houseForSaleIconObjectList = new List<BuildingMarker>();
@@ -376,31 +376,31 @@ namespace Minimap
             //CombineMarkerMeshes(tavernsObjectList, "Combined Taverns Mesh", true);
             //CombineMarkerMeshes(noMarkerObjectList, "Combined No Marker Mesh", true);
 
-            CombineMarkerMeshes(houseIconObjectList, "Combined House ", false, true,false,false,Minimap.MarkerGroups.Houses);
-            CombineMarkerMeshes(houseForSaleIconObjectList, "Combined House For Sale ", false, true, false, false, Minimap.MarkerGroups.Houses);
-            CombineMarkerMeshes(blacksmithIconObjectList, "Combined Blacksmith ", false, true, false, false, Minimap.MarkerGroups.Blacksmiths);
-            CombineMarkerMeshes(alchemistIconObjectList, "Combined Alchemist ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(armorerIconObjectList, "Combined Armorer ", false, true, false, false, Minimap.MarkerGroups.Blacksmiths);
-            CombineMarkerMeshes(bankIconObjectList, "Combined Bank ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(bookSellerIconObjectList, "Combined Book Seller ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(clothingStoreIconObjectList, "Combined Clothing Store ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(furnitureStoreIconObjectList, "Combined Furnitre Store ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(gemStoreIconObjectList, "Combined Gem Store ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(generalStoreIconObjectList, "Combined General Store ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(libraryIconObjectList, "Combined Library Store ", false, true, false, false, Minimap.MarkerGroups.Utilities);
-            CombineMarkerMeshes(guildHallIconObjectList, "Combined Guildhall ", false, true, false, false, Minimap.MarkerGroups.Utilities);
-            CombineMarkerMeshes(pawnShopIconObjectList, "Combined Pawnshop ", false, true, false, false, Minimap.MarkerGroups.Shops);
-            CombineMarkerMeshes(weaponSmithIconObjectList, "Combined Weaponsmith ", false, true, false, false, Minimap.MarkerGroups.Blacksmiths);
-            CombineMarkerMeshes(templeIconObjectList, "Combined Temple ", false, true, false, false, Minimap.MarkerGroups.Utilities);
-            CombineMarkerMeshes(tavernsIconObjectList, "Combined Tavern ", false, true, false,   false, Minimap.MarkerGroups.Taverns);
-            CombineMarkerMeshes(palaceIconObjectList, "Combined Palace ", false, true, false, false, Minimap.MarkerGroups.Government);
-            CombineMarkerMeshes(noMarkerIconObjectList, "Combined No ", false, true, false, false, Minimap.MarkerGroups.None);
+            CombineMarkerMeshes(houseIconObjectList, 2, "Combined House ", false, true,false,false);
+            CombineMarkerMeshes(houseForSaleIconObjectList, 2, "Combined House For Sale ", false, true, false);
+            CombineMarkerMeshes(blacksmithIconObjectList, 1, "Combined Blacksmith ", false, true, false, false);
+            CombineMarkerMeshes(alchemistIconObjectList, 0, "Combined Alchemist ", false, true, false, false);
+            CombineMarkerMeshes(armorerIconObjectList, 1, "Combined Armorer ", false, true, false, false);
+            CombineMarkerMeshes(bankIconObjectList, 4, "Combined Bank ", false, true, false, false);
+            CombineMarkerMeshes(bookSellerIconObjectList, 0, "Combined Book Seller ", false, true, false, false);
+            CombineMarkerMeshes(clothingStoreIconObjectList, 0, "Combined Clothing Store ", false, true, false, false);
+            CombineMarkerMeshes(furnitureStoreIconObjectList, 0, "Combined Furnitre Store ", false, true, false, false);
+            CombineMarkerMeshes(gemStoreIconObjectList, 0, "Combined Gem Store ", false, true, false, false);
+            CombineMarkerMeshes(generalStoreIconObjectList, 0, "Combined General Store ", false, true, false, false);
+            CombineMarkerMeshes(libraryIconObjectList, 4, "Combined Library Store ", false, true, false, false);
+            CombineMarkerMeshes(guildHallIconObjectList, 4, "Combined Guildhall ", false, true, false, false);
+            CombineMarkerMeshes(pawnShopIconObjectList, 0, "Combined Pawnshop ", false, true, false, false);
+            CombineMarkerMeshes(weaponSmithIconObjectList, 1, "Combined Weaponsmith ", false, true, false, false);
+            CombineMarkerMeshes(templeIconObjectList, 4, "Combined Temple ", false, true, false, false);
+            CombineMarkerMeshes(tavernsIconObjectList, 3, "Combined Tavern ", false, true, false,   false);
+            CombineMarkerMeshes(palaceIconObjectList, 5, "Combined Palace ", false, true, false, false);
+            CombineMarkerMeshes(noMarkerIconObjectList, 9, "Combined No ", false, true, false, false);
 
-            CombineMarkerMeshes(doorObjectList, "Combined Door Mesh", false, false, true, false, Minimap.MarkerGroups.None);
+            CombineMarkerMeshes(doorObjectList, 9, "Combined Door Mesh", false, false, true, false);
             //CombineMarkerMeshes(labelObjectList, "Combined Label Mesh", false, false,true);
         }
 
-        void CombineMarkerMeshes(List<BuildingMarker> markerList, string meshName, bool mesh = false, bool icons = false, bool doors = false, bool labels = false, Minimap.MarkerGroups groupType = Minimap.MarkerGroups.None)
+        void CombineMarkerMeshes(List<BuildingMarker> markerList, int markerGroupID, string meshName, bool mesh = false, bool icons = false, bool doors = false, bool labels = false)
         {
             List<CombineInstance> combineIconLister = new List<CombineInstance>();
             List<CombineInstance> combineMeshLister = new List<CombineInstance>();
@@ -421,18 +421,19 @@ namespace Minimap
 
                 if (icons)
                 {
-                    MeshFilter markerMeshFilter;
+                    MeshFilter markerMeshFilter = new MeshFilter();
                     markerMeshFilter = markerInstance.marker.attachedMesh.GetComponentInChildren<MeshFilter>();
-                    Material[] buildingMaterials = markerMeshFilter.GetComponent<MeshRenderer>().materials;
+                    Material[] buildingMaterials = markerInstance.marker.attachedMesh.GetComponent<MeshRenderer>().materials;
                     for (int j = 0; j < buildingMaterials.Length; j++)
                     {
                         string textureName = buildingMaterials[j].name.Split(new char[] { ' ' })[0];
                         CombineInstance combineMarker = new CombineInstance();
                         switch (textureName)
                         {
-                            case "markerMaterial":
+                            case "markerMaterial":                                
                                 Mesh NewMesh = markerInstance.marker.attachedMesh.GetComponentInChildren<MeshFilter>().mesh;
-                                combineMarker.mesh = NewMesh.GetSubmesh(j);
+
+                                combineMarker.mesh = BlessedMeshExtension.GetSubmesh(NewMesh, j);
                                 combineMarker.transform = markerMeshFilter.transform.localToWorldMatrix;
                                 combineMeshLister.Add(combineMarker);
                                 break;
@@ -518,7 +519,7 @@ namespace Minimap
                 combinedMesh.name = string.Concat(meshName, " Meshes");
                 combinedMesh.layer = Minimap.layerMinimap;
                 MeshController meshScript = combinedMesh.AddComponent<MeshController>();
-                meshScript.buildingType = groupType;
+                meshScript.buildingType = (Minimap.MarkerGroups)markerGroupID;
                 combinedMarkerList.Add(combinedMesh);
 
                 //combinedIcon.transform.localScale = iconScale;
@@ -527,7 +528,7 @@ namespace Minimap
                 combinedIconRender.material.mainTexture = iconTexture;
                 combinedIconRender.UpdateGIMaterials();
                 IconController iconScript = combinedIcon.AddComponent<IconController>();
-                iconScript.buildingtype = groupType;
+                iconScript.buildingtype = (Minimap.MarkerGroups)markerGroupID;
                 combinedIcon.name = string.Concat(meshName, " Icons"); ;
                 combinedIcon.layer = Minimap.layerMinimap;
                 combinedMarkerList.Add(combinedIcon);
@@ -553,11 +554,7 @@ namespace Minimap
         }
     }
 
-
-
-
-
-    public static class MeshExtension
+    public static class BlessedMeshExtension
     {
         private class Vertices
         {
@@ -658,7 +655,5 @@ namespace Minimap
             return m;
         }
     }
-
-
 }
 

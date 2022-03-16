@@ -8,7 +8,7 @@ namespace Minimap
         private float lastRotation;
         private Color meshColor;
         private Material buildingMaterials;
-        public Minimap.MarkerGroups buildingType;
+        public Minimap.MarkerGroups buildingType = new Minimap.MarkerGroups();
 
         void Start()
         {
