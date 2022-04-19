@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Minimap
 {
-    public class npcMarker : MonoBehaviour
+    public class NPCMarker : MonoBehaviour
     {
         //object constructor class and properties for setting up, storing, and manipulating specific object properties.
         public class Marker
@@ -20,8 +20,11 @@ namespace Minimap
             public bool inLOS;
             public LayerMask markerLayerMask;
             public EnemySenses enemySenses;
-            public Texture npcIconTexture;
             public MeshRenderer npcMesh;
+            public Color npcMarkerColor;
+            public MobilePersonNPC mobileNPC;
+            public DaggerfallEnemy mobileEnemy;
+            public StaticNPC flatNPC;
 
             public Marker()
             {
@@ -33,9 +36,12 @@ namespace Minimap
                 inLOS = false;
                 markerLayerMask = 10;
                 markerDistance = 0;
-                npcIconTexture = null;
                 enemySenses = null;
                 npcMesh = null;
+                npcMarkerColor = Color.magenta;
+                mobileNPC = null;
+                mobileEnemy = null;
+                flatNPC = null;
             }
         }
 
@@ -44,26 +50,23 @@ namespace Minimap
 
         //object general properties.
         public Vector3 markerScale;
-        public npcMarker NPCControlScript;
+        public NPCMarker NPCControlScript;
         public float frameTime;
         private bool startMarkerUpdates;
         private float timePass;
         private int[] textures;
-        public MobilePersonNPC mobileNPC;
-        public DaggerfallEnemy mobileEnemy;
-        public StaticNPC flatNPC;
-        private Texture2D markerTexture;
+        public Texture2D npcIconTexture;
 
         void Start()
         {
-            mobileNPC = GetComponentInParent<MobilePersonNPC>();
-            mobileEnemy = GetComponentInParent<DaggerfallEnemy>();
-            flatNPC = GetComponentInParent<StaticNPC>();
+            Texture2D npcTempTexture = null;
 
+            marker.mobileNPC = GetComponentInParent<MobilePersonNPC>();
+            marker.mobileEnemy = gameObject.GetComponent<DaggerfallEnemy>();
+            marker.flatNPC = GetComponentInParent<StaticNPC>();
             //setup base npc marker object and properties.
             marker.markerObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            marker.npcMesh = marker.markerObject.GetComponentInChildren<MeshRenderer>();
-            marker.markerObject.name = "NPC Marker";
+            marker.npcMesh = marker.markerObject.GetComponent<MeshRenderer>();
             //updateMaterials();
             marker.npcMesh.material = Minimap.minimapNpcManager.npcIconMaterialDict[marker.markerType];
             marker.npcMesh.material.mainTexture = Minimap.minimapNpcManager.npcDotTexture;
@@ -71,7 +74,7 @@ namespace Minimap
             marker.markerObject.transform.SetParent(transform, false);
             marker.markerObject.layer = Minimap.layerMinimap;
             marker.markerObject.transform.Rotate(90, 0, 0);
-
+            marker.npcMesh.material.mainTexture = Minimap.minimapNpcManager.npcDotTexture;
             marker.isActive = true;
 
             //check if player is inside or not, and then setup proper marker size.
@@ -84,67 +87,58 @@ namespace Minimap
             //set marker object scale.
             marker.markerObject.transform.localScale = markerScale;
             //if friendly npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
-            if (mobileNPC != null)
+            if (marker.mobileNPC != null)
             {
-                if (mobileNPC.IsGuard)
+                if (marker.mobileNPC.IsGuard)
                 {
                     textures = Minimap.minimapNpcManager.guardTextures;
                 }
                 else
                 {
-                    switch (mobileNPC.Race)
+                    switch (marker.mobileNPC.Race)
                     {
                         case Races.Redguard:
-                            textures = (mobileNPC.Gender == Genders.Male) ? NPCManager.maleRedguardTextures : NPCManager.femaleRedguardTextures;
+                            textures = (marker.mobileNPC.Gender == Genders.Male) ? NPCManager.maleRedguardTextures : NPCManager.femaleRedguardTextures;
                             break;
                         case Races.Nord:
-                            textures = (mobileNPC.Gender == Genders.Male) ? NPCManager.maleNordTextures : NPCManager.femaleNordTextures;
+                            textures = (marker.mobileNPC.Gender == Genders.Male) ? NPCManager.maleNordTextures : NPCManager.femaleNordTextures;
                             break;
                         case Races.Breton:
                         default:
-                            textures = (mobileNPC.Gender == Genders.Male) ? NPCManager.maleBretonTextures : NPCManager.femaleBretonTextures;
+                            textures = (marker.mobileNPC.Gender == Genders.Male) ? NPCManager.maleBretonTextures : NPCManager.femaleBretonTextures;
                             break;
                     }
                 }
 
-                markerTexture = ImageReader.GetTexture("TEXTURE." + textures[mobileNPC.PersonOutfitVariant], 5, 0, true, 0);
-                //marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
-                //marker.npcIconTexture = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture;
-                marker.npcIconTexture = markerTexture;
-                marker.npcMesh.material.color = Color.green;
+                npcTempTexture = ImageReader.GetTexture("TEXTURE." + textures[marker.mobileNPC.PersonOutfitVariant], 5, 0, true, 0);
+                npcIconTexture = npcTempTexture;
+                marker.npcMarkerColor = Color.green;
                 marker.markerType = Minimap.MarkerGroups.Friendlies;
                 marker.markerObject.SetActive(false);
-                marker.markerObject.name = marker.markerObject.name + " " + mobileNPC.NameNPC;
+                marker.markerObject.name = marker.markerObject.name + " " + marker.mobileNPC.NameNPC;
             }
             //if enemy npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
-            else if (mobileEnemy != null)
+            else if (marker.mobileEnemy != null)
             {
-                DaggerfallMobileUnit mobileUnit = mobileEnemy.GetComponentInChildren<DaggerfallMobileUnit>();
-
                 // Monster genders are always unspecified as there is no male/female variant
-                if (mobileUnit.Summary.Enemy.Gender == MobileGender.Male || mobileUnit.Summary.Enemy.Gender == MobileGender.Unspecified)
-                    markerTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.MaleTexture, 0, 0, true, 0);
+                if (marker.mobileEnemy.MobileUnit.Summary.Enemy.Gender == MobileGender.Male || marker.mobileEnemy.MobileUnit.Summary.Enemy.Gender == MobileGender.Unspecified)
+                    npcTempTexture = ImageReader.GetTexture(string.Concat("TEXTURE.", marker.mobileEnemy.MobileUnit.Summary.Enemy.MaleTexture), 0, 0, true, 0);
                 else
-                    markerTexture = ImageReader.GetTexture("TEXTURE." + mobileUnit.Summary.Enemy.FemaleTexture, 0, 0, true, 0);
+                    npcTempTexture = ImageReader.GetTexture(string.Concat("TEXTURE.", marker.mobileEnemy.MobileUnit.Summary.Enemy.FemaleTexture), 0, 0, true, 0);
 
-                //marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
-                //marker.npcIconTexture = marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture;
-                //marker.npcIconMaterial.color = Color.red;
-                marker.npcIconTexture = markerTexture;
-                marker.npcMesh.material.color = Color.red;
+                npcIconTexture = npcTempTexture;
+                marker.npcMarkerColor = Color.red;
                 marker.markerType = Minimap.MarkerGroups.Enemies;
                 marker.markerObject.SetActive(false);
                 marker.enemySenses = GetComponentInParent<DaggerfallEnemy>().GetComponent<EnemySenses>();
             }
             //if static npc present, setup flat npc marker color, type, and activate marker object so iit shows on minimap.
-            else if (flatNPC != null)
+            else if (marker.flatNPC != null)
             {
                 DaggerfallBillboard flatBillboard = GetComponentInParent<DaggerfallBillboard>();
-                //marker.npcIconMaterial.color = Color.yellow;
-                marker.npcMesh.material.color = Color.yellow;
-                markerTexture = ImageReader.GetTexture("TEXTURE." + flatBillboard.Summary.Archive, flatBillboard.Summary.Record, 0, true, 0);
-                //marker.markerIcon.GetComponentInChildren<MeshRenderer>().material.mainTexture = markerTexture;
-                marker.npcIconTexture = markerTexture;
+                marker.npcMarkerColor = Color.yellow;
+                npcTempTexture = ImageReader.GetTexture("TEXTURE." + flatBillboard.Summary.Archive, flatBillboard.Summary.Record, 0, true, 0);
+                npcIconTexture = npcTempTexture;
                 marker.markerType = Minimap.MarkerGroups.Resident;
                 marker.markerObject.SetActive(false);
             }
@@ -152,6 +146,8 @@ namespace Minimap
             {
                 marker.isActive = false;
             }
+
+            marker.npcMesh.material.color = marker.npcMarkerColor;
         }
 
         void Update()
@@ -159,10 +155,10 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-                if (Minimap.npcFlatActive[marker.markerType] && marker.npcMesh.material.mainTexture != marker.npcIconTexture)
-                    marker.npcMesh.material.mainTexture = marker.npcIconTexture;
-                else if(!Minimap.npcFlatActive[marker.markerType] && marker.npcMesh.material.mainTexture != Minimap.minimapNpcManager.npcDotTexture)
-                    marker.npcMesh.material.mainTexture = Minimap.minimapNpcManager.npcDotTexture;
+            if (!Minimap.npcFlatActive[marker.markerType] && marker.npcMesh.material.mainTexture != Minimap.minimapNpcManager.npcDotTexture)
+                marker.npcMesh.material.mainTexture = Minimap.minimapNpcManager.npcDotTexture;
+            else if (Minimap.npcFlatActive[marker.markerType] && marker.npcMesh.material.mainTexture != npcIconTexture)
+                marker.npcMesh.material.mainTexture = npcIconTexture;
 
             timePass += Time.deltaTime;
             //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
@@ -215,8 +211,11 @@ namespace Minimap
                     return;
 
                 //update marker material color using saved dictionary.
-                if(marker.npcMesh.material.color != Minimap.iconGroupColors[marker.markerType])
-                    marker.npcMesh.material.color = Minimap.iconGroupColors[marker.markerType];
+                if(marker.npcMarkerColor != Minimap.iconGroupColors[marker.markerType])
+                {
+                    marker.npcMarkerColor = Minimap.iconGroupColors[marker.markerType];
+                    marker.npcMesh.material.color = marker.npcMarkerColor;
+                }
 
                 //Updates indicator icon size size based on marker texture size itself.
                 float size;
@@ -224,9 +223,9 @@ namespace Minimap
                 if (Minimap.npcFlatActive[marker.markerType])
                 {
                     if (Minimap.dreamModInstalled)
-                        size =(marker.npcIconTexture.height + marker.npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
+                        size =(npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
                     else
-                        size = (marker.npcIconTexture.height + marker.npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
+                        size = (npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
                 }
                 else
                     size = Minimap.iconSizes[marker.markerType] * Minimap.MinimapInstance.dotSizeAdjuster;
@@ -234,13 +233,6 @@ namespace Minimap
                 //run updates to update icon and object.
                 marker.markerObject.transform.localScale = Minimap.markerScale * size;
             }               
-        }
-
-        //updates object, as long as object has a material attached to it to update/apply shader to.
-        void updateMaterials()
-        {
-            marker.npcMesh.material = marker.markerObject.GetComponent<MeshRenderer>().sharedMaterial;
-            marker.npcMesh.material.color = Minimap.iconGroupColors[marker.markerType];
         }
 
         public bool NPCinLOS()

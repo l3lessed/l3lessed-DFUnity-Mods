@@ -1,7 +1,6 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Serialization;
-using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
@@ -320,7 +319,6 @@ namespace Minimap
             //grab mod save data
             mod.SaveDataInterface = MinimapInstance;
             //setup mod routine triggers.
-            StartGameBehaviour.OnStartGame += Minimap_OnStart;
             SaveLoadManager.OnLoad += OnLoadEvent;
             DaggerfallTravelPopUp.OnPostFastTravel += postTravel;
             StartGameBehaviour.OnStartMenu += OnStartMenu;
@@ -359,22 +357,24 @@ namespace Minimap
         public ulong lastCompassUID;
         public ulong AmuletID { get; private set; }        
 
-        public ulong lastAmuletID;
+        public static ulong lastAmuletID;
 
         //random number generator.
         public System.Random randomNumGenerator = new System.Random();
 
         //general parent objects for calling and storing.
-        public static npcMarker npcMarkerInstance;
+        public static NPCMarker npcMarkerInstance;
         public static BuildingMarker BuildingMarker;
         public static ConsoleController consoleController;
         public BuildingDirectory buildingDirectory;
         public DaggerfallStaticBuildings staticBuildingContainer;
+        public static DaggerfallLocation currentLocation;
         private Automap automap;
         public static Camera minimapCamera;
 
         //mesh renderers
         private MeshRenderer insideDoorMesh;
+        private MeshRenderer mouseOverIconMesh;        
 
         //textures
         public static RenderTexture minimapTexture;
@@ -384,9 +384,7 @@ namespace Minimap
 
         //daggerfall unity items.
         public DaggerfallUnityItem Amulet0Item { get; private set; }
-        public float dripSpeed = 10f;
-
-        public static DaggerfallUnityItem currentEquippedCompass;
+        public DaggerfallUnityItem currentEquippedCompass;
         private DaggerfallUnityItem cutGlass;
         private DaggerfallUnityItem permCompass;
         private DaggerfallUnityItem dwemerGears;
@@ -419,6 +417,9 @@ namespace Minimap
         public static Material iconMarkerMaterial;
         public static Material labelMaterial;
 
+        public Shader IconShader;
+        public Shader MarkerShader;
+
         //vector2s
         private Vector2 minimapPosition;
         private Vector2 compassPosition;
@@ -438,7 +439,7 @@ namespace Minimap
         public float PlayerHeightChanger;
         public float npcCellUpdateInterval = .1f;
         public float npcMarkerUpdateInterval = .3f;
-        public static int buildingSpawnTime = 1;
+        public static float buildingSpawnTime = .0166f;
         public static bool frustrumCallingEnabled;
         public int smartViewTriggerDistance;
         public float minimapSize = 256;
@@ -471,6 +472,9 @@ namespace Minimap
         private float minimapBackgroundTransperency;
         public float fpsUpdateInterval;
         private float defaultTimeScale = 0f;
+        public float iconAdjuster = .00025f;
+        public float dotSizeAdjuster = 500;
+        public float dripSpeed = 10f;
 
         //ints
         public static int layerMinimap;
@@ -511,6 +515,7 @@ namespace Minimap
 
         //lists
         public List<SiteDetails> AllActiveQuestDetails = new List<SiteDetails>();
+        public List<PopulationManager.PoolItem> locationPopulation;
         #endregion
 
         #region dictionaries
@@ -584,12 +589,6 @@ namespace Minimap
             {MarkerGroups.Resident, .5f},
             {MarkerGroups.None, .5f}
         };
-        private float lastRotation;
-        private Mesh mesh;
-        public static DaggerfallLocation currentLocation;
-        private MeshRenderer mouseOverIconMesh;
-        public float iconAdjuster = .00025f;
-        public float dotSizeAdjuster = 500;
 
         [SerializeField]
         #endregion
@@ -625,11 +624,6 @@ namespace Minimap
         }
         #endregion
 
-        //triggers mod launch bool for controlling when mod and objects start.
-        private static void Minimap_OnStart(object sender, EventArgs e)
-        {
-            modLaunch = true;
-        }
         //triggers on start menu bool to let mod know when player is on start menu for proper mod running.
         private static void OnStartMenu(object sender, EventArgs e)
         {
@@ -640,6 +634,9 @@ namespace Minimap
         {
             onstartMenu = false;
             gameLoaded = true;
+            lastAmuletID = 0;
+            changedLocations = true;
+            currentLocation = null;
             minimapControls.updateMinimapUI();
             MinimapInstance.SetupMinimapLayers(true);
             minimapNpcManager.flatNPCArray.Clear();
@@ -654,8 +651,7 @@ namespace Minimap
 
         //main code to setup all needed canvas, camera, and other objects for minimap mod; runs once on start of mod.
         public void SetupMinimap()
-        {
-            currentLocationName = "Starting";
+        {            
             //AUTO PATCHERS FOR DIFFERING MODS\\
             //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
             if (ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
@@ -726,6 +722,7 @@ namespace Minimap
             //setup needed objects.
             mainCamera = GameManager.Instance.MainCameraObject;
             minimapCameraObject = mod.GetAsset<GameObject>("MinimapCamera");
+            IconShader = mod.GetAsset<Shader>("RotationShader");
             minimapMaterialObject = mod.GetAsset<GameObject>("MinimapMaterialObject");
             minimapMaterial = minimapMaterialObject.GetComponent<MeshRenderer>().sharedMaterials;
             minimapCamera = minimapCameraObject.GetComponent<Camera>();
@@ -759,7 +756,6 @@ namespace Minimap
             //attaches rendering canvas to the main minimap mask canvas.
             publicCompass.transform.SetParent(canvasScreenSpaceRectTransform.transform);
             publicMinimapRender.transform.SetParent(publicMinimap.transform);
-            publicCompass.transform.SetAsLastSibling();
             //attaches the bearing directions canvas to the minimap canvas.
             publicDirections.transform.SetParent(publicMinimap.transform);
             publicCompassGlass.transform.SetParent(publicMinimap.transform);
@@ -780,9 +776,9 @@ namespace Minimap
             minimapCamera.targetTexture = minimapTexture;
 
             //setup the minimap material for indicator meshes.
-            buildingMarkerMaterial = new Material(minimapMaterial[0]);
-            iconMarkerMaterial = new Material(minimapMaterial[1]);
-            labelMaterial = new Material(minimapMaterial[2]);
+            buildingMarkerMaterial = minimapMaterial[0];
+            iconMarkerMaterial = minimapMaterial[1];
+            labelMaterial = minimapMaterial[2];
 
             //grab the mask and canvas layer rect transforms of the minimap object.
             minimapRectTransform = publicMinimap.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
@@ -819,6 +815,7 @@ namespace Minimap
             minimapCamera.cullingMask = minimapCamera.cullingMask ^ (1 << 10);
             //removes minimap layer from main camera to ensure it doesn't show minimap objects.
             GameManager.Instance.MainCamera.cullingMask = GameManager.Instance.MainCamera.cullingMask ^ (1 << 31);
+            minimapCamera.renderingPath = RenderingPath.VertexLit;
 
             //setup all properties for mouse over icon obect. Will be used below when player drags mouse over icons in full screen mode.
             if (!mouseOverIcon)
@@ -883,12 +880,15 @@ namespace Minimap
             //UnityEngine.Profiling.Profiler.BeginSample("Minimap Updates");
 
             //set main compass objects to the compass state selected.
-            publicMinimap.SetActive(minimapActive);
-            publicCompass.SetActive(minimapActive);
-            publicMinimapRender.SetActive(minimapActive);
-            publicDirections.SetActive(minimapActive);
-            MinimapNpcManager.SetActive(minimapActive);
-            minimapCamera.enabled = minimapActive;
+            if(publicMinimap.activeSelf != minimapActive)
+            {
+                publicMinimap.SetActive(minimapActive);
+                publicCompass.SetActive(minimapActive);
+                publicMinimapRender.SetActive(minimapActive);
+                publicDirections.SetActive(minimapActive);
+                //MinimapNpcManager.SetActive(minimapActive);
+                minimapCamera.enabled = minimapActive;
+            }
 
             //toggle the minimap on/off when player presses toggle button.
             if (minimapToggle && MinimapInputManager.DblePress)
@@ -902,17 +902,17 @@ namespace Minimap
                 onstartMenu = false;
                 minimapActive = false;
                 //NPCManager.currentNPCIndicatorCollection = new List<npcMarker>();
-                minimapTexture.Release();
+                //minimapTexture.Release();
                 return;
             }
 
             //check to see if player has had equipment generated yet, and if not, generate it and save bool to true.
-            if (!generatedStartingEquipment)
+            if (!generatedStartingEquipment && minimapEffects != null)
             {
                 generatedStartingEquipment = true;
                 if(equippableCompass)
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex));
-                if (Minimap.minimapEffects.enableDamageEffect)
+                if (minimapEffects.enableDamageEffect)
                 {
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemCutGlass.templateIndex));
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemCutGlass.templateIndex));
@@ -987,12 +987,6 @@ namespace Minimap
             //else, if compass is disabled, or game is loading or there is no compass equipped, disable compass.
             if (!minimapActive)
                 return;
-
-            if (!minimapTexture.IsCreated())
-            {
-                minimapTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
-                minimapTexture.Create();
-            }
 
             if (GameManager.Instance.IsPlayerInside)
             {
@@ -1103,15 +1097,17 @@ namespace Minimap
 
         private void PlayerGPS_OnMapPixelChanged(DFPosition mapPixel)
         {
+            changedLocations = true;
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
             if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
             {
                 //set minimap camera to outside rendering layer mask
                 minimapCamera.cullingMask = minimapLayerMaskOutside;
                 currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                locationPopulation = currentLocation.GetComponent<PopulationManager>().PopulationPool;
 
                 //make unique location name based on in a unique location or out in a wilderness area.
-                currentLocationName = string.Concat(currentLocation.Summary.LocationName, GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
 
             }
             else if (GameManager.Instance.IsPlayerInside)
@@ -1134,10 +1130,9 @@ namespace Minimap
             //check if location is loaded, if player is in an actual location rect, and if the location has changed by name.
             if (currentLocationName != lastLocationName)
             {
-                Debug.Log("LOCATIONS" + currentLocationName + " | " + lastLocationName);
+                //Debug.Log("LOCATIONS" + currentLocationName + " | " + lastLocationName);
                 //update location names for trigger update.
-                lastLocationName = currentLocationName;
-                changedLocations = true;
+                currentLocationName = lastLocationName;
 
                 //if inside, setup all inside indicators (doors and quest for now only).
                 if (GameManager.Instance.IsPlayerInside)
@@ -1175,6 +1170,8 @@ namespace Minimap
 
                         }
                     }
+
+                    changedLocations = true;
                 }
 
                 //grab all quest site details and dump it in new empty site details array.
@@ -1405,32 +1402,30 @@ namespace Minimap
                 //don't allow the player to look around while in drag mode.
                 GameManager.Instance.PlayerMouseLook.sensitivityScale = 0;
                 BuildingMarker hoverOverBuilding = null;
+                IconController hoverIcon = null;
                 //sets drag mouse sensitivity by multiplying it by frame time.
                 float speed = 65 * Time.deltaTime;
                 //computes drag using mouse x and y input movement.
                 dragCamera += new Vector3(Input.GetAxis("Mouse X") * speed, Input.GetAxis("Mouse Y") * speed, 0);
                 //sets up ray at center of camera view with 1000f cast distance.
                 Ray ray = minimapCamera.ViewportPointToRay(new Vector3(.5f, .5f, 0f));
-                RaycastHit hit = new RaycastHit();
+                RaycastHit hit = new RaycastHit();               
 
                 //if a sphere cast hits a collider, do the following.
                 if (Physics.SphereCast(ray, .5f, out hit))
                 {
                     //grab the building marker for the building being hovered over.
                     if(hoverOverBuilding == null)
-                        hoverOverBuilding = hit.collider.GetComponentInParent<BuildingMarker>();
+                        hoverOverBuilding = hit.collider.GetComponentInParent<BuildingMarker>();            
 
                     MeshRenderer hoverBuildingMesh = null;
                     //if there is an attached marker and marker icon, run code for label or icon show.
                     if (hoverOverBuilding)
                     {
-                        if (hoverBuildingMesh == null)
-                            hoverBuildingMesh = hoverOverBuilding.marker.attachedIcon.GetComponent<MeshRenderer>();
-
                         //if hit building and label is active, pop up the icon for player.
                         if (minimapControls.labelsActive && !minimapControls.iconsActive)
                         {
-                            Texture hoverTexture = hoverBuildingMesh.material.mainTexture;
+                            Texture hoverTexture = hoverOverBuilding.marker.iconTexture;
                             mouseOverIconMesh.material.mainTexture = hoverTexture;
                             mouseOverIcon.transform.rotation = Quaternion.Euler(0, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 180f, 0);
                             mouseOverIcon.transform.position = hit.point;
@@ -1638,29 +1633,32 @@ namespace Minimap
             //sets up main canvas screen space overlay for containing all sub-layers.
             //this covers the full screen as an invisible layer to hold all sub ui layers.
             //creates empty objects.
-            canvasContainer = new GameObject();
             if (giveParentContainer)
             {
+                canvasContainer = new GameObject();
                 //names it/
                 canvasContainer.name = "Minimap Canvas";
                 //grabs and adds the canvasd object from unity library.
-                canvasContainer.AddComponent<Canvas>();
+                Canvas tempCanvasContainer =  canvasContainer.AddComponent<Canvas>();
+                tempCanvasContainer.renderMode = RenderMode.ScreenSpaceCamera;
                 //grabs and adds the canvas scaler object from unity library.
-                canvasContainer.AddComponent<CanvasScaler>();
+                CanvasScaler tempCanvasSCaler = canvasContainer.AddComponent<CanvasScaler>();
                 //grabs and adds the graphic ray caster object from unity library.
                 canvasContainer.AddComponent<GraphicRaycaster>();
-                canvasContainer.GetComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                canvasContainer.GetComponent<CanvasScaler>().screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-                canvasContainer.GetComponent<CanvasScaler>().matchWidthOrHeight = .5f;
+                tempCanvasSCaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                tempCanvasSCaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                tempCanvasSCaler.matchWidthOrHeight = .5f;
+                
                 //grabs the canvas object.
-                Canvas containerCanvas = canvasContainer.GetComponent<Canvas>();
                 canvasScreenSpaceRectTransform = canvasContainer.GetComponent<RectTransform>();
                 //sets the screen space to full screen overlay.
-                containerCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvasContainer.GetComponent<RectTransform>().sizeDelta = new Vector2(Screen.width, Screen.height);
-                canvasContainer.GetComponent<RectTransform>().anchorMin = new Vector2(0, 1);
-                canvasContainer.GetComponent<RectTransform>().anchorMax = new Vector2(0, 1);
-                canvasContainer.GetComponent<RectTransform>().pivot = new Vector2(1, 1);
+                tempCanvasContainer.renderMode = RenderMode.ScreenSpaceCamera;
+
+                RectTransform canvasRect = tempCanvasContainer.GetComponent<RectTransform>();
+                canvasRect.sizeDelta = new Vector2(Screen.width, Screen.height);
+                canvasRect.anchorMin = new Vector2(0, 1);
+                canvasRect.anchorMax = new Vector2(0, 1);
+                canvasRect.pivot = new Vector2(1, 1);
             }
             else
                 canvasContainer = GameObject.Find("Canvas Screen Space");
@@ -1681,6 +1679,7 @@ namespace Minimap
                 Canvas uiCanvas = newCanvasObject.GetComponent<Canvas>();
                 uiCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             }
+
             //if then ladder for coder to decide what unity objects they want to add to the canvas for using.
             if (canvasScaler)
                 newCanvasObject.AddComponent<CanvasScaler>();

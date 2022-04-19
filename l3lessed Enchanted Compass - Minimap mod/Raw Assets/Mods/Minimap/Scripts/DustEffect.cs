@@ -15,6 +15,7 @@ namespace Minimap
         public float dustTimer;
         private float dustFadeInTime;
         private float lastDustChange;
+        private int lastSiblingIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -65,15 +66,21 @@ namespace Minimap
                     lastDustChange = effectRawImage.color.a;
                     effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(0, 1, dustTimer / dustDuration));
 
-                    if(Minimap.currentEquippedCompass != null)
-                        EffectManager.compassDustDictionary[Minimap.currentEquippedCompass.UID] = dustTimer;
+                    if(Minimap.MinimapInstance.currentEquippedCompass != null)
+                        EffectManager.compassDustDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = dustTimer;
                 }
             }
 
-            if (Minimap.currentEquippedCompass.ConditionPercentage > 40)
-                newEffect.transform.SetSiblingIndex(Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1);
+            if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 40)
+                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1;
             else
-                newEffect.transform.SetSiblingIndex(Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1);
+                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1;
+
+            if (lastSiblingIndex != siblingIndex)
+            {
+                lastSiblingIndex = siblingIndex;
+                newEffect.transform.SetSiblingIndex(siblingIndex);
+            }           
         }
 
         public void UpdateTexture(Color color, Texture2D texture, Vector3 effectScale)

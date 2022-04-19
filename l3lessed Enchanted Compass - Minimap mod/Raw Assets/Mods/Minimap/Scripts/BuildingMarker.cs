@@ -2,6 +2,7 @@ using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Utility;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,6 +24,7 @@ namespace Minimap
             public GameObject attachedIcon;
             public GameObject attachedDoorIcon;
             public GameObject attachedQuestIcon;
+            public Texture2D iconTexture;
             public Vector3 doorPosition;
             public Bounds markerBounds;
             public StaticBuilding staticBuilding;
@@ -56,6 +58,7 @@ namespace Minimap
                 labelActive = false;
                 questActive = false;
                 dynamicBuildingName = "";
+                iconTexture = null;
             }
         }
 
@@ -67,37 +70,25 @@ namespace Minimap
         private float startTimer;
         private float randomDelay;
         private MeshRenderer markerRenderer;
-        private bool generatedMarker;
-        private int maxBuildingIconSpawn = Minimap.buildingSpawnTime;
+        public bool generatedMarker;
+        private float maxBuildingIconSpawn = Minimap.buildingSpawnTime;
         public static bool IconFrustrumCalling = Minimap.frustrumCallingEnabled;
         private List<Material> buildingMaterialList = new List<Material>();
         private Color meshColor;
-        public static bool allMarkersGenerated = false;
         public static bool labelActive;
+        private float currentSize;
 
         void Start()
         {
-            randomDelay = Minimap.MinimapInstance.randomNumGenerator.Next(0, maxBuildingIconSpawn) * .01f;
+            StartCoroutine(GenerateMarker());
         }
 
         void Update()
-        {            
-            if (Minimap.MinimapInstance == null || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside)
+        {
+            if (Minimap.MinimapInstance == null || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside || !generatedMarker)
                 return;
 
-            if (startTimer <= randomDelay + 1)
-            {
-                startTimer += Time.deltaTime;
-                return;
-            }
-
-            if (startTimer >= randomDelay && !generatedMarker)
-            {
-                GenerateMarker();
-                return;
-            }
-
-            if (!Minimap.minimapControls.autoRotateActive)
+                if (!Minimap.minimapControls.autoRotateActive)
             {
                 if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation)
                 {
@@ -149,12 +140,11 @@ namespace Minimap
                 return false;
         }
 
-        void GenerateMarker()
+
+        IEnumerator GenerateMarker()
         {
             if (marker.buildingSummary.BuildingType == DFLocation.BuildingTypes.AllValid)
-                return;
-            //gets buildings largest side size for label multiplier.
-            sizeMultiplier = (marker.staticBuilding.size.x + marker.staticBuilding.size.z) * .5f * Minimap.minimapControls.iconSize;
+                yield return null;
 
             //setup and assign the final world position and rotation using the building, block, and tallest spot cordinates. This places the indicators .2f above the original building model.
             //remove collider from mes.
@@ -165,6 +155,9 @@ namespace Minimap
 
             MeshRenderer currentMeshRender;
             Renderer currentRenderer;
+
+            //gets buildings largest side size for label multiplier.
+            float sizeMultiplier = (marker.staticBuilding.size.x + marker.staticBuilding.size.z) * .033f;
 
             GameObject hitDetector = GameObject.CreatePrimitive(PrimitiveType.Quad);
             currentRenderer = hitDetector.GetComponent<Renderer>();
@@ -181,6 +174,7 @@ namespace Minimap
 
             marker.attachedDoorIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);
             currentRenderer = marker.attachedDoorIcon.GetComponent<Renderer>();
+            currentRenderer.enabled = false;
             currentMeshRender = marker.attachedDoorIcon.GetComponent<MeshRenderer>();
             marker.attachedDoorIcon.GetComponent<Renderer>().enabled = false;
             marker.attachedDoorIcon.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Door ", marker.buildingSummary.buildingKey);           
@@ -220,16 +214,16 @@ namespace Minimap
 
             //setup icons for building.
             marker.attachedIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            currentRenderer = marker.attachedMesh.GetComponent<Renderer>();
+            currentRenderer = marker.attachedIcon.GetComponent<Renderer>();
+            currentMeshRender = marker.attachedIcon.GetComponent<MeshRenderer>();
             currentRenderer.enabled = false;
             marker.attachedIcon.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Icon ", marker.buildingSummary.buildingKey);
             marker.attachedIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, 4f, 0);
-            marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize) * 2;
+            //marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize) * 2;
             //marker.attachedIcon.transform.Rotate(90, 0, 0);
             marker.attachedIcon.layer = Minimap.layerMinimap;
-            currentRenderer.material = Minimap.iconMarkerMaterial;
-            currentRenderer.shadowCastingMode = 0;
-            currentMeshRender.material.enableInstancing = true;
+            currentMeshRender.material = Minimap.iconMarkerMaterial;
+            currentMeshRender.shadowCastingMode = 0;
             currentMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             currentMeshRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
             //remove collider from mes.
@@ -237,6 +231,7 @@ namespace Minimap
 
             //sets up text mesh pro object and settings.
             marker.attachedLabel = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            marker.attachedLabel.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, 6f, 0);
             marker.attachedLabel.SetActive(false);
             TextMeshPro labelutility = marker.attachedLabel.AddComponent<TMPro.TextMeshPro>();
             marker.attachedLabel.layer = Minimap.layerMinimap;
@@ -254,12 +249,9 @@ namespace Minimap
             labelutility.outlineColor = new Color32(0, 0, 0, 255);
             labelutility.outlineWidth = .33f;
 
-            currentRenderer = marker.attachedLabel.GetComponent<MeshRenderer>();
             currentMeshRender.material.enableInstancing = true;
             currentMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             currentMeshRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-
-            marker.attachedLabel.transform.position = currentRenderer.bounds.center + new Vector3(0, 6f, 0);
 
             if (marker.staticBuilding.size.x < marker.staticBuilding.size.z)
                 marker.attachedLabel.transform.localScale = new Vector3(marker.staticBuilding.size.x * .0105f, marker.staticBuilding.size.x * .0105f, marker.staticBuilding.size.x * .0105f);
@@ -295,93 +287,108 @@ namespace Minimap
             {
                 case DFLocation.BuildingTypes.Tavern:
                     marker.iconGroup = Minimap.MarkerGroups.Taverns;
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .898f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.205", 0, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * .898f, sizeMultiplier);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.ClothingStore:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.204", 0, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.88f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.204", 0, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * .68f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.FurnitureStore:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.200", 14, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .66f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.200", 14, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * .66f, sizeMultiplier);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.Alchemist:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.253", 41, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .885f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.253", 41, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * .885f, sizeMultiplier);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.Bank:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.216", 0, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.63f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.25f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.216", 0, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.63f, sizeMultiplier * 1.25f);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.Bookseller:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.209", 0, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 2.01f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.209", 0, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * .52f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.GemStore:
                     //needs updated. THis is copy paste record.
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.216", 19, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.4f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.216", 19, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * .79f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.GeneralStore:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.37f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.253", 70, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.37f, sizeMultiplier);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.PawnShop:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.216", 33, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.5f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .37f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.216", 33, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.5f, sizeMultiplier * .37f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Shops;
                     break;
                 case DFLocation.BuildingTypes.Armorer:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.249", 05, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.02f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.25f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.249", 05, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.02f, sizeMultiplier * 1.25f);
                     marker.iconGroup = Minimap.MarkerGroups.Blacksmiths;
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.WeaponSmith:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.207", 00, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.1f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.2f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.207", 00, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.1f, sizeMultiplier * 1.2f);
                     marker.iconGroup = Minimap.MarkerGroups.Blacksmiths;
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.Temple:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.333", 0, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .5f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.333", 0, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * .5f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Utilities;
                     break;
                 case DFLocation.BuildingTypes.Library:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.253", 28, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .73f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.253", 28, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * .73f, sizeMultiplier);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Utilities;
                     break;
                 case DFLocation.BuildingTypes.GuildHall:
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.25f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .625f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.333", 4, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * 1.25f, sizeMultiplier * .625f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     marker.iconGroup = Minimap.MarkerGroups.Utilities;
                     break;
                 case DFLocation.BuildingTypes.Palace:
                     marker.iconGroup = Minimap.MarkerGroups.Government;
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .86f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .7f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.216", 6, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * .86f, sizeMultiplier * .7f);
                     textboxRect.sizeDelta = new Vector2(150, 100);
                     break;
                 case DFLocation.BuildingTypes.House1:
@@ -392,14 +399,16 @@ namespace Minimap
                 case DFLocation.BuildingTypes.House6:
                     marker.iconGroup = Minimap.MarkerGroups.Houses;
                     marker.attachedLabel.GetComponent<TMPro.TextMeshPro>().text = "House";
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.211", 37, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.09f, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.211", 37, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier* 1.09f, sizeMultiplier);
                     break;
                 case DFLocation.BuildingTypes.HouseForSale:
                     marker.iconGroup = Minimap.MarkerGroups.Houses;
                     marker.attachedLabel.GetComponent<TMPro.TextMeshPro>().text = "House Sale";
-                    iconTempMat.mainTexture = ImageReader.GetTexture("TEXTURE.212", 4, 0, true, 0);
-                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 1.77f);
+                    marker.iconTexture = ImageReader.GetTexture("TEXTURE.212", 4, 0, true, 0);
+                    iconTempMat.mainTexture = marker.iconTexture;
+                    marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * 1.77f);
                     break;
             }
 
@@ -446,7 +455,7 @@ namespace Minimap
             //buildingMaterials = materialList.ToArray();
             marker.attachedMesh.GetComponent<MeshRenderer>().sharedMaterials = buildingMaterials;
             generatedMarker = true;
-            allMarkersGenerated = true;
+            yield break;
         }
 
         //gets npc/marker is within the camera view by using camera angle calcuations.

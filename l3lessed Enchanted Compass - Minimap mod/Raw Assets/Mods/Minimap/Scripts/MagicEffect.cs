@@ -11,7 +11,8 @@ namespace Minimap
         public int textureID;
         public Minimap.EffectType effectType = new Minimap.EffectType();
         public int siblingIndex = 0;
-        public Texture2D effectTexture;
+        public Texture2D effectRipTexture;
+        public Texture2D effectSwirlTexture;
         public GameObject newEffect;
         public int lifeTime;
         public GameObject newEffect2;
@@ -22,13 +23,14 @@ namespace Minimap
         private RectTransform effect2RectTransform;
         private RawImage effect2RawImage;
         private float updateTimer;
+        private int lastIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
 
         void Start()
         {
-            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, $"Magic Effect {textureID}", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
+            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, $"Magic Effect {textureID}", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), effectRipTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);
             newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
@@ -39,7 +41,7 @@ namespace Minimap
             effectRawImage = newEffect.GetComponent<RawImage>();
            
             lifeTime =  Minimap.MinimapInstance.randomNumGenerator.Next(2, 8);
-            newEffect2 = Minimap.MinimapInstance.CanvasConstructor(false, "Magic Rip Effect Layer", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/magicSwirlPurple.png"), textureColor, 0);
+            newEffect2 = Minimap.MinimapInstance.CanvasConstructor(false, "Magic Rip Effect Layer", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), effectSwirlTexture, textureColor, 0);
             newEffect2.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect2.transform.SetSiblingIndex(siblingIndex);
 
@@ -58,11 +60,15 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-            if (newEffect != null)
-                newEffect.transform.SetSiblingIndex(siblingIndex);
+            if (lastIndex != siblingIndex)
+            {
+                lastIndex = siblingIndex;
+                if (newEffect != null)
+                    newEffect.transform.SetSiblingIndex(siblingIndex);
 
-            if(newEffect2 != null)
-                newEffect2.transform.SetSiblingIndex(siblingIndex);
+                if (newEffect2 != null)
+                    newEffect2.transform.SetSiblingIndex(siblingIndex);
+            }
 
             float swirlDuration = 5;
 

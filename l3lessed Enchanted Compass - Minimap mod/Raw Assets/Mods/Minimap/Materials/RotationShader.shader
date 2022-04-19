@@ -1,6 +1,6 @@
 // Upgrade NOTE: upgraded instancing buffer 'Props' to new syntax.
 
-Shader "Instanced/Unlit"
+Shader "MinimapMod/Rotation Unlit"
 {
     Properties
     {

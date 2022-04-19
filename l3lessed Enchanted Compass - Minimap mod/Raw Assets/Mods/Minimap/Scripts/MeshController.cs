@@ -18,6 +18,9 @@ namespace Minimap
             // Update is called once per frame
          void Update()
         {
+            if (GameManager.Instance.IsPlayerInside)
+                return;
+
             if (buildingMaterials.color != Minimap.iconGroupColors[buildingType])
                 updateMaterials();
         }

@@ -26,6 +26,7 @@ namespace Minimap
         private int randomScale;
         private float updateTimer;
         private float dripMovement;
+        private int lastSiblingIndex;
 
         void Start()
         {
@@ -51,11 +52,19 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive || Minimap.currentEquippedCompass == null)
+            if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
                 return;
 
-            if (newEffect != null)
+            if (newEffect != null && lastSiblingIndex != siblingIndex)
+            {
                 newEffect.transform.SetSiblingIndex(siblingIndex);
+                Minimap.MinimapInstance.publicMinimap.transform.SetAsFirstSibling();
+                Minimap.MinimapInstance.publicQuestBearing.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1);
+                Minimap.MinimapInstance.publicDirections.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1);
+                Minimap.MinimapInstance.publicCompassGlass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 2);
+                Minimap.MinimapInstance.publicCompass.transform.SetAsLastSibling();
+                lastSiblingIndex = siblingIndex;
+            }                
 
             if(effectTimer < randomEffectDuration)
                 effectTimer += Time.deltaTime;

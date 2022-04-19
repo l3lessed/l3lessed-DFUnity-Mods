@@ -19,12 +19,13 @@ namespace Minimap
         private float tallestSpot;
         public List<GameObject> buildingInfoCollection = new List<GameObject>();
         public Dictionary<Minimap.MarkerGroups, Material> buildingMaterialDict;
+        private Dictionary<Minimap.MarkerGroups, Material> iconMaterialDict;
         private DaggerfallLocation currentCity = new DaggerfallLocation();
         private DaggerfallLocation lastCityNavigation = new DaggerfallLocation();
-        private int lastPosition;
-        private string currentLocation;
-        private int currentPosition;
-        private bool markersGenerated;
+        public string currentLocation;
+        public int currentPositionUID;
+        public int generatedPositionUID;
+        public bool markersGenerated;
         public GameObject combinedObj;
         public Texture2D test;
         public Dictionary<DFLocation.BuildingTypes, Texture> iconTextureDictionary;
@@ -33,7 +34,8 @@ namespace Minimap
         public static String currentGeneratedCity;
 
         public Texture2D doorIconTexture;
-        private string lastLocation;
+        public string lastLocation;
+        public bool generatingMarkers;
 
         private void Awake()
         {
@@ -67,7 +69,27 @@ namespace Minimap
                 { Minimap.MarkerGroups.None, noMaterial }
             };
 
+            Material shopIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material blacksmithIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material housesIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material tavernsIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material utilitiesIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material governmentIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material noIconMaterial = new Material(Minimap.iconMarkerMaterial);
+
+            iconMaterialDict = new Dictionary<Minimap.MarkerGroups, Material>()
+            {
+                { Minimap.MarkerGroups.Shops, shopIconMaterial },
+                { Minimap.MarkerGroups.Blacksmiths, blacksmithIconMaterial },
+                { Minimap.MarkerGroups.Houses, housesIconMaterial },
+                { Minimap.MarkerGroups.Taverns, tavernsIconMaterial },
+                { Minimap.MarkerGroups.Utilities, utilitiesIconMaterial},
+                { Minimap.MarkerGroups.Government, governmentIconMaterial },
+                { Minimap.MarkerGroups.None, noIconMaterial }
+            };
+
             currentCity = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+            currentLocation = "Starting Game";
         }
 
         // Update is called once per frame
@@ -77,45 +99,83 @@ namespace Minimap
                 return;
 
             //if player is outside and the streaming world is ready/generated for play setup building indicators.
-            if (!GameManager.Instance.IsPlayerInside && Minimap.changedLocations)
-            {
-                Debug.Log(GameManager.Instance.PlayerGPS.HasCurrentLocation);
+            if (Minimap.changedLocations)
+            {  
+                if (GameManager.Instance.PlayerGPS.HasCurrentLocation && GameManager.Instance.PlayerGPS.CurrentLocation.Loaded && GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.LocationName != GameManager.Instance.PlayerGPS.CurrentLocation.Name)
+                    return;
 
-                if (GameManager.Instance.PlayerGPS.HasCurrentLocation)
-                {
-                    currentPosition = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
-                    Debug.Log("Location Name:" + currentPosition + " | " + lastPosition);
-                    if (currentPosition != lastPosition)
+                    blockArray = null;
+                    buildingDirectory = null;
+                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+                    blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
+                    //grab the rmbblock objects from the location object for use.
+                    blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
+                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+                    buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
+                    //start to loop through blocks from the block array created above.
+                    CityNavigation currentCityNav = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation();
+
+
+                    if (GameManager.Instance.IsPlayerInside || buildingDirectory == null || currentCityNav == null || buildingDirectory.BuildingCount == 0)
                     {
-                        lastPosition = currentPosition;
-                        UpdateMarkers();
-                        Debug.Log("BUILDING MARKERS!");
-                        StartCoroutine(Example());
+                        Debug.Log("No Buildings/Navigation found!");
                     }
                     else
                     {
-                        if (combinedMarkerList.Count() != 0)
-                        {
-                            foreach (GameObject combinedMarker in combinedMarkerList)
-                                combinedMarker.SetActive(true);
-                        }
+                        currentLocation = GameManager.Instance.PlayerGPS.CurrentLocation.Name;
+                        UpdateMarkers();
+                        markersGenerated = false;
                     }
+                
+
+                if (currentLocation != lastLocation)
+                {
+                    lastLocation = currentLocation;
+                    generatedPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
                 }
                 else
                 {
-                    if (combinedMarkerList.Count() != 0)
+                    currentPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
+                    if (currentPositionUID != generatedPositionUID)
                     {
                         foreach (GameObject combinedMarker in combinedMarkerList)
                             combinedMarker.SetActive(false);
                     }
+                    else if(currentPositionUID == generatedPositionUID)
+                    {
+                        foreach (GameObject combinedMarker in combinedMarkerList)
+                            combinedMarker.SetActive(true);
+                    }                    
                 }
+
                 Minimap.changedLocations = false;
+            }
+
+            if (generatingMarkers && !markersGenerated)
+            {
+                foreach (GameObject marker in buildingInfoCollection)
+                {
+                    if (marker.GetComponent<BuildingMarker>() != null)
+                    {
+                        BuildingMarker markerInstance = marker.GetComponent<BuildingMarker>();
+
+                        if (!markerInstance.generatedMarker && markersGenerated)
+                            markersGenerated = false;
+                        else
+                            markersGenerated = true;
+                    }
+                }
+            }
+            else if (generatingMarkers && markersGenerated)
+            {
+                StartCoroutine(Example());
+                generatingMarkers = false;
             }
         }
 
         IEnumerator Example()
         {
-            yield return new WaitForSeconds(Minimap.buildingSpawnTime * .03f);
+            //yield return new WaitForSecondsRealtime(Minimap.buildingSpawnTime);
 
             foreach (GameObject combinedMarker in combinedMarkerList)
                 Destroy(combinedMarker);
@@ -128,54 +188,35 @@ namespace Minimap
         }
 
         public void UpdateMarkers(bool RemoveMarkersOnly = false)
-        {
-            if (buildingInfoCollection != null || buildingInfoCollection.Count != 0)
+        {         
+            foreach (GameObject marker in buildingInfoCollection)
             {
-                foreach (GameObject marker in buildingInfoCollection)
+                if (marker.GetComponent<BuildingMarker>() != null)
                 {
-                    if (marker.GetComponent<BuildingMarker>() != null)
-                    {
-                        BuildingMarker markerInstance = marker.GetComponent<BuildingMarker>();
-                        Destroy(markerInstance.marker.attachedDoorIcon);
-                        Destroy(markerInstance.marker.attachedLabel);
-                        Destroy(markerInstance.marker.attachedMesh);
-                        Destroy(markerInstance.marker.attachedQuestIcon);
-                        Destroy(markerInstance.marker.attachedIcon);
-                        Destroy(markerInstance);
-                    }
-                    if (marker != null)
-                        Destroy(marker);
+                    BuildingMarker markerInstance = marker.GetComponent<BuildingMarker>();
+                    Destroy(markerInstance.marker.attachedDoorIcon);
+                    Destroy(markerInstance.marker.attachedLabel);
+                    Destroy(markerInstance.marker.attachedMesh);
+                    Destroy(markerInstance.marker.attachedQuestIcon);
+                    Destroy(markerInstance.marker.attachedIcon);
+                    Destroy(markerInstance);
                 }
-                buildingInfoCollection.Clear();
-                buildingInfoCollection = new List<GameObject>();
+                if (marker != null)
+                    Destroy(marker);
             }
+            buildingInfoCollection.Clear();
+            buildingInfoCollection = new List<GameObject>();
 
             if (RemoveMarkersOnly)
                 return;
 
-            Debug.Log("Collecting Building Info!");
-            //grab the players current location.
-
-            //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
-            blockArray = new DaggerfallRMBBlock[Minimap.currentLocation.transform.childCount];
-            //grab the rmbblock objects from the location object for use.
-            blockArray = Minimap.currentLocation.GetComponentsInChildren<DaggerfallRMBBlock>();
-            //grab the building direction object so we can figure out what the individual buildings are based on their key value.
-            buildingDirectory = Minimap.currentLocation.GetComponentInChildren<BuildingDirectory>();
-            //start to loop through blocks from the block array created above.
-            CityNavigation currentCityNav = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation();
-            if (buildingDirectory == null || currentCityNav == null)
-                return;
+            generatingMarkers = true;
 
             //Vector3 position = currentCityNav.WorldToScenePosition(new DFPosition(Minimap.currentLocation.Summary.MapPixelX, Minimap.currentLocation.Summary.MapPixelX), true);
             List<BuildingSummary> housesForSaleList = buildingDirectory.GetHousesForSale();
 
-            if (Minimap.currentLocation == null || buildingDirectory == null || buildingDirectory.BuildingCount == 0)
-                return;
-
             foreach (DaggerfallRMBBlock block in blockArray)
             {
-                Debug.Log("Reading City Block!");
                 Vector3 blockPosition = block.transform.position;
                 //setup a new static buildings object to hold the rmb blocks static buildings object.
                 DaggerfallStaticBuildings staticBuildingContainer = block.GetComponentInChildren<DaggerfallStaticBuildings>();
@@ -190,12 +231,11 @@ namespace Minimap
                 StaticBuildingArray = staticBuildingContainer.Buildings;
 
                 // Find the doors for the buildings and drop into a list for referencing below when setting up individual building information.
-                StaticDoor[] doors = DaggerfallStaticDoors.FindDoorsInCollections(Minimap.currentLocation.StaticDoorCollections, DoorTypes.Building);
+                StaticDoor[] doors = DaggerfallStaticDoors.FindDoorsInCollections(GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.StaticDoorCollections, DoorTypes.Building);
                 List<CombineInstance> houseMeshList = new List<CombineInstance>();
                 //runs through building array.
                 foreach (StaticBuilding building in StaticBuildingArray)
                 {
-                    Debug.Log("Creating Building Marker!");
                     //sets up and grabes the current buildings material, summary object/info, placing/final position, game model.
                     BuildingSummary SavedBuilding = new BuildingSummary();
                     buildingDirectory.GetBuildingSummary(building.buildingKey, out SavedBuilding);
@@ -261,7 +301,6 @@ namespace Minimap
                         Minimap.lastQuestMarkerPosition = buildingsInfo.marker.position;
                         buildingsInfo.marker.questActive = true;
                     }
-                    Debug.Log("Adding Building Marker to Collection! " + buildingsInfo.marker.buildingType);
                     //save building to building collection. This is more for other modders to use how they wish, since it contains all the building info for every building in a city.
                     buildingInfoCollection.Add(buildingMarkerObject);
                 }
@@ -376,27 +415,65 @@ namespace Minimap
             //CombineMarkerMeshes(tavernsObjectList, "Combined Taverns Mesh", true);
             //CombineMarkerMeshes(noMarkerObjectList, "Combined No Marker Mesh", true);
 
-            CombineMarkerMeshes(houseIconObjectList, 2, "Combined House ", false, true,false,false);
-            CombineMarkerMeshes(houseForSaleIconObjectList, 2, "Combined House For Sale ", false, true, false);
-            CombineMarkerMeshes(blacksmithIconObjectList, 1, "Combined Blacksmith ", false, true, false, false);
-            CombineMarkerMeshes(alchemistIconObjectList, 0, "Combined Alchemist ", false, true, false, false);
-            CombineMarkerMeshes(armorerIconObjectList, 1, "Combined Armorer ", false, true, false, false);
-            CombineMarkerMeshes(bankIconObjectList, 4, "Combined Bank ", false, true, false, false);
-            CombineMarkerMeshes(bookSellerIconObjectList, 0, "Combined Book Seller ", false, true, false, false);
-            CombineMarkerMeshes(clothingStoreIconObjectList, 0, "Combined Clothing Store ", false, true, false, false);
-            CombineMarkerMeshes(furnitureStoreIconObjectList, 0, "Combined Furnitre Store ", false, true, false, false);
-            CombineMarkerMeshes(gemStoreIconObjectList, 0, "Combined Gem Store ", false, true, false, false);
-            CombineMarkerMeshes(generalStoreIconObjectList, 0, "Combined General Store ", false, true, false, false);
-            CombineMarkerMeshes(libraryIconObjectList, 4, "Combined Library Store ", false, true, false, false);
-            CombineMarkerMeshes(guildHallIconObjectList, 4, "Combined Guildhall ", false, true, false, false);
-            CombineMarkerMeshes(pawnShopIconObjectList, 0, "Combined Pawnshop ", false, true, false, false);
-            CombineMarkerMeshes(weaponSmithIconObjectList, 1, "Combined Weaponsmith ", false, true, false, false);
-            CombineMarkerMeshes(templeIconObjectList, 4, "Combined Temple ", false, true, false, false);
-            CombineMarkerMeshes(tavernsIconObjectList, 3, "Combined Tavern ", false, true, false,   false);
-            CombineMarkerMeshes(palaceIconObjectList, 5, "Combined Palace ", false, true, false, false);
-            CombineMarkerMeshes(noMarkerIconObjectList, 9, "Combined No ", false, true, false, false);
+            if(houseIconObjectList != null && houseIconObjectList.Count != 0)
+                CombineMarkerMeshes(houseIconObjectList, 2, "Combined House ", false, true,false,false);
 
-            CombineMarkerMeshes(doorObjectList, 9, "Combined Door Mesh", false, false, true, false);
+            if (houseForSaleIconObjectList != null && houseForSaleIconObjectList.Count != 0)
+                CombineMarkerMeshes(houseForSaleIconObjectList, 2, "Combined House For Sale ", false, true, false);
+
+            if (blacksmithIconObjectList != null && blacksmithIconObjectList.Count != 0)
+                CombineMarkerMeshes(blacksmithIconObjectList, 1, "Combined Blacksmith ", false, true, false, false);
+
+            if (alchemistIconObjectList != null && alchemistIconObjectList.Count != 0)
+                CombineMarkerMeshes(alchemistIconObjectList, 0, "Combined Alchemist ", false, true, false, false);
+
+            if (armorerIconObjectList != null && armorerIconObjectList.Count != 0)
+                CombineMarkerMeshes(armorerIconObjectList, 1, "Combined Armorer ", false, true, false, false);
+
+            if (bankIconObjectList != null && bankIconObjectList.Count != 0)
+                CombineMarkerMeshes(bankIconObjectList, 4, "Combined Bank ", false, true, false, false);
+
+            if (bookSellerIconObjectList != null && bookSellerIconObjectList.Count != 0)
+                CombineMarkerMeshes(bookSellerIconObjectList, 0, "Combined Book Seller ", false, true, false, false);
+
+            if (clothingStoreIconObjectList != null && clothingStoreIconObjectList.Count != 0)
+                CombineMarkerMeshes(clothingStoreIconObjectList, 0, "Combined Clothing Store ", false, true, false, false);
+
+            if (furnitureStoreIconObjectList != null && furnitureStoreIconObjectList.Count != 0)
+                CombineMarkerMeshes(furnitureStoreIconObjectList, 0, "Combined Furnitre Store ", false, true, false, false);
+
+            if (gemStoreIconObjectList != null && gemStoreIconObjectList.Count != 0)
+                CombineMarkerMeshes(gemStoreIconObjectList, 0, "Combined Gem Store ", false, true, false, false);
+
+            if (generalStoreIconObjectList != null && generalStoreIconObjectList.Count != 0)
+                CombineMarkerMeshes(generalStoreIconObjectList, 0, "Combined General Store ", false, true, false, false);
+
+            if (libraryIconObjectList != null && libraryIconObjectList.Count != 0)
+                CombineMarkerMeshes(libraryIconObjectList, 4, "Combined Library Store ", false, true, false, false);
+
+            if (guildHallIconObjectList != null && guildHallIconObjectList.Count != 0)
+                CombineMarkerMeshes(guildHallIconObjectList, 4, "Combined Guildhall ", false, true, false, false);
+
+            if (pawnShopIconObjectList != null && pawnShopIconObjectList.Count != 0)
+                CombineMarkerMeshes(pawnShopIconObjectList, 0, "Combined Pawnshop ", false, true, false, false);
+
+            if (weaponSmithIconObjectList != null && weaponSmithIconObjectList.Count != 0)
+                CombineMarkerMeshes(weaponSmithIconObjectList, 1, "Combined Weaponsmith ", false, true, false, false);
+
+            if (templeIconObjectList != null && templeIconObjectList.Count != 0)
+                CombineMarkerMeshes(templeIconObjectList, 4, "Combined Temple ", false, true, false, false);
+
+            if (tavernsIconObjectList != null && tavernsIconObjectList.Count != 0)
+                CombineMarkerMeshes(tavernsIconObjectList, 3, "Combined Tavern ", false, true, false,   false);
+
+            if (palaceIconObjectList != null && palaceIconObjectList.Count != 0)
+                CombineMarkerMeshes(palaceIconObjectList, 5, "Combined Palace ", false, true, false, false);
+
+            if (noMarkerIconObjectList != null && noMarkerIconObjectList.Count != 0)
+                CombineMarkerMeshes(noMarkerIconObjectList, 9, "Combined No ", false, true, false, false);
+
+            if (doorObjectList != null && doorObjectList.Count != 0)
+                CombineMarkerMeshes(doorObjectList, 9, "Combined Door Mesh", false, false, true, false);
             //CombineMarkerMeshes(labelObjectList, "Combined Label Mesh", false, false,true);
         }
 
@@ -405,10 +482,6 @@ namespace Minimap
             List<CombineInstance> combineIconLister = new List<CombineInstance>();
             List<CombineInstance> combineMeshLister = new List<CombineInstance>();
             List<CombineInstance> combineDoorLister = new List<CombineInstance>();
-
-            GameObject combinedIcon = new GameObject();
-            GameObject combinedMesh = new GameObject();
-            GameObject combinedDoor = new GameObject();
 
             Color groupColor = new Color();
             Texture iconTexture = null;
@@ -441,7 +514,7 @@ namespace Minimap
                     }
 
                     groupColor = Minimap.iconGroupColors[markerInstance.marker.iconGroup];
-                    markerInstance.marker.attachedMesh.transform.SetParent(combinedMesh.transform, true);
+                    //markerInstance.marker.attachedMesh.transform.SetParent(combinedMesh.transform, true);
 
                     CombineInstance combineIcon = new CombineInstance();
                     MeshFilter markerIconMeshFilter;
@@ -453,7 +526,7 @@ namespace Minimap
                     combineIcon.transform = markerIconMeshFilter.transform.localToWorldMatrix;
                     //Material buildingMaterials = markerMeshFilter.GetComponent<MeshRenderer>().material;
                     combineIconLister.Add(combineIcon);
-                    markerInstance.marker.attachedIcon.transform.SetParent(combinedMesh.transform, true);
+                    //markerInstance.marker.attachedIcon.transform.SetParent(combinedMesh.transform, true);
                     //iconMaterialList = buildingMaterials;
                     Destroy(markerInstance.marker.attachedIcon);
                     Destroy(markerInstance.marker.attachedMesh.GetComponent<DaggerfallMesh>());
@@ -481,73 +554,85 @@ namespace Minimap
                     markerInstance.marker.attachedLabel.transform.SetParent(combinedObj.transform, true);
                     Destroy(markerInstance.marker.attachedLabel);
                 }             
-            }
-                        
-            //Create the final combined mesh
-            Mesh combinedAllMesh = new Mesh();
-            Mesh combinedAllIcons = new Mesh();
-            Mesh combinedAllDoors = new Mesh();
-
-            MeshRenderer combinedIconRender = combinedIcon.AddComponent<MeshRenderer>();
-            combinedIconRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-            combinedIconRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-            combinedIconRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            combinedIcon.AddComponent<MeshFilter>();
-
-            MeshRenderer combinedMeshRender = combinedMesh.AddComponent<MeshRenderer>();
-            combinedMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-            combinedMeshRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-            combinedMeshRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            combinedMesh.AddComponent<MeshFilter>();
-
-            MeshRenderer combinedDoorRender = combinedDoor.AddComponent<MeshRenderer>();
-            combinedDoorRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-            combinedDoorRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-            combinedDoorRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            combinedDoor.AddComponent<MeshFilter>();
+            }                                  
 
             if (icons)
             {
+
+                GameObject combinedIcon = new GameObject();
+                GameObject combinedMesh = new GameObject();
+
+                Mesh combinedAllMesh = new Mesh();
+                Mesh combinedAllIcons = new Mesh();
+
+                MeshRenderer combinedIconRender = combinedIcon.AddComponent<MeshRenderer>();
+                combinedIconRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                combinedIconRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                combinedIconRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                combinedIcon.AddComponent<MeshFilter>();
+
+                MeshRenderer combinedMeshRender = combinedMesh.AddComponent<MeshRenderer>();
+                combinedMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                combinedMeshRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                combinedMeshRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                combinedMesh.AddComponent<MeshFilter>();
+
                 combinedAllIcons.CombineMeshes(combineIconLister.ToArray(), true);
                 combinedAllMesh.CombineMeshes(combineMeshLister.ToArray(), true);
 
                 combinedIcon.GetComponent<MeshFilter>().mesh = combinedAllIcons;
                 combinedMesh.GetComponent<MeshFilter>().mesh = combinedAllMesh;
 
-                combinedMeshRender.material = Minimap.buildingMarkerMaterial;
+                MeshController meshScript = combinedMesh.AddComponent<MeshController>();
+                meshScript.buildingType = (Minimap.MarkerGroups)markerGroupID;
+
+                combinedMeshRender.material = buildingMaterialDict[(Minimap.MarkerGroups)markerGroupID];
+                combinedMeshRender.material.enableInstancing = true;
                 combinedMeshRender.material.color = groupColor;
                 combinedMesh.name = string.Concat(meshName, " Meshes");
                 combinedMesh.layer = Minimap.layerMinimap;
-                MeshController meshScript = combinedMesh.AddComponent<MeshController>();
-                meshScript.buildingType = (Minimap.MarkerGroups)markerGroupID;
+
                 combinedMarkerList.Add(combinedMesh);
 
                 //combinedIcon.transform.localScale = iconScale;
-
-                combinedIconRender.material = Minimap.iconMarkerMaterial;
-                combinedIconRender.material.mainTexture = iconTexture;
-                combinedIconRender.UpdateGIMaterials();
                 IconController iconScript = combinedIcon.AddComponent<IconController>();
                 iconScript.buildingtype = (Minimap.MarkerGroups)markerGroupID;
                 combinedIcon.name = string.Concat(meshName, " Icons"); ;
+
+                combinedIconRender.material = iconMaterialDict[(Minimap.MarkerGroups)markerGroupID];
+                combinedIconRender.material.enableInstancing = true;
+                combinedIconRender.material.mainTexture = iconTexture;
                 combinedIcon.layer = Minimap.layerMinimap;
+
                 combinedMarkerList.Add(combinedIcon);
             }                
             else if(labels)
             {
                 combinedObj.AddComponent<LabelController>();
-                combinedMeshRender.material = Minimap.labelMaterial;
+                //combinedMeshRender.material = Minimap.labelMaterial;
             }
             else if (doors)
             {
+                GameObject combinedDoor = new GameObject();
+
+                Mesh combinedAllDoors = new Mesh();
+
+                MeshRenderer combinedDoorRender = combinedDoor.AddComponent<MeshRenderer>();
+                combinedDoorRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                combinedDoorRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                combinedDoorRender.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                combinedDoor.AddComponent<MeshFilter>();
+
                 combinedAllDoors.CombineMeshes(combineDoorLister.ToArray(), true);
                 combinedDoor.GetComponent<MeshFilter>().mesh = combinedAllDoors;
 
-                combinedDoorRender.material = Minimap.iconMarkerMaterial;
-                combinedDoorRender.material.mainTexture = doorIconTexture;
-                combinedDoorRender.UpdateGIMaterials();
                 combinedDoor.AddComponent<DoorController>();
                 combinedDoor.name = string.Concat(meshName, " Icons"); ;
+
+                combinedDoorRender.material = Minimap.iconMarkerMaterial;
+                combinedDoorRender.material.enableInstancing = true;
+                combinedDoorRender.material.mainTexture = doorIconTexture;                
+
                 combinedDoor.layer = Minimap.layerMinimap;
                 combinedMarkerList.Add(combinedDoor);
             }

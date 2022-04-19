@@ -38,7 +38,7 @@ namespace Minimap
         {
             List<DaggerfallUnityItem> dwemerGearsList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
             List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
-            if(Minimap.currentEquippedCompass.ConditionPercentage >= 90)
+            if(Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage >= 90)
             {
                 DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "Your compass is in fine shape");
                 confirmBox.Show();

@@ -13,6 +13,7 @@ namespace Minimap
         public Texture2D effectTexture;
         public GameObject newEffect;
         public Color textureColor = new Color(.5f, .5f, .5f, .5f);
+        private int lastSiblingIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -30,6 +31,16 @@ namespace Minimap
 
             if(effectType == Minimap.EffectType.None)
                 newEffect.SetActive(false);
+        }
+
+        private void Update()
+        {
+            siblingIndex = Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1;
+            if (lastSiblingIndex != siblingIndex)
+            {
+                lastSiblingIndex = siblingIndex;
+                newEffect.transform.SetSiblingIndex(siblingIndex);
+            }
         }
 
         public void UpdateTexture(Color color, Texture2D texture, Vector3 effectScale)

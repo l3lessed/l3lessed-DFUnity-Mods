@@ -17,6 +17,7 @@ namespace Minimap
         private Vector2 randomPosition;
         private float random;
         private int randomScale;
+        private int lastSiblingIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -45,8 +46,11 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-            if (newEffect != null)
+            if (newEffect != null && lastSiblingIndex != siblingIndex)
+            {
                 newEffect.transform.SetSiblingIndex(siblingIndex);
+                lastSiblingIndex = siblingIndex;
+            }
 
             if (!GameManager.Instance.IsPlayerInside && GameManager.Instance.WeatherManager.IsRaining)
             {

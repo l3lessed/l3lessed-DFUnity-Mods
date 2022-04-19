@@ -4,6 +4,7 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using System.Linq;
 using System.IO;
+using DaggerfallWorkshop.Utility.AssetInjection;
 
 namespace Minimap
 {
@@ -17,7 +18,7 @@ namespace Minimap
         public GameObject interiorInstance;
         public GameObject dungeonInstance;
         public List<StaticNPC> flatNPCArray = new List<StaticNPC>();
-        public List<npcMarker> currentNPCIndicatorCollection = new List<npcMarker>();
+        public List<NPCMarker> currentNPCIndicatorCollection = new List<NPCMarker>();
         public int totalNPCs;
 
         #region GameTextureArrays
@@ -31,11 +32,11 @@ namespace Minimap
         public static int[] femaleBretonTextures = new int[] { 453, 454, 455, 456 };
 
         public int[] guardTextures = { 399 };
-        public Dictionary<Minimap.MarkerGroups, Material> npcIconMaterialDict;
+        public Dictionary<Minimap.MarkerGroups, Material> npcIconMaterialDict = new Dictionary<Minimap.MarkerGroups, Material>();
         public Texture2D npcDotTexture;
         #endregion
 
-        private void Start()
+        private void Awake()
         {
             npcDotTexture = null;
             byte[] fileData;
@@ -43,7 +44,10 @@ namespace Minimap
             fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/npcDot.png");
             npcDotTexture = new Texture2D(2, 2);
             npcDotTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
+        }
 
+        private void Start()
+        {
             Material friendliesIconMaterial = new Material(Minimap.buildingMarkerMaterial);
             Material enemiesIconMaterial = new Material(Minimap.buildingMarkerMaterial);
             Material residentIconMaterial = new Material(Minimap.buildingMarkerMaterial);
@@ -58,7 +62,7 @@ namespace Minimap
         }
 
         void Update()
-        {
+        {           
             //stop update loop if any of the below is happening.
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
@@ -100,6 +104,7 @@ namespace Minimap
             //if the total amount of npcs match the indicator collection total, stop code execution and return from routine.
             if (totalNPCs == currentNPCIndicatorCollection.Count)
                 return;
+
             currentNPCIndicatorCollection.RemoveAll(item => item == null);
 
             mobileEnemyArray.RemoveAll(item => item == null);
@@ -107,15 +112,10 @@ namespace Minimap
             //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
             foreach (DaggerfallEnemy mobileEnemy in mobileEnemyArray)
             {
-                if (!mobileEnemy.GetComponent<npcMarker>())
+                if (!mobileEnemy.GetComponent<NPCMarker>() && mobileEnemy.isActiveAndEnabled)
                 {
-                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                    float time = +Time.deltaTime;
-                    if (time > addMarkerRandomizer)
-                    {
-                        npcMarker newNPCMarker = mobileEnemy.gameObject.AddComponent<npcMarker>();
-                        currentNPCIndicatorCollection.Add(newNPCMarker);
-                    }
+                    NPCMarker newNPCMarker = mobileEnemy.gameObject.AddComponent<NPCMarker>();
+                    currentNPCIndicatorCollection.Add(newNPCMarker);
                 }
             }
 
@@ -125,15 +125,10 @@ namespace Minimap
             foreach (StaticNPC staticNPC in flatNPCArray)
             {
 
-                if (!staticNPC.GetComponent<npcMarker>())
+                if (!staticNPC.GetComponent<NPCMarker>())
                 {
-                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                    float time = +Time.deltaTime;
-                    if (time > addMarkerRandomizer)
-                    {
-                        npcMarker newNPCMarker = staticNPC.gameObject.AddComponent<npcMarker>();
-                        currentNPCIndicatorCollection.Add(newNPCMarker);
-                    }
+                    NPCMarker newNPCMarker = staticNPC.gameObject.AddComponent<NPCMarker>();
+                    currentNPCIndicatorCollection.Add(newNPCMarker);
                 }
             }
 
@@ -142,15 +137,10 @@ namespace Minimap
             //find mobile npcs and mark as green. Friendly non-attacking npcs like villagers.
             foreach (MobilePersonNPC mobileNPC in mobileNPCArray)
             {
-                if (!mobileNPC.GetComponent<npcMarker>())
+                if (!mobileNPC.GetComponent<NPCMarker>())
                 {
-                    float addMarkerRandomizer = UnityEngine.Random.Range(0.0f, 0.5f);
-                    float time = +Time.deltaTime;
-                    if (time > addMarkerRandomizer)
-                    {
-                        npcMarker newNPCMarker = newNPCMarker = mobileNPC.gameObject.AddComponent<npcMarker>();
-                        currentNPCIndicatorCollection.Add(newNPCMarker);
-                    }
+                    NPCMarker newNPCMarker = newNPCMarker = mobileNPC.gameObject.AddComponent<NPCMarker>();
+                    currentNPCIndicatorCollection.Add(newNPCMarker);
                 }
             }
         }

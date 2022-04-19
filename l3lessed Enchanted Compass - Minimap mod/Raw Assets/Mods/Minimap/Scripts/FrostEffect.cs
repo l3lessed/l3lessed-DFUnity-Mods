@@ -23,6 +23,7 @@ namespace Minimap
         private float lastFrostChange;
         private float frostFadeInTime;
         private float lastSize;
+        private int lastSiblingIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -45,9 +46,6 @@ namespace Minimap
         {
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
-
-            if (newEffect != null && newEffect.transform.GetSiblingIndex() != 0)
-                newEffect.transform.SetSiblingIndex(siblingIndex);
 
             //FROST EFFECT\\
             //set time for frost to fade in.
@@ -117,10 +115,16 @@ namespace Minimap
                 }
             }
 
-            if (Minimap.currentEquippedCompass.ConditionPercentage > 40)
-                newEffect.transform.SetSiblingIndex(Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1);
+            if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 40)
+                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1;
             else
-                newEffect.transform.SetSiblingIndex(Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1);
+                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1;
+
+            if(lastSiblingIndex != siblingIndex)
+            {
+                newEffect.transform.SetSiblingIndex(siblingIndex);
+                lastSiblingIndex = siblingIndex;
+            }
         }
 
         public void UpdateTexture(Color color, Texture2D texture, Vector3 effectScale)

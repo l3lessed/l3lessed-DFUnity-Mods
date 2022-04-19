@@ -31,7 +31,8 @@ namespace Minimap
         private Vector2 randomPosition;
         private Vector2 currentAnchorPosition;
         private float updateTimer;
-        private float dripMovement;    
+        private float dripMovement;
+        private int lastSiblingIndex;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -62,12 +63,20 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-            if (effectType == Minimap.EffectType.Rain)
-                newEffect.transform.SetSiblingIndex(siblingIndex);
-
-            if (effectType == Minimap.EffectType.None)
+            if (effectType == Minimap.EffectType.Rain && newEffect != null && lastSiblingIndex != siblingIndex)
             {
-                newEffect.transform.SetSiblingIndex(Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1);
+                lastSiblingIndex = siblingIndex;
+                newEffect.transform.SetSiblingIndex(siblingIndex);
+            }                
+
+            if (effectType == Minimap.EffectType.None && newEffect != null)
+            {
+                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 3;
+                if(lastSiblingIndex != siblingIndex)
+                {
+                    newEffect.transform.SetSiblingIndex(siblingIndex);
+                    lastSiblingIndex = siblingIndex;
+                }                
                 
                 //RAIN EFFECT\\
                 //if raining start rain effect code.
@@ -93,7 +102,7 @@ namespace Minimap
                             if (EffectManager.rainEffectList.Count < maxRainDrops)
                             {
                                 RainEffect effectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<RainEffect>();
-                                if (Minimap.currentEquippedCompass.ConditionPercentage > 40)
+                                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 40)
                                     effectInstance.siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1;
                                 else
                                     effectInstance.siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1;
@@ -109,9 +118,6 @@ namespace Minimap
                         newEffect.SetActive(false);
                 return;
             }
-
-            if (newEffect != null)
-                newEffect.transform.SetSiblingIndex(siblingIndex);
 
             effectTimer += Time.deltaTime;
             dripMovement += dripSpeed * Time.deltaTime;
