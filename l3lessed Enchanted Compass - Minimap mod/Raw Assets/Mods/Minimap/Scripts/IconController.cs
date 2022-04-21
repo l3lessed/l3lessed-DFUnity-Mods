@@ -15,7 +15,7 @@ namespace Minimap
         void Start()
         {
             iconMaterials = gameObject.GetComponent<MeshRenderer>().material;
-            iconRenderer = gameObject.GetComponent<MeshRenderer>();
+            iconRenderer = gameObject.GetComponent<Renderer>();
             currentSize = Minimap.iconSizes[buildingtype];
         }
 
@@ -32,21 +32,24 @@ namespace Minimap
                 iconMaterials.SetFloat("_Rotation", ((Minimap.MinimapInstance.publicMinimap.transform.eulerAngles.y - GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y)) * .0174f);
             }
 
-            if (Minimap.iconSizes[buildingtype] != currentSize)
+            if (Minimap.minimapControls.smartViewActive)
             {
-                currentSize = Minimap.minimapControls.iconSize;
+                if (Minimap.minimapControls.iconsActive)
+                    iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[buildingtype];
+                else
+                    iconRenderer.forceRenderingOff = true;
+            }
+            else
+                iconRenderer.forceRenderingOff = !Minimap.minimapControls.iconsActive;
 
+            if (Minimap.minimapControls.updateMinimap)
+            {
                 if (Minimap.minimapControls.smartViewActive)
                 {
                     if (iconMaterials.GetFloat("_Spacing") != 0)
                         iconMaterials.SetFloat("_Spacing", 0);
 
                         iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[buildingtype] + 1) / 2));
-
-                    if (Minimap.minimapControls.iconsActive)
-                        iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[buildingtype];
-                    else
-                        iconRenderer.forceRenderingOff = true;
                 }
                 else if (!Minimap.minimapControls.smartViewActive)
                 {
@@ -60,8 +63,6 @@ namespace Minimap
                         iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[buildingtype] + 1) / 2));
                         iconMaterials.SetFloat("_Spacing", 0);
                     }
-
-                    iconRenderer.forceRenderingOff = !Minimap.minimapControls.iconsActive;
                 }
             }
         }

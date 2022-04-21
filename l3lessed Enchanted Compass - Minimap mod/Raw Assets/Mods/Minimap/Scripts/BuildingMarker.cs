@@ -164,7 +164,7 @@ namespace Minimap
             currentRenderer.enabled = false;
             hitDetector.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Hit Detector ", marker.buildingSummary.buildingKey);
             hitDetector.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.center + new Vector3(0, 12f, 0);
-            hitDetector.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 10, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 10, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 10);
+            hitDetector.transform.localScale = new Vector3(sizeMultiplier * 10, sizeMultiplier * 10, sizeMultiplier * 10);
             currentRenderer.shadowCastingMode = 0;
             hitDetector.transform.Rotate(90, 0, 0);
             hitDetector.GetComponent<MeshCollider>().isTrigger = false;
@@ -184,7 +184,7 @@ namespace Minimap
             currentRenderer.shadowCastingMode = 0;
             currentMeshRender.material.mainTexture = Minimap.minimapBuildingManager.doorIconTexture;
             marker.attachedDoorIcon.transform.position = new Vector3(marker.doorPosition.x, marker.position.y + 8f, marker.doorPosition.z);
-            marker.attachedDoorIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 5, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * 5, .1f);
+            marker.attachedDoorIcon.transform.localScale = new Vector3(sizeMultiplier * 5, sizeMultiplier * 5, .1f);
             marker.attachedDoorIcon.transform.Rotate(new Vector3(90, 0, 0));
             currentMeshRender.material.enableInstancing = true;
             currentMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
@@ -201,7 +201,7 @@ namespace Minimap
                 iconRender.enabled = false;
                 marker.attachedQuestIcon.name = "Quest Icon";
                 marker.attachedQuestIcon.transform.position = marker.attachedMesh.GetComponent<Renderer>().bounds.max + new Vector3(-2.5f, 4f, -2.5f);
-                marker.attachedQuestIcon.transform.localScale = new Vector3(sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .5f, 0, sizeMultiplier * Minimap.MinimapInstance.iconSetupSize * .5f);
+                marker.attachedQuestIcon.transform.localScale = new Vector3(sizeMultiplier * .5f, 0, sizeMultiplier * .5f);
                 marker.attachedQuestIcon.transform.Rotate(0, 0, 180);
                 marker.attachedQuestIcon.layer = Minimap.layerMinimap;
                 iconRender.material = Minimap.iconMarkerMaterial;
@@ -239,19 +239,13 @@ namespace Minimap
             labelutility.enableAutoSizing = true;
             textboxRect.sizeDelta = new Vector2(100, 100);
             labelutility.isOrthographic = true;
-            labelutility.fontMaterial = Minimap.labelMaterial;
-            labelutility.fontMaterial.SetColor(ShaderUtilities.ID_OutlineColor, new Color(0.0f, 0.0f, 0.0f));
-            labelutility.material.enableInstancing = true;
-            labelutility.characterSpacing = 2;
-            labelutility.fontSizeMin = 26;
-            labelutility.enableWordWrapping = true;
+            labelutility.fontMaterial = Minimap.labelMaterial;           
+            labelutility.lineSpacing = -30;
+            labelutility.fontSizeMin = 30;
             labelutility.fontStyle = TMPro.FontStyles.Bold;
-            labelutility.outlineColor = new Color32(0, 0, 0, 255);
-            labelutility.outlineWidth = .33f;
-
-            currentMeshRender.material.enableInstancing = true;
-            currentMeshRender.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-            currentMeshRender.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+            labelutility.fontWeight = FontWeight.Heavy;
+            labelutility.enableWordWrapping = true;
+            labelutility.outlineWidth = .25f;
 
             if (marker.staticBuilding.size.x < marker.staticBuilding.size.z)
                 marker.attachedLabel.transform.localScale = new Vector3(marker.staticBuilding.size.x * .0105f, marker.staticBuilding.size.x * .0105f, marker.staticBuilding.size.x * .0105f);
@@ -262,6 +256,7 @@ namespace Minimap
             labelutility.alignment = TMPro.TextAlignmentOptions.Center;
             marker.attachedLabel.name = string.Concat(marker.buildingSummary.BuildingType.ToString(), " Label ", marker.buildingSummary.buildingKey);
             labelutility.ForceMeshUpdate();
+            labelutility.UpdateFontAsset();
 
             var words =
                 Regex.Matches(marker.buildingSummary.BuildingType.ToString(), @"([A-Z][a-z]+)")

@@ -76,6 +76,7 @@ namespace Minimap
 
         void OnGUI()
         {
+            updateMinimap = false;
 
             if (smartViewActive)
             {
@@ -272,7 +273,6 @@ namespace Minimap
 
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
-            updateMinimap = false;
             //check if any controls have been updated, and if so, pushed window trigger update.
             if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] || Minimap.MinimapInstance.minimapSize != lastMinimapSize)
             {
