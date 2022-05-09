@@ -223,7 +223,7 @@ namespace Minimap
                 if (Minimap.npcFlatActive[marker.markerType])
                 {
                     if (Minimap.dreamModInstalled)
-                        size =(npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
+                        size =(npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f * .1f;
                     else
                         size = (npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
                 }

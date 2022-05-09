@@ -88,7 +88,7 @@ namespace Minimap
             if (Minimap.MinimapInstance == null || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside || !generatedMarker)
                 return;
 
-                if (!Minimap.minimapControls.autoRotateActive)
+            if (!Minimap.minimapControls.autoRotateActive)
             {
                 if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation)
                 {
@@ -423,27 +423,21 @@ namespace Minimap
             for (int i = 0; i < buildingMaterials.Length; i++)
             {
                 string textureName = buildingMaterials[i].name.Split(new char[] { ' ' })[0];
+                bool containsRoofMesh = false;
 
-                switch (textureName)
+                if (textureName.Contains("69") || textureName.Contains("70") || textureName.Contains("137") || textureName.Contains("169") || textureName.Contains("170") || textureName.Contains("171") || textureName.Contains("337")
+                    || textureName.Contains("369") || textureName.Contains("370") || textureName.Contains("469") || textureName.Contains("470"))
+                    containsRoofMesh = true;
+
+                if (containsRoofMesh)
                 {
-                    case "TEXTURE.069":
-                    case "TEXTURE.070":
-                    case "TEXTURE.137":
-                    case "TEXTURE.169":
-                    case "TEXTURE.170":
-                    case "TEXTURE.171":
-                    case "TEXTURE.337":
-                    case "TEXTURE.369":
-                    case "TEXTURE.370":
-                    case "TEXTURE.469":
-                    case "TEXTURE.470":
-                        buildingMaterials[i] = Minimap.minimapBuildingManager.buildingMaterialDict[marker.iconGroup];
-                        buildingMaterials[i].color = Minimap.iconGroupColors[marker.iconGroup];
-                        break;
-                    default:
-                        Destroy(buildingMaterials[i]);
-                        buildingMaterials[i] = null;
-                        break;
+                    buildingMaterials[i] = Minimap.minimapBuildingManager.buildingMaterialDict[marker.iconGroup];
+                    buildingMaterials[i].color = Minimap.iconGroupColors[marker.iconGroup];
+                }                    
+                else
+                {
+                    Destroy(buildingMaterials[i]);
+                    buildingMaterials[i] = null;
                 }
             }
 

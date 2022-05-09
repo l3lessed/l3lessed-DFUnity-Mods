@@ -175,6 +175,7 @@ namespace Minimap
                         {MarkerGroups.Friendlies, 1f},
                         {MarkerGroups.Enemies, 1f},
                         {MarkerGroups.Resident, 1f},
+                        {MarkerGroups.Doors, 1f},
                         {MarkerGroups.None, 1f}
                     };
                 }
@@ -209,6 +210,7 @@ namespace Minimap
                         {MarkerGroups.Friendlies, true },
                         {MarkerGroups.Enemies, true },
                         {MarkerGroups.Resident, true },
+                        {MarkerGroups.Doors, true},
                         {MarkerGroups.None, false}
                     };
                 }
@@ -226,6 +228,7 @@ namespace Minimap
                         {MarkerGroups.Friendlies, 1 },
                         {MarkerGroups.Enemies, 1 },
                         {MarkerGroups.Resident, 1 },
+                        {MarkerGroups.Doors, 1},
                         {MarkerGroups.None, 0 }
                     };
                 }
@@ -243,6 +246,7 @@ namespace Minimap
                         {MarkerGroups.Friendlies, Color.green },
                         {MarkerGroups.Enemies, Color.red },
                         {MarkerGroups.Resident, Color.yellow },
+                        {MarkerGroups.Doors, Color.white},
                         {MarkerGroups.None, Color.black }
                     };
                 }
@@ -406,7 +410,7 @@ namespace Minimap
         public GameObject publicMinimapRender;
         private GameObject mouseOverIcon;
         private GameObject mouseOverLabel;
-        private GameObject insideDoor;
+        public GameObject insideDoor;
         private GameObject questIcon;
         public GameObject canvasContainer;
         public RawImage glassRawImage;
@@ -415,6 +419,7 @@ namespace Minimap
         private static Material[] minimapMaterial;
         public static Material buildingMarkerMaterial;
         public static Material iconMarkerMaterial;
+        private Material playerArrowMaterial;
         public static Material labelMaterial;
 
         public Shader IconShader;
@@ -463,8 +468,6 @@ namespace Minimap
         public float minimapPositionX = .6f;
         public float minimapPositionY = .67f;
         private float compassCordinate;
-        private float lastColorPercent;
-        private float colorLerpPercent;
         private int frameInterval;
         private bool minimapBackgroundTexture;
         private int minimapBackgroundColor;
@@ -515,7 +518,7 @@ namespace Minimap
 
         //lists
         public List<SiteDetails> AllActiveQuestDetails = new List<SiteDetails>();
-        public List<PopulationManager.PoolItem> locationPopulation;
+        public PopulationManager locationPopulation;
         #endregion
 
         #region dictionaries
@@ -531,6 +534,7 @@ namespace Minimap
             {MarkerGroups.Friendlies, Color.green },
             {MarkerGroups.Enemies, Color.red },
             {MarkerGroups.Resident, Color.yellow },
+            {MarkerGroups.Doors, Color.white},
             {MarkerGroups.None, Color.black }
         };
 
@@ -545,6 +549,7 @@ namespace Minimap
             {MarkerGroups.Friendlies, 1 },
             {MarkerGroups.Enemies, 1 },
             {MarkerGroups.Resident, 1 },
+            {MarkerGroups.Doors, 1},
             {MarkerGroups.None, 0 }
         };
 
@@ -559,6 +564,7 @@ namespace Minimap
             {MarkerGroups.Friendlies, true },
             {MarkerGroups.Enemies, true },
             {MarkerGroups.Resident, true },
+            {MarkerGroups.Doors, true},
             {MarkerGroups.None, false}
         };
 
@@ -587,6 +593,7 @@ namespace Minimap
             {MarkerGroups.Friendlies, .5f},
             {MarkerGroups.Enemies, .5f},
             {MarkerGroups.Resident, .5f},
+            {MarkerGroups.Doors, .5f},
             {MarkerGroups.None, .5f}
         };
 
@@ -607,6 +614,7 @@ namespace Minimap
             Friendlies,
             Enemies,
             Resident,
+            Doors,
             None
         }
 
@@ -635,7 +643,12 @@ namespace Minimap
             onstartMenu = false;
             gameLoaded = true;
             lastAmuletID = 0;
-            changedLocations = true;
+
+            if (GameManager.Instance.IsPlayerInside)
+                changedLocations = false;
+            else
+                changedLocations = true;
+
             currentLocation = null;
             minimapControls.updateMinimapUI();
             MinimapInstance.SetupMinimapLayers(true);
@@ -663,7 +676,9 @@ namespace Minimap
             //update last health to trigger any new compass effects if needed.
             lastHealth = GameManager.Instance.PlayerEntity.CurrentHealthPercent;
 
-            PlayerGPS.OnMapPixelChanged += PlayerGPS_OnMapPixelChanged;            
+            PlayerGPS.OnMapPixelChanged += PlayerGPS_OnMapPixelChanged;
+            PlayerEnterExit.OnTransitionInterior += PlayerEnterExit_OnTransitionInterior;
+            PlayerEnterExit.OnTransitionExterior += PlayerEnterExit_OnTransitionExterior;
 
             //set effect settings.
             glassTransperency = settings.GetValue<float>("CompassEffectSettings", "GlassTransperency");
@@ -778,7 +793,8 @@ namespace Minimap
             //setup the minimap material for indicator meshes.
             buildingMarkerMaterial = minimapMaterial[0];
             iconMarkerMaterial = minimapMaterial[1];
-            labelMaterial = minimapMaterial[2];
+            playerArrowMaterial = minimapMaterial[2];
+            labelMaterial = minimapMaterial[3];
 
             //grab the mask and canvas layer rect transforms of the minimap object.
             minimapRectTransform = publicMinimap.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
@@ -1020,15 +1036,15 @@ namespace Minimap
         void MinimapControls()
         {
             //effect toggle code.
-            if (MinimapInputManager.Key3Press)
-            {
-                if (!frustrumCallingEnabled)
-                    frustrumCallingEnabled = true;
-                else
-                    frustrumCallingEnabled = false;
+            //if (MinimapInputManager.Key3Press)
+            //{
+                //if (!frustrumCallingEnabled)
+                    //frustrumCallingEnabled = true;
+                //else
+                    //frustrumCallingEnabled = false;
 
-                DaggerfallUI.Instance.PopupMessage(string.Concat("Icon frustrum calling is ", frustrumCallingEnabled));
-            }
+                //DaggerfallUI.Instance.PopupMessage(string.Concat("Icon frustrum calling is ", frustrumCallingEnabled));
+            //}
 
 
             if (MinimapInputManager.Key1Held)
@@ -1084,159 +1100,112 @@ namespace Minimap
                 }
             }
 
-            if (MinimapInputManager.Key3DblPress)
-            {
-                if (!EffectManager.toggleEffects)
-                    EffectManager.toggleEffects = true;
-                else
-                    EffectManager.toggleEffects = false;
+            //if (MinimapInputManager.Key3DblPress)
+            //{
+                //if (!EffectManager.toggleEffects)
+                    //EffectManager.toggleEffects = true;
+                //else
+                    //EffectManager.toggleEffects = false;
 
-                DaggerfallUI.Instance.PopupMessage(string.Concat("Compass effects are ", EffectManager.toggleEffects));
-            }
+                //DaggerfallUI.Instance.PopupMessage(string.Concat("Compass effects are ", EffectManager.toggleEffects));
+            //}
         }
 
         private void PlayerGPS_OnMapPixelChanged(DFPosition mapPixel)
         {
-            changedLocations = true;
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
             if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
             {
                 //set minimap camera to outside rendering layer mask
                 minimapCamera.cullingMask = minimapLayerMaskOutside;
                 currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-                locationPopulation = currentLocation.GetComponent<PopulationManager>().PopulationPool;
+                locationPopulation = currentLocation.GetComponent<PopulationManager>();
 
                 //make unique location name based on in a unique location or out in a wilderness area.
                 currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
-
             }
-            else if (GameManager.Instance.IsPlayerInside)
+            changedLocations = true;
+        }
+
+        private void PlayerEnterExit_OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
+        {
+            if (GameManager.Instance.InteriorParent.activeSelf && GameManager.Instance.IsPlayerInsideDungeon && GameManager.Instance.PlayerEnterExit.Dungeon)
             {
-                if (!GameManager.Instance.IsPlayerInsideDungeon)
-                {
-                    currentLocationName = GameManager.Instance.PlayerEnterExit.Interior.name;
-                }
-                else if (GameManager.Instance.InteriorParent.activeSelf && GameManager.Instance.IsPlayerInsideDungeon && GameManager.Instance.PlayerEnterExit.Dungeon)
-                {
-                    minimapCamera.cullingMask = minimapLayerMaskInside;
-                    currentLocationName = GameManager.Instance.PlayerEnterExit.Dungeon.name;
+                minimapCamera.cullingMask = minimapLayerMaskInside;
 
-                    //if player is inside, this runs continually to create the minimap automap by hijacking the automap. If this doesn't update, dungeon minimap revealed geometry won't update.
-                    if (GameManager.Instance.IsPlayerInsideDungeon)
-                        DungeonMinimapCreator();
-                }
-            }
-
-            //check if location is loaded, if player is in an actual location rect, and if the location has changed by name.
-            if (currentLocationName != lastLocationName)
-            {
-                //Debug.Log("LOCATIONS" + currentLocationName + " | " + lastLocationName);
-                //update location names for trigger update.
-                currentLocationName = lastLocationName;
-
-                //if inside, setup all inside indicators (doors and quest for now only).
-                if (GameManager.Instance.IsPlayerInside)
-                {
-                    //create blank door array.
-                    StaticDoor[] doors;
-                    //grab doors in interior based on dungeon or building.
-                    if (GameManager.Instance.IsPlayerInsideDungeon)
-                        doors = DaggerfallStaticDoors.FindDoorsInCollections(GameManager.Instance.PlayerEnterExit.Dungeon.StaticDoorCollections, DoorTypes.DungeonExit);
-                    else
-                        doors = DaggerfallStaticDoors.FindDoorsInCollections(GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.StaticDoorCollections, DoorTypes.Building);
-
-                    //check if doors existed/array is not empty.
-                    if (doors != null && doors.Length > 0)
-                    {
-                        int doorIndex;
-                        //create blank door position.
-                        doorPos = new Vector3(0, 0, 0);
-                        //find the closest door in the area and output its index and position to run below setup code for it.
-                        if (DaggerfallStaticDoors.FindClosestDoorToPlayer(GameManager.Instance.PlayerMotor.transform.position, doors, out doorPos, out doorIndex))
-                        {
-                            //setup icons for building.
-                            insideDoor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-                            insideDoor.name = "Entrance Door";
-                            insideDoor.transform.position = doorPos;
-                            insideDoor.transform.localScale = new Vector3(.0833f, .0833f, .15f);
-                            insideDoor.layer = layerMinimap;
-                            insideDoorMesh = insideDoor.GetComponent<MeshRenderer>();
-                            insideDoorMesh.material = iconMarkerMaterial;
-                            insideDoorMesh.material.color = Color.green;
-                            insideDoorMesh.shadowCastingMode = 0;
-                            insideDoorMesh.material.mainTexture = ImageReader.GetTexture("TEXTURE.056", 4, 0, true, 0);
-                            //remove collider from mes.
-                            Destroy(insideDoor.GetComponent<Collider>());
-
-                        }
-                    }
-
-                    changedLocations = true;
-                }
-
-                //grab all quest site details and dump it in new empty site details array.
-                AllActiveQuestDetails = GameManager.Instance.QuestMachine.GetAllActiveQuestSites().ToList<SiteDetails>();
-
-                //check if array was populated.
-                if (AllActiveQuestDetails != null && AllActiveQuestDetails.Count > 0)
-                {
-                    //loop through site details if there are.
-                    foreach (SiteDetails questSite in GameManager.Instance.QuestMachine.GetAllActiveQuestSites())
-                    {
-                        //if the location has a quest tied to it, update the quest location marker.
-                        if (GameManager.Instance.PlayerGPS.CurrentLocation.Exterior.ExteriorData.LocationId == questSite.locationId)
-                        {
-                            questInRegion = true;
-                            currentLocationHasQuestMarker = GameManager.Instance.QuestMachine.GetCurrentLocationQuestMarker(out currentLocationQuestMarker, out currentLocationQuestPos);
-                        }
-                        else
-                        {
-                            questInRegion = false;
-                            currentLocationHasQuestMarker = false;
-                        }
-                    }
-                }
-                //updated minimap.
-                minimapControls.updateMinimapUI();
-            }
-
-            //check if door control indicator is active and exist and enabled it.
-            if (insideDoor != null && minimapControls.doorIndicatorActive)
-                insideDoor.SetActive(true);
-            //check if door control indicator not active or does not exist and enabled it.
-            else if (insideDoor != null)
-                insideDoor.SetActive(false);
-
-            //if door exist and is active, update door position and color.
-            if (insideDoor != null && insideDoor.activeSelf && colorLerpPercent != lastColorPercent + .025f)
-            {
-                //set door icon position.
-                insideDoor.transform.position = new Vector3(doorPos.x, GameManager.Instance.PlayerMotor.transform.position.y - .8f, doorPos.z);
-                //sets up and adjust the distance for the color distance effect. Higher number the further up/down the shader detects and shifts.
-                float doorDistanceFader;
+                //if player is inside, this runs continually to create the minimap automap by hijacking the automap. If this doesn't update, dungeon minimap revealed geometry won't update.
                 if (GameManager.Instance.IsPlayerInsideDungeon)
-                    doorDistanceFader = 21;
-                else if (GameManager.Instance.IsPlayerInsideDungeon)
-                    doorDistanceFader = 14;
+                    DungeonMinimapCreator();
+            }
+
+            if (GameManager.Instance.IsPlayerInside)
+            {
+                Debug.Log("PLAYER INSIDE!");
+                //create blank door array.
+                StaticDoor[] doors = new StaticDoor[1];
+                //grab doors in interior based on dungeon or building.
+                if (GameManager.Instance.IsPlayerInsideDungeon)
+                    doors = DaggerfallStaticDoors.FindDoorsInCollections(GameManager.Instance.PlayerEnterExit.Dungeon.StaticDoorCollections, DoorTypes.DungeonExit);
                 else
-                    doorDistanceFader = 7;
+                    doors[0] = GameManager.Instance.PlayerEnterExit.Interior.EntryDoor;
 
-                //figure out percentage of distance player is from door vertically using set distance of 7.
-                colorLerpPercent = (GameManager.Instance.PlayerMotor.transform.position.y - doorPos.y) / doorDistanceFader;
+                //check if doors existed/array is not empty.
+                if (doors != null && doors.Length > 0)
+                {
+                    Debug.Log("Finding Doors!");
+                    int doorIndex;
+                    //create blank door position.
+                    Vector3 doorPos = new Vector3(0, 0, 0);
+                    //find the closest door in the area and output its index and position to run below setup code for it.
+                    if (DaggerfallStaticDoors.FindClosestDoorToPlayer(GameManager.Instance.PlayerMotor.transform.position, doors, out doorPos, out doorIndex))
+                    {
+                        if (Minimap.MinimapInstance.insideDoor != null)
+                            Destroy(Minimap.MinimapInstance.insideDoor);
 
-                //if verticial is negative and makes negative percentage, turn positive.
-                if (colorLerpPercent < 0)
-                    colorLerpPercent *= -1;
+                        Debug.Log("Setup Door!");
 
-                lastColorPercent = colorLerpPercent;
-                float lerpPercent = Mathf.Clamp(colorLerpPercent, 0, 1);
+                        //setup icons for building.
+                        Minimap.MinimapInstance.insideDoor = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                        Minimap.MinimapInstance.insideDoor.name = "Entrance Door";
+                        Minimap.MinimapInstance.insideDoor.transform.position = doorPos;
+                        Minimap.MinimapInstance.insideDoor.transform.localScale = new Vector3(4, 2.2f, .15f);
+                        Minimap.MinimapInstance.insideDoor.transform.Rotate(90, 0, 0);
+                        Minimap.MinimapInstance.insideDoor.layer = Minimap.layerMinimap;
+                        MeshRenderer insideDoorMesh = Minimap.MinimapInstance.insideDoor.GetComponent<MeshRenderer>();
+                        insideDoorMesh.material = Minimap.iconMarkerMaterial;
+                        insideDoorMesh.material.color = Color.green;
+                        insideDoorMesh.shadowCastingMode = 0;
+                        insideDoorMesh.material.mainTexture = ImageReader.GetTexture("TEXTURE.054", 7, 0, true, 0);
+                        DoorController doorInstance = Minimap.MinimapInstance.insideDoor.AddComponent<DoorController>();
+                        doorInstance.insideDoor = true;
+                        doorInstance.SpawnPosition = doorPos;
+                        //remove collider from mes.
+                        Destroy(Minimap.MinimapInstance.insideDoor.GetComponent<Collider>());
 
-                //update color using two step lerp in a lerp. First lerp goes from green to yellow, ending lerp goes from yellow to red. This creates a clear green to yellow to red transition color.
-                insideDoorMesh.material.color = Color.Lerp(Color.Lerp(Color.green, Color.yellow, lerpPercent), Color.Lerp(Color.yellow, Color.red, lerpPercent), lerpPercent);
+                    }
+
+                    if (minimapBuildingManager.combinedMarkerList != null)
+                    {
+                        foreach (GameObject combinedMarker in minimapBuildingManager.combinedMarkerList)
+                            combinedMarker.SetActive(false);
+                    }
+                }
             }
         }
 
-        //returns closes raycast hit of not enabled automap mesh layers.
+        private void PlayerEnterExit_OnTransitionExterior(PlayerEnterExit.TransitionEventArgs args)
+        {
+            if (minimapBuildingManager.currentPositionUID == minimapBuildingManager.generatedPositionUID)
+            {
+                if (minimapBuildingManager.combinedMarkerList != null)
+                {
+                    foreach (GameObject combinedMarker in minimapBuildingManager.combinedMarkerList)
+                        combinedMarker.SetActive(true);
+                }
+            }
+        }
+
+            //returns closes raycast hit of not enabled automap mesh layers.
         private void GetRayCastNearestHitOnAutomapLayer(out RaycastHit? nearestHit)
         {
             Ray ray = new Ray(mainCamera.transform.position, Vector3.down);
@@ -1574,7 +1543,7 @@ namespace Minimap
             //setup and place/rotate player arrow mesh for minimap. Use automap layer only.
             if (!gameobjectPlayerMarkerArrow)
             {
-                Material playerArrow = new Material(buildingMarkerMaterial);
+                Material playerArrow = new Material(playerArrowMaterial);
                 gameobjectPlayerMarkerArrow = GameObjectHelper.CreateDaggerfallMeshGameObject(99900, GameManager.Instance.PlayerEntityBehaviour.transform, false, null, true);
                 Destroy(gameobjectPlayerMarkerArrow.GetComponent<MeshCollider>());
                 gameobjectPlayerMarkerArrow.name = "PlayerMarkerArrow";

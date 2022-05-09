@@ -200,7 +200,7 @@ namespace Minimap
 
             realDetectionEnabled = GUI.Toggle(new Rect(85, 113, 150, 25), realDetectionEnabled, "Realistic View", currentToggleStyle);
             questIndicatorActive = GUI.Toggle(new Rect(210, 113, 110, 25), questIndicatorActive, "Quests", currentToggleStyle);
-            doorIndicatorActive = GUI.Toggle(new Rect(210, 130, 110, 25), doorIndicatorActive, "Doors", currentToggleStyle);
+            //doorIndicatorActive = GUI.Toggle(new Rect(210, 130, 110, 25), doorIndicatorActive, "Doors", currentToggleStyle);
 
             if (!realDetectionEnabled)
             cameraDetectionEnabled = GUI.Toggle(new Rect(15, 150, 150, 25), cameraDetectionEnabled, "In View Detection", currentToggleStyle);
@@ -247,24 +247,33 @@ namespace Minimap
 
             }
 
-            //setup text fields to label RGB sliders.
-            GUI.Label(new Rect(10, 205, 50, 25), "Red", currentStyle);
-            GUI.Label(new Rect(10, 228, 50, 25), "Green", currentStyle);
-            GUI.Label(new Rect(10, 251, 50, 25), "Blue", currentStyle);
-            GUI.Label(new Rect(10, 274, 50, 25), "Clear", currentStyle);
-            GUI.Label(new Rect(10, 297, 50, 25), "Size", currentStyle);
+            if(GameManager.Instance.IsPlayerInside && (Minimap.MarkerGroups)selectedIconInt == Minimap.MarkerGroups.Doors)
+            {
+                GUI.Label(new Rect(10, 297, 50, 25), "Size", currentStyle);
+                iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 295, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(iconSize, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out iconSize);
+            }
+            else
+            {
+                //setup text fields to label RGB sliders.
+                GUI.Label(new Rect(10, 205, 50, 25), "Red", currentStyle);
+                GUI.Label(new Rect(10, 228, 50, 25), "Green", currentStyle);
+                GUI.Label(new Rect(10, 251, 50, 25), "Blue", currentStyle);
+                GUI.Label(new Rect(10, 274, 50, 25), "Clear", currentStyle);
+                GUI.Label(new Rect(10, 297, 50, 25), "Size", currentStyle);
 
-            //setup RGB sliders.
-            redValue = GUI.HorizontalSlider(new Rect(60, 210, 160, 25), redValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(220, 203, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(redValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out redValue);
-            greenValue = GUI.HorizontalSlider(new Rect(60, 233, 160, 25), greenValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(220, 226, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(greenValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out greenValue);
-            blueValue = GUI.HorizontalSlider(new Rect(60, 256, 160, 25), blueValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(220, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
-            blendValue = GUI.HorizontalSlider(new Rect(60, 279, 160, 25), blendValue, 0, 1);
-            float.TryParse(GUI.TextField(new Rect(220, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
-            iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 1);
-            float.TryParse(GUI.TextField(new Rect(220, 295, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(iconSize, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out iconSize);
+                //setup RGB sliders.
+                redValue = GUI.HorizontalSlider(new Rect(60, 210, 160, 25), redValue, 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 203, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(redValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out redValue);
+                greenValue = GUI.HorizontalSlider(new Rect(60, 233, 160, 25), greenValue, 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 226, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(greenValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out greenValue);
+                blueValue = GUI.HorizontalSlider(new Rect(60, 256, 160, 25), blueValue, 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 249, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blueValue, 0f, 1f),3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blueValue);
+                blendValue = GUI.HorizontalSlider(new Rect(60, 279, 160, 25), blendValue, 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 272, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(blendValue, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out blendValue);
+                iconSize = GUI.HorizontalSlider(new Rect(60, 303, 160, 25), Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt], 0, 1);
+                float.TryParse(GUI.TextField(new Rect(220, 295, 55, 25), Regex.Replace(Math.Round(Mathf.Clamp(iconSize, 0f, 1f), 3).ToString(), @"^[0-9][0-9][0-9][0-9]", ""), currentStyle), out iconSize);
+            }
 
             Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(15, 318, 120, 25), Minimap.iconGroupActive[(Minimap.MarkerGroups)selectedIconInt], "Detect Soul", currentToggleStyle);
 

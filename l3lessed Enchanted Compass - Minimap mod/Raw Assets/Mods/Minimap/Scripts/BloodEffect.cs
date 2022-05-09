@@ -46,7 +46,7 @@ namespace Minimap
             effectRectTransform.localPosition = randomPosition;
             effectRectTransform.sizeDelta = new Vector2(randomScale, randomScale);
 
-            randomEffectDuration =  Minimap.MinimapInstance.randomNumGenerator.Next(5, 10);
+            randomEffectDuration =  Minimap.MinimapInstance.randomNumGenerator.Next(8, 16);
             dripSpeed =  Random.Range(2, Minimap.MinimapInstance.dripSpeed);
         }
 
@@ -74,7 +74,7 @@ namespace Minimap
                 updateTimer = effectTimer;
                 effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(1, .75f, effectTimer / randomEffectDuration));
 
-                float lerpDrip = Mathf.Lerp(Minimap.MinimapInstance.dripSpeed, 0, effectTimer/ Minimap.MinimapInstance.dripSpeed);
+                float lerpDrip = Mathf.Lerp(Minimap.MinimapInstance.dripSpeed, 0, effectTimer/ randomEffectDuration);
 
                 currentAnchorPosition = new Vector2(effectRectTransform.localPosition.x, effectRectTransform.localPosition.y - (lerpDrip * Time.deltaTime));
                 effectRectTransform.localPosition = currentAnchorPosition;
@@ -84,7 +84,6 @@ namespace Minimap
             {
                 if (effectRectTransform.localPosition.y > -130)
                 {
-
                     effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(1, 0, effectTimer / randomEffectDuration));
                     currentAnchorPosition = new Vector2(effectRectTransform.localPosition.x, effectRectTransform.localPosition.y - (dripMovement * 1.5f));
                     effectRectTransform.localPosition = currentAnchorPosition;

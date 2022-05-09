@@ -100,55 +100,47 @@ namespace Minimap
 
             //if player is outside and the streaming world is ready/generated for play setup building indicators.
             if (Minimap.changedLocations)
-            {  
+            {
+                currentPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
+
                 if (GameManager.Instance.PlayerGPS.HasCurrentLocation && GameManager.Instance.PlayerGPS.CurrentLocation.Loaded && GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.LocationName != GameManager.Instance.PlayerGPS.CurrentLocation.Name)
                     return;
 
-                    blockArray = null;
-                    buildingDirectory = null;
-                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
-                    blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
-                    //grab the rmbblock objects from the location object for use.
-                    blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
-                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
-                    buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
-                    //start to loop through blocks from the block array created above.
-                    CityNavigation currentCityNav = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation();
+                Minimap.changedLocations = false;
+
+                blockArray = null;
+                buildingDirectory = null;
+                //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+                blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
+                //grab the rmbblock objects from the location object for use.
+                blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
+                //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+                buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
+                //start to loop through blocks from the block array created above.
+                CityNavigation currentCityNav = GameManager.Instance.StreamingWorld.GetCurrentCityNavigation();
 
 
-                    if (GameManager.Instance.IsPlayerInside || buildingDirectory == null || currentCityNav == null || buildingDirectory.BuildingCount == 0)
-                    {
-                        Debug.Log("No Buildings/Navigation found!");
-                    }
-                    else
-                    {
-                        currentLocation = GameManager.Instance.PlayerGPS.CurrentLocation.Name;
-                        UpdateMarkers();
-                        markersGenerated = false;
-                    }
-                
-
-                if (currentLocation != lastLocation)
+                if (buildingDirectory == null || currentCityNav == null || buildingDirectory.BuildingCount == 0)
                 {
-                    lastLocation = currentLocation;
-                    generatedPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
+                    Debug.Log("No Buildings/Navigation found!");
                 }
                 else
                 {
-                    currentPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
-                    if (currentPositionUID != generatedPositionUID)
-                    {
-                        foreach (GameObject combinedMarker in combinedMarkerList)
-                            combinedMarker.SetActive(false);
-                    }
-                    else if(currentPositionUID == generatedPositionUID)
-                    {
-                        foreach (GameObject combinedMarker in combinedMarkerList)
-                            combinedMarker.SetActive(true);
-                    }                    
+                    UpdateMarkers();
+                    generatedPositionUID = GameManager.Instance.PlayerGPS.CurrentMapPixel.X + GameManager.Instance.PlayerGPS.CurrentMapPixel.Y;
+                    markersGenerated = false;
                 }
 
-                Minimap.changedLocations = false;
+                if (currentPositionUID != generatedPositionUID)
+                {
+                    foreach (GameObject combinedMarker in combinedMarkerList)
+                        combinedMarker.SetActive(false);
+                }
+                else if(currentPositionUID == generatedPositionUID)
+                {
+                    foreach (GameObject combinedMarker in combinedMarkerList)
+                        combinedMarker.SetActive(true);
+                }                                    
             }
 
             if (generatingMarkers && !markersGenerated)

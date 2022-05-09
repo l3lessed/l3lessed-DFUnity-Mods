@@ -48,9 +48,9 @@ namespace Minimap
 
         private void Start()
         {
-            Material friendliesIconMaterial = new Material(Minimap.buildingMarkerMaterial);
-            Material enemiesIconMaterial = new Material(Minimap.buildingMarkerMaterial);
-            Material residentIconMaterial = new Material(Minimap.buildingMarkerMaterial);
+            Material friendliesIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material enemiesIconMaterial = new Material(Minimap.iconMarkerMaterial);
+            Material residentIconMaterial = new Material(Minimap.iconMarkerMaterial);
 
             npcIconMaterialDict = new Dictionary<Minimap.MarkerGroups, Material>()
             {
