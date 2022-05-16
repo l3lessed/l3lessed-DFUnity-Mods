@@ -1,9 +1,6 @@
-using System.Collections;
 using DaggerfallWorkshop.Game;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System;
 
 namespace Minimap
 {

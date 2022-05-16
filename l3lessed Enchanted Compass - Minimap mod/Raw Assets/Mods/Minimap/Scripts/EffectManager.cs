@@ -86,6 +86,8 @@ namespace Minimap
         private KeyCode toggleEffectKey;
         private Texture2D magicRipTexture;
         private Texture2D magicSwirlTexture;
+        private float effectUpdateTimer;
+        private bool effectTriggered;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -318,8 +320,13 @@ namespace Minimap
                 return;
             }
 
+            effectUpdateTimer += Time.deltaTime;
+            effectTriggered = false;
+
             if (!Minimap.MinimapInstance.minimapActive)
-                return;                
+                return;
+
+            effectUpdateTimer = 0;
 
             if (!compassArmored && GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor) != null)
                 compassArmored = true;
@@ -365,7 +372,8 @@ namespace Minimap
             //BLOOD EFFECT\\
             //setup health damage blood layer effects. If players health changes run effect code.
             if (enabledBloodEffect && bloodEffectTrigger)
-            {                
+            {
+                effectTriggered = true;
                 //if all blood textures are already loaded, find the current selected texture, and remove the old effect
                 if (bloodEffectList.Count == bloodTextureList.Count)
                 {
@@ -478,6 +486,7 @@ namespace Minimap
             {
                 if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage < 80 && (reapplyDamageEffects || magicEffectList.Count < maxMagicRips))
                 {
+                    effectTriggered = true;
                     //count up rain timer.
                     magicRipTimer += Time.deltaTime;
                     //if half a second to 1.5 seconds pass start rain effect.
@@ -537,6 +546,7 @@ namespace Minimap
                     //once timer and chance are trigger, apply mud effect.
                     if (mudTimer > mudDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) < chanceRollCheck)
                     {
+                        effectTriggered = true;
                         int currentMudTexture =  Minimap.MinimapInstance.randomNumGenerator.Next(0, mudTextureList.Count - 1);
                         //if all blood textures are already loaded, find the current selected texture, and remove the old effect
                         if (mudEffectList.Count == mudTextureList.Count)
@@ -615,6 +625,7 @@ namespace Minimap
 
                     if (dirtTimer > dirtDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) < chanceRollCheck)
                     {
+                        effectTriggered = true;
                         int currentDirtTextureID =  Minimap.MinimapInstance.randomNumGenerator.Next(0, 2);
 
                         dirtTimer = 0;
@@ -930,26 +941,26 @@ namespace Minimap
                     msgInstance = 2;
                     return;
                 }
-                else if (Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 40 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 60 && msgInstance != 3)
+                else if (Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 40 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 50 && msgInstance != 3)
                 {
                     DaggerfallUI.Instance.PopupMessage("Putting in a new dwemer gears and dynamo");
                     List<DaggerfallUnityItem> dwemerDynamoList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
-                    GameManager.Instance.PlayerEntity.Items.RemoveItem(dwemerDynamoList[0]);
+                    GameManager.Instance.PlayerEntity.Items.RemoveOne(dwemerDynamoList[0]);
                     msgInstance = 3;
                     return;
                 }
-                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 60 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 80 && msgInstance != 4)
+                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 50 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 60 && msgInstance != 4)
                 {
                     DaggerfallUI.Instance.PopupMessage("Retuning and oiling dwemer gears and dynamo");
                     msgInstance = 4;
                     return;
                 }
-                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 80 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 90 && msgInstance != 5)
+                else if (Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 60 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 80 && msgInstance != 5)
                 {
                     DaggerfallUI.Instance.PopupMessage("Replacing the broken glass");
                     //Find and remove a gear and glass from player.
                     List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
-                    GameManager.Instance.PlayerEntity.Items.RemoveItem(cutGlassList[0]);
+                    GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
                     //reset permanent damaged glass texture to clear/not seen.
                     damageGlassEffectInstance.UpdateTexture(new Color(1, 1, 1, 0), damageTextureList[1], new Vector3(1, 1, 1));
                     //update glass texture to go back to clean glass.
@@ -957,10 +968,16 @@ namespace Minimap
                     msgInstance = 5;
                     return;
                 }
-                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 90 && msgInstance != 6)
+                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 80 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition < 90 && msgInstance != 6)
+                {
+                    DaggerfallUI.Instance.PopupMessage("Checking compass components.");
+                    msgInstance = 6;
+                    return;
+                }
+                else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 90 && msgInstance != 7)
                 {
                     DaggerfallUI.Instance.PopupMessage("Tighting everything down. Almost done");
-                    msgInstance = 6;
+                    msgInstance = 7;
                     return;
                 }
 

@@ -4,7 +4,6 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using System.Linq;
 using System.IO;
-using DaggerfallWorkshop.Utility.AssetInjection;
 
 namespace Minimap
 {

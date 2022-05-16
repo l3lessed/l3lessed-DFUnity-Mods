@@ -297,8 +297,13 @@ namespace Minimap
             Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
 
             //sets minimap transperency level.
+            Color loadedBackgroundColor = new Color(Minimap.MinimapInstance.loadedBackgroundColor.r * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.b * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.g * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.minimapBackgroundTransperency * alphaValue);
+
             Minimap.MinimapInstance.publicMinimapRender.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = loadedBackgroundColor;
             Minimap.MinimapInstance.publicCompass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicQuestBearing.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
+            Minimap.MinimapInstance.publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.6f, .6f, .6f, alphaValue * Minimap.MinimapInstance.glassTransperency);
         }
 
         public static bool IsPointerOverUIElement()

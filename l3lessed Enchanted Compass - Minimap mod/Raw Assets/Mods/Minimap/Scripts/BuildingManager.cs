@@ -3,11 +3,9 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Utility;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using UnityEngine;
 
 namespace Minimap
@@ -27,12 +25,8 @@ namespace Minimap
         public int generatedPositionUID;
         public bool markersGenerated;
         public GameObject combinedObj;
-        public Texture2D test;
-        public Dictionary<DFLocation.BuildingTypes, Texture> iconTextureDictionary;
         public StaticBuilding[] StaticBuildingArray { get; private set; }
         public List<GameObject> combinedMarkerList = new List<GameObject>();
-        public static String currentGeneratedCity;
-
         public Texture2D doorIconTexture;
         public string lastLocation;
         public bool generatingMarkers;

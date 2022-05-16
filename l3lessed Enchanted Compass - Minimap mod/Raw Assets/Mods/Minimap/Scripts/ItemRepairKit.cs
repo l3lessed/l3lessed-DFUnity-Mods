@@ -1,12 +1,3 @@
-// Project:         RoleplayRealism:Items mod for Daggerfall Unity (http://www.dfworkshop.net)
-// Copyright:       Copyright (C) 2020 Hazelnut
-// License:         MIT License (http://www.opensource.org/licenses/mit-license.php)
-// Author:          Hazelnut
-
-using DaggerfallConnect;
-using DaggerfallWorkshop;
-using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
@@ -61,7 +52,7 @@ namespace Minimap
 
                 if (cutGlassList.Count == 0)
                     missingItems = "Cut Glass";
-                if (missingItems == "")
+                if (dwemerGearsList.Count == 0)
                     missingItems = "Dwemer Gears";
                 else
                     missingItems = missingItems + " and Dwemer Gears";

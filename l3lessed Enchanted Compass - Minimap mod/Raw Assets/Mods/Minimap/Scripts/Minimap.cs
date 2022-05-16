@@ -7,7 +7,6 @@ using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using DaggerfallWorkshop.Utility;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
@@ -440,10 +439,13 @@ namespace Minimap
         //questmaker object.
         private QuestMarker currentLocationQuestMarker;
 
+        //color objects.
+        public Color loadedBackgroundColor;
+
         //floats for controlling minimap properties.
         public float PlayerHeightChanger;
-        public float npcCellUpdateInterval = .1f;
-        public float npcMarkerUpdateInterval = .3f;
+        public float npcCellUpdateInterval = .33f;
+        public float npcMarkerUpdateInterval = .33f;
         public static float buildingSpawnTime = .0166f;
         public static bool frustrumCallingEnabled;
         public int smartViewTriggerDistance;
@@ -471,8 +473,8 @@ namespace Minimap
         private int frameInterval;
         private bool minimapBackgroundTexture;
         private int minimapBackgroundColor;
-        private float minimapBackgroundBrightness;
-        private float minimapBackgroundTransperency;
+        public float minimapBackgroundBrightness;
+        public float minimapBackgroundTransperency;
         public float fpsUpdateInterval;
         private float defaultTimeScale = 0f;
         public float iconAdjuster = .00025f;
@@ -694,7 +696,7 @@ namespace Minimap
             minimapBackgroundBrightness = settings.GetValue<float>("CompassGraphicsSettings", "CompassBackgroundBrightness");
             minimapBackgroundTransperency = settings.GetValue<float>("CompassGraphicsSettings", "CompassBackgroundTransperency");
 
-            Color loadedBackgroundColor = Color.black;
+            loadedBackgroundColor = Color.black;
 
             switch (minimapBackgroundColor)
             {
