@@ -102,6 +102,8 @@ namespace Minimap
 
                 Minimap.changedLocations = false;
 
+                Debug.Log("LOCATION CHANGED!!");
+
                 blockArray = null;
                 buildingDirectory = null;
                 //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
@@ -130,7 +132,7 @@ namespace Minimap
                     foreach (GameObject combinedMarker in combinedMarkerList)
                         combinedMarker.SetActive(false);
                 }
-                else if(currentPositionUID == generatedPositionUID)
+                else if (currentPositionUID == generatedPositionUID)
                 {
                     foreach (GameObject combinedMarker in combinedMarkerList)
                         combinedMarker.SetActive(true);
@@ -197,6 +199,8 @@ namespace Minimap
                 return;
 
             generatingMarkers = true;
+
+            Debug.Log("GENERATING MARKERS!!");
 
             //Vector3 position = currentCityNav.WorldToScenePosition(new DFPosition(Minimap.currentLocation.Summary.MapPixelX, Minimap.currentLocation.Summary.MapPixelX), true);
             List<BuildingSummary> housesForSaleList = buildingDirectory.GetHousesForSale();

@@ -1,0 +1,23 @@
+{
+    "ModTitle": "Ambidexterity Mod",
+    "ModVersion": "1.0",
+    "ModAuthor": "l3lessed",
+    "DFUnity_Version": "0.13.5",
+    "ModDescription": "Use your both hands like the true warrior you are.",
+    "GUID": "e0cb4a5d-6d40-4472-8741-b1b5757aabfe",
+    "Files": [
+        "Assets/Game/Mods/Ambidexterity/Scripts/AmbidexterityConsole.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/ShieldFormulaHelper.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/TaskManager.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/FPSShield.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/OffHandFPSWeapon.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/ShieldExpansion.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/AltFPSWeapon.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/AmbidexterityManager.cs",
+        "Assets/Game/Mods/Ambidexterity/Scripts/PhysicalCombatAndArmorOverhauPatcher.cs",
+        "Assets/Game/Mods/Ambidexterity/Prefabs/Spark_Particles.prefab",
+        "Assets/Game/Mods/Ambidexterity/modsettings.json",
+        "Assets/Resources/AllowEmission.mat",
+        "Assets/Game/Mods/Ambidexterity/Ambidexterity.dfmod.json"
+    ]
+}

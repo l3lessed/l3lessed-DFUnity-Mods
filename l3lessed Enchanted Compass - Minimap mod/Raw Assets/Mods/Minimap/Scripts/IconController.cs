@@ -25,11 +25,17 @@ namespace Minimap
             if (GameManager.Instance.IsPlayerInside)
                 return;
 
-            if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation)
+            if (GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y != lastRotation && !Minimap.minimapControls.autoRotateActive)
             {
                 lastRotation = Minimap.minimapControls.minimapRotationValue + 2;
                 //updates rotation for each icon, if they are existing.
                 iconMaterials.SetFloat("_Rotation", ((Minimap.MinimapInstance.publicMinimap.transform.eulerAngles.y - GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y)) * .0174f);
+            }
+            else if(lastRotation != 0)
+            {
+                lastRotation = 0;
+                //updates rotation for each icon, if they are existing.
+                iconMaterials.SetFloat("_Rotation", lastRotation);
             }
 
             if (Minimap.minimapControls.smartViewActive)

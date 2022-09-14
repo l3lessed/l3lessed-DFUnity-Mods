@@ -71,7 +71,6 @@ namespace Minimap
         private MeshRenderer markerRenderer;
         public bool generatedMarker;
         private float maxBuildingIconSpawn = Minimap.buildingSpawnTime;
-        public static bool IconFrustrumCalling = Minimap.frustrumCallingEnabled;
         private List<Material> buildingMaterialList = new List<Material>();
         private Color meshColor;
         public static bool labelActive;

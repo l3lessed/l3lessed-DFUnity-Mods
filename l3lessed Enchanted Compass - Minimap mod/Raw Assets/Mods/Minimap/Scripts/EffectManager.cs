@@ -88,6 +88,7 @@ namespace Minimap
         private Texture2D magicSwirlTexture;
         private float effectUpdateTimer;
         private bool effectTriggered;
+        public float difference;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -282,12 +283,14 @@ namespace Minimap
         void Update()
         {
 
+            if (!GameManager.Instance.IsPlayingGame())
+                return;
+
             //always allow the effects to be enabled and disabled. This will not trigger unless there is an equipped, functioning compass.
             if (Minimap.changedCompass || (Minimap.gameLoaded && Minimap.MinimapInstance.minimapActive))
             {
                 Minimap.gameLoaded = false;
-                if (DisableCompassEffects())
-                    LoadCompassEffects();
+                LoadCompassEffects();
             }
 
             if (toggleEffects && !effectsOn)
@@ -339,7 +342,6 @@ namespace Minimap
                 compassClothed = false;
 
             int bloodTriggerChance = (int)(bloodTriggerDifference * .5f);
-            float difference = 1;
             int currentBloodTextureID = 0;
             //when player healtt changes, find difference and apply blood and damage effects using it.
             if (lastHealth != GameManager.Instance.PlayerEntity.CurrentHealthPercent)
@@ -348,6 +350,8 @@ namespace Minimap
                 difference = lastHealth - GameManager.Instance.PlayerEntity.CurrentHealthPercent;
                 //set last health to current health.
                 lastHealth = GameManager.Instance.PlayerEntity.CurrentHealthPercent;
+
+                lastCompassCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition;
                 //setup system random object and randomly int for blood effect list.
                 bloodTriggerChance =  Minimap.MinimapInstance.randomNumGenerator.Next((int)(bloodTriggerDifference * .5f), (int)bloodTriggerDifference);
                 //if the difference  is greater than a certain random amount trigger blood effect.
@@ -355,25 +359,21 @@ namespace Minimap
                     bloodEffectTrigger = true;
             }
 
-            if (bloodEffectTrigger)
-            {
-                foreach (BloodEffect effect in bloodEffectList)
-                {
-                    currentBloodTextureID =  Minimap.MinimapInstance.randomNumGenerator.Next(1, bloodTextureList.Count - 1);
-
-                    if (effect.textureID != currentBloodTextureID)
-                        break;
-
-                    if (effect.textureID == currentBloodTextureID)
-                        return;
-                }
-            }
-
             //BLOOD EFFECT\\
             //setup health damage blood layer effects. If players health changes run effect code.
             if (enabledBloodEffect && bloodEffectTrigger)
             {
                 effectTriggered = true;
+
+                //loops through current effects to ensure it always generates new blood textures until they are all applied.
+                foreach (BloodEffect effect in bloodEffectList)
+                {
+                    currentBloodTextureID = Minimap.MinimapInstance.randomNumGenerator.Next(1, bloodTextureList.Count - 1);
+
+                    if (effect.textureID != currentBloodTextureID)
+                        break;
+                }
+
                 //if all blood textures are already loaded, find the current selected texture, and remove the old effect
                 if (bloodEffectList.Count == bloodTextureList.Count)
                 {
@@ -409,38 +409,38 @@ namespace Minimap
                             compassBloodDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = activeBloodTextures;
                         totalEffects = totalEffects + 1;
                 }
+                bloodEffectTrigger = false;
             }
 
-            if (enableDamageEffect && (bloodEffectTrigger || Minimap.MinimapInstance.currentEquippedCompass.currentCondition != Minimap.lastCompassCondition || reapplyDamageEffects))
+            if (enableDamageEffect && (difference != 0 || reapplyDamageEffects))
             {
-                if (!reapplyDamageEffects)
+                //if chest armor is equipped, check material type, and then decrease the counter reset timer so it is harder to go over hit counter and break compass based on material of armor.
+                if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor) != null)
                 {
-                    //if chest armor is equipped, check material type, and then decrease the counter reset timer so it is harder to go over hit counter and break compass based on material of armor.
-                    if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor) != null)
-                    {
-                        if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() == 3)
-                            difference = difference * .75f;
-                        if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() == 6)
-                            difference = difference * .5f;
-                        if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() > 6)
-                            difference = difference * .35f;
-                    }
-                    //if chest clothing is equipped, decrease the timer to make it harder to go over counter and break compass..
-                    if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestClothes) != null)
-                    {
-                        difference = difference * .85f;
-                    }
-                    if (!repairingCompass)
-                    {
-                        Minimap.MinimapInstance.currentEquippedCompass.currentCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition - (int)(Minimap.MinimapInstance.currentEquippedCompass.maxCondition * difference);
-                        Minimap.lastCompassCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition;
-                    }
+                    if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() == 3)
+                        difference = difference * .75f;
+                    if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() == 6)
+                        difference = difference * .5f;
+                    if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestArmor).GetMaterialArmorValue() > 6)
+                        difference = difference * .35f;
+                }
+                //if chest clothing is equipped, decrease the timer to make it harder to go over counter and break compass..
+                if (GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.ChestClothes) != null)
+                {
+                    difference = difference * .85f;
                 }
 
-                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 80 && damageGlassEffectInstance.newEffect.activeSelf)
+                if (!repairingCompass)
+                {
+                    Minimap.MinimapInstance.currentEquippedCompass.LowerCondition((int)(Minimap.MinimapInstance.currentEquippedCompass.maxCondition * difference));
+                    Minimap.lastCompassCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition;
+                }
+
+                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 80 && (damageGlassEffectInstance.newEffect.activeSelf || reapplyDamageEffects))
                 {
                     damageGlassEffectInstance.newEffect.SetActive(false);
                     Minimap.MinimapInstance.glassRawImage.texture = Minimap.MinimapInstance.cleanGlass;
+                    maxMagicRips = 0;
                 }
                 else
                 {
@@ -450,7 +450,6 @@ namespace Minimap
                             maxMagicRips =  Minimap.MinimapInstance.randomNumGenerator.Next(1, 2);
 
                         damageGlassEffectInstance.newEffect.SetActive(true);
-
                     }
                     else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage < 60 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 40 && Minimap.MinimapInstance.glassRawImage.texture != damageTextureList[2])
                     {
@@ -477,14 +476,12 @@ namespace Minimap
                         Minimap.MinimapInstance.glassRawImage.texture = damageTextureList[4];
                     }
                 }
-                bloodEffectTrigger = false;
                 reapplyDamageEffects = false;
-                return;
             }
 
             if (enableDamageEffect)
             {
-                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage < 80 && (reapplyDamageEffects || magicEffectList.Count < maxMagicRips))
+                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage < 80 && (difference != 0 || magicEffectList.Count < maxMagicRips))
                 {
                     effectTriggered = true;
                     //count up rain timer.
@@ -502,6 +499,7 @@ namespace Minimap
                         damageMagicEffectInstance.effectSwirlTexture = magicSwirlTexture;
                         damageMagicEffectInstance.siblingIndex = Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1;
                         magicEffectList.Add(damageMagicEffectInstance);
+
                         if (!compassMagicDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
                             compassMagicDictionary.Add(Minimap.MinimapInstance.currentEquippedCompass.UID, maxMagicRips);
                         else
@@ -509,6 +507,12 @@ namespace Minimap
                         totalEffects = totalEffects + 1;
                     }
                 }
+            }
+
+            if(difference != 0)
+            {
+                difference = 0;
+                return;
             }
 
             //grab season and climate for adjusting affects.
