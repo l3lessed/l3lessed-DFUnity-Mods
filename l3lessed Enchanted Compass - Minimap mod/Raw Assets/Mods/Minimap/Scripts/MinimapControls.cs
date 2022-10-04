@@ -76,8 +76,6 @@ namespace Minimap
 
         void OnGUI()
         {
-            updateMinimap = false;
-
             if (smartViewActive)
             {
                 if (Minimap.minimapCamera.orthographicSize < markerSwitchSize)
@@ -286,9 +284,10 @@ namespace Minimap
             if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] || Minimap.MinimapInstance.minimapSize != lastMinimapSize)
             {
                 lastMinimapSize = Minimap.MinimapInstance.minimapSize;
-                updateMinimap = true;
                 updateMinimapUI();
             }
+
+            updateMinimap = false;
         }       
 
         public void updateMinimapUI()
@@ -304,6 +303,10 @@ namespace Minimap
             Minimap.MinimapInstance.publicCompass.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
             Minimap.MinimapInstance.publicQuestBearing.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
             Minimap.MinimapInstance.publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.6f, .6f, .6f, alphaValue * Minimap.MinimapInstance.glassTransperency);
+
+            IconController.UpdateIcon = true;
+
+            updateMinimap = true;
         }
 
         public static bool IsPointerOverUIElement()

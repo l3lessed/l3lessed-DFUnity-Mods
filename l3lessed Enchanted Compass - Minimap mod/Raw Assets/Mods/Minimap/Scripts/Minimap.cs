@@ -661,6 +661,7 @@ namespace Minimap
         {
             onstartMenu = true;
         }
+
         //triggers when a saved game is loaded. Sets proper properties and clears lists/arrays to ensure proper loading.
         static void OnLoadEvent(SaveData_v1 saveData)
         {
@@ -678,7 +679,7 @@ namespace Minimap
             MinimapInstance.SetupMinimapLayers(true);
             minimapNpcManager.flatNPCArray.Clear();
             minimapNpcManager.mobileEnemyArray.Clear();
-            minimapNpcManager.mobileNPCArray.Clear();
+            minimapNpcManager.mobileNPCArray.Clear();            
         }
         //lets mod know when finished fast travelling for loading objects correctly.
         static void postTravel()
@@ -1231,13 +1232,21 @@ namespace Minimap
         private void PlayerEnterExit_OnTransitionExterior(PlayerEnterExit.TransitionEventArgs args)
         {
             minimapCamera.renderingPath = RenderingPath.UsePlayerSettings;
-            if (minimapBuildingManager.currentPositionUID == minimapBuildingManager.generatedPositionUID)
+            if (minimapBuildingManager.currentPositionUID == minimapBuildingManager.generatedPositionUID && minimapBuildingManager.combinedMarkerList != null && minimapBuildingManager.combinedMarkerList.Count != 0)
             {
-                if (minimapBuildingManager.combinedMarkerList != null)
-                {
-                    foreach (GameObject combinedMarker in minimapBuildingManager.combinedMarkerList)
-                        combinedMarker.SetActive(true);
-                }
+                foreach (GameObject combinedMarker in minimapBuildingManager.combinedMarkerList)
+                    combinedMarker.SetActive(true);
+            }
+            else if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
+            {
+                //set minimap camera to outside rendering layer mask
+                minimapCamera.cullingMask = minimapLayerMaskOutside;
+                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                locationPopulation = currentLocation.GetComponent<PopulationManager>();
+
+                //make unique location name based on in a unique location or out in a wilderness area.
+                currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                changedLocations = true;
             }
         }
 

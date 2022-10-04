@@ -306,7 +306,10 @@ namespace AmbidexterityModule
                     yield break;
                 }
                 else
+                {
+                    //AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = true;
                     lerpfinished = false;
+                }
 
                 offsetX = Mathf.Lerp(startX, endX, percentagetime);
                 offsetY = Mathf.Lerp(startY, endY, percentagetime);
@@ -327,41 +330,118 @@ namespace AmbidexterityModule
                     {
                         //gets forward facing vector using player camera.
                         Vector3 attackcast = GameManager.Instance.MainCamera.transform.forward;
-                        //sets a Quaternion angle for adjusting arccast by calculating the angle of my forward look, multiplied to my up/down look and offset left by 20 degrees to center to raycast.
-                        Quaternion objectRotation = Quaternion.LookRotation(attackcast);
 
-                        //logic ladder to calculate actual arccast based on selected attack direction.
-                        if (weaponState == WeaponStates.StrikeRight)
-                        {
-                            //lerps through lerp cordinates to make arc cast. Locks y position to main camera z rotation(look up/down angle/radian).
-                            attackcast = Vector3.Lerp(new Vector3(90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            //rotates vector3 position to camera forward using above Quaternion
-                            attackcast = objectRotation * attackcast;
-                        }
-                        else if (weaponState == WeaponStates.StrikeDownRight)
-                        {
-                            attackcast = Vector3.Lerp(new Vector3(70, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(-90, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            attackcast = (objectRotation * attackcast);
-                        }
-                        else if (weaponState == WeaponStates.StrikeLeft)
-                        {
-                            attackcast = Vector3.Lerp(new Vector3(-110f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), new Vector3(90f, GameManager.Instance.MainCamera.transform.rotation.z, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            attackcast = (objectRotation * attackcast);
-                        }
-                        else if (weaponState == WeaponStates.StrikeDownLeft)
-                        {
-                            attackcast = Vector3.Lerp(new Vector3(-90f, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(70f, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            attackcast = (objectRotation * attackcast);
-                        }
-                        else if (weaponState == WeaponStates.StrikeDown)
-                        {
-                            attackcast = Vector3.Lerp(new Vector3(GameManager.Instance.MainCamera.transform.position.x, 45f, GameManager.Instance.MainCamera.transform.position.z), new Vector3(GameManager.Instance.MainCamera.transform.position.x, -45f, GameManager.Instance.MainCamera.transform.position.z), percentagetime);
-                            attackcast = (objectRotation * attackcast);
-                        }
-                        else if (weaponState == WeaponStates.StrikeUp)
-                            weaponReach = weaponReach * percentagetime;
+                        //variables for mulipulating raycast arc.Vector3 for offsetting the ray, float for holding current angle of ray, and float for holding current weapon reach/ray length.
+                        Vector3 offsetCast = new Vector3(xModifier, xModifier1, xModifier2);
+                        float XAngleCast = 0;
+                        float yAngleCast = 0;
+                        float modifiedWeaponReach = weaponReach;
 
-                        hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, new Vector3(0,0,0), out attackHit);
+                        switch (WeaponType)
+                        {
+                            //all melee weapon arc cast code.
+                            case WeaponTypes.Melee:
+                                switch (weaponState)
+                                {
+                                    case WeaponStates.StrikeRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-60, 90, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 15, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeLeft:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(0, -.55f, xModifier2), new Vector3(0, -.2f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-5, 5, percentagetime);
+                                        yAngleCast = Mathf.Lerp(10, -20, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDown:
+                                        offsetCast = Vector3.Lerp(new Vector3(.35f, -.1f, xModifier2), new Vector3(-.35f, .1f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-20, 30, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeUp:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(xModifier, -.65f, xModifier2), new Vector3(yModifier, -.3f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, -25, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownLeft:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(xModifier, -.15f, xModifier2), new Vector3(yModifier2, yModifier1, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(-.2f, -.15f, xModifier2), new Vector3(.1f, .01f, yModifier2), percentagetime);
+                                        XAngleCast = Mathf.Lerp(-5, 15, percentagetime);
+                                        yAngleCast = Mathf.Lerp(55, -35, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                }
+                                hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, modifiedWeaponReach);
+                                break;
+
+                            default:
+                                switch (weaponState)
+                                {
+                                    case WeaponStates.StrikeRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(110, -110f, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeLeft:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-110, 110f, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDown:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        yAngleCast = Mathf.Lerp(-90, 70, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeUp:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        attackcast = Quaternion.AngleAxis(0, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownLeft:
+                                        //compute both the x and y vector position based on complete % animation time of attack.
+                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
+                                        XAngleCast = Mathf.Lerp(-110, 110f, percentagetime);
+                                        //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownRight:
+                                        //compute both the x and y vector position based on complete % animation time of attack.
+                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
+                                        XAngleCast = Mathf.Lerp(110, -110f, percentagetime);
+                                        //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                }
+
+                                hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, modifiedWeaponReach);
+                                break;                                
+                        }                        
                     }
                 }
 

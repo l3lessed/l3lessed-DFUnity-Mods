@@ -62,8 +62,8 @@ namespace AmbidexterityModule
         public float AttackPrimerTime { get; private set; }
         public float LookDirectionAttackThreshold { get; private set; }
 
-        private float EquipCountdownMainHand;
-        private float EquipCountdownOffHand;
+        public float EquipCountdownMainHand;
+        public float EquipCountdownOffHand;
 
         public float screenScaleX;
         public float screenScaleY;
@@ -107,7 +107,7 @@ namespace AmbidexterityModule
         public static bool isIdle = true;
         //key input manager triggers.
         private bool parryKeyPressed;
-        private bool attackKeyPressed;
+        public bool attackKeyPressed;
         private bool offHandKeyPressed;
         private bool handKeyPressed;
         private bool mainHandKeyPressed;
@@ -157,6 +157,10 @@ namespace AmbidexterityModule
         public Vector3 raylength;
         public bool classicAnimationBool;
         private static bool onstartMenu;
+        private bool holdAttackOver;
+        private int lastTextureID;
+        private int currentTextureID;
+        private MouseDirections lastDirection;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -201,22 +205,12 @@ namespace AmbidexterityModule
             usingRightHand = GameManager.Instance.WeaponManager.UsingRightHand;
         }
 
-        public void StartGameBehaviour_OnStartGameHandler(object sender, EventArgs e)
-        {
-            UpdateHands(true);
-        }
-
-        void Awake()
-        {
-            StartGameBehaviour.OnStartGame += StartGameBehaviour_OnStartGameHandler;
-        }
-
         // Use this for initialization
         void Start()
         {
             //AUTO PATCHERS FOR DIFFERING MODS\\
             //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
-            if(ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
+            if (ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
             {
                 Debug.Log("DREAM Handheld detected. Activated Dream Textures");
                 AltFPSWeapon.AltFPSWeaponInstance.useImportedTextures = true;
@@ -322,66 +316,90 @@ namespace AmbidexterityModule
             mainWeapon.MetalType = MetalTypes.None;
 
             pos = new Rect((Screen.width * 0.49999f) - (size * 0.49999f), (Screen.height * 0.5f) - (size * 0.5f), size, size);
+            UpdateHands(true);
         }
 
         private void OnGUI()
         {
-            GUI.depth = 1;
             if (Event.current.type.Equals(EventType.Repaint) && attackIndicator)
             {
-                if (direction == MouseDirections.None)
-                    arrowLoadingTex = null;
-
-                if (direction == MouseDirections.Up)
+                if (attackIndicator && lastDirection != direction)
                 {
-                    arrowLoadingTex = arrowUTex;                    
+                    lastDirection = direction;
+                    switch (direction)
+                    {
+                        case MouseDirections.None:
+                            arrowLoadingTex = null;
+                            break;
+                        case MouseDirections.Up:
+                            arrowLoadingTex = arrowUTex;
+                            break;
+                        case MouseDirections.Down:
+                            arrowLoadingTex = arrowDTex;
+                            break;
+                        case MouseDirections.Left:
+                            arrowLoadingTex = arrowLTex;
+                            break;
+                        case MouseDirections.Right:
+                            arrowLoadingTex = arrowRTex;
+                            break;
+                        case MouseDirections.DownLeft:
+                            arrowLoadingTex = arrowBLTex;
+                            break;
+                        case MouseDirections.DownRight:
+                            arrowLoadingTex = arrowBRTex;
+                            break;
+                    }
                 }
 
-                if (direction == MouseDirections.Down)
-                {
-                    arrowLoadingTex = arrowDTex;                   
-                }
-
-                if (direction == MouseDirections.Left)
-                {
-                    arrowLoadingTex = arrowLTex;                   
-                }
-
-                if (direction == MouseDirections.Right)
-                {
-                    arrowLoadingTex = arrowRTex;                    
-                }
-
-                if (direction == MouseDirections.DownLeft)
-                {
-                    arrowLoadingTex = arrowBLTex;                    
-                }
-
-                if (direction == MouseDirections.DownRight)
-                {
-                    arrowLoadingTex = arrowBRTex;                    
-                }
-
-                if(arrowLoadingTex != null)
+                if (arrowLoadingTex != null)
                     GUI.DrawTextureWithTexCoords(pos, arrowLoadingTex, new Rect(0.0f, 0.0f, 1f, 1f));
             }
         }
 
         private void Update()
         {
-            //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
-            movementModifier();
+            //grab and assign current weapon manager equipment times to ensure classic equipment mechanics/rendering works.
+            EquipCountdownMainHand = GameManager.Instance.WeaponManager.EquipCountdownRightHand;
+            EquipCountdownOffHand = GameManager.Instance.WeaponManager.EquipCountdownLeftHand;
+
+            //if the weapons aren't swapping equipping then.
+            if (EquipCountdownMainHand > 0 || EquipCountdownOffHand > 0)
+            {
+                //inform player he has swapped their weapons. Replacement for old equipping weapon message.
+                if (EquipCountdownMainHand < 0 && EquipCountdownOffHand < 0)
+                {
+                    EquipCountdownMainHand = 0;
+                    EquipCountdownOffHand = 0;
+                    DaggerfallUI.Instance.PopupMessage("Swapped Weapons");
+                }
+
+                // Do nothing if weapon isn't done equipping
+                if (EquipCountdownMainHand > 0 || EquipCountdownOffHand > 0)
+                {
+                    //disable vanilla render weapon.
+                    GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
+                    //remove offhand weapon.
+                    offhandWeapon.OffHandWeaponShow = false;
+                    //remove altfps weapon.
+                    mainWeapon.AltFPSWeaponShow = false;
+                    //remove shield render.
+                    FPSShield.shieldEquipped = false;
+                    return;
+                }
+            }
 
             //ensures if weapons aren't showing, or consoles open, or games paused, or its loading, or the user opened any interfaces at all, that nothing is done.
             if (!GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
             {
-                mainWeapon.AltFPSWeaponShow = false;
-                offhandWeapon.OffHandWeaponShow = false;
                 return; //show nothing.
             }
 
+            //if not using override speeds and player is attacking, use override speeds. *NEED TO ADD MOD SETTING TO ENABLE/DISABLE THIS*
+            movementModifier();
+
             //if player has look direaction attack enabled, monitors the mouse and outputs the current mouse duration.
-            if (lookDirAttack || !DaggerfallUnity.Settings.ClickToAttack)
+            if (lookDirAttack || !(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1))
                 TrackMouseAttack();
 
             //attack indicator gui key switch monitoring. Allows player to flip on/off attack indicator.
@@ -423,10 +441,6 @@ namespace AmbidexterityModule
                 }
             }
 
-            //grab and assign current weapon manager equipment times to ensure classic equipment mechanics/rendering works.
-            EquipCountdownMainHand = GameManager.Instance.WeaponManager.EquipCountdownRightHand;
-            EquipCountdownOffHand = GameManager.Instance.WeaponManager.EquipCountdownLeftHand;
-
             //If they don't have bow equipped, begin monitoring for key input, updating hands and all related properties, and begin monitoring for key presses and/or property/state changes.
             //small routine to check for attack key inputs and start a short delay timer if detected.
             //this makes using parry easier by giving a delay time frame to click both attack buttons.
@@ -439,13 +453,13 @@ namespace AmbidexterityModule
                 ToggleHand();
 
             //catches drag attack clicks to initiate classic drag attack mechanisms.
-            if (!DaggerfallUnity.Settings.ClickToAttack)
+            if (!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1))
             {
                 //if either attack key is not pressed, clear out attacking and mouse gesture/drection and reset mouse look sensitivity to default.
                 if (!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) && !Input.GetKey(offHandKeyCode))
                 {
                     isAttacking = false;
-                    GameManager.Instance.PlayerMouseLook.sensitivityScale = 1.0f;
+                    GameManager.Instance.PlayerMouseLook.sensitivityScale = GameManager.Instance.PlayerMouseLook.sensitivityScale;
                     _gesture.Clear();
                 }
                 //if the player is pressing either attack key, zero out mouse sensitivity to lock the mouse look and tell input manager player isAttacking
@@ -611,7 +625,7 @@ namespace AmbidexterityModule
             if (attackState == 0 && AttackState != 7)
             {
                 //if the player has a shield equipped, and it is not being used, let them attack.
-                if (FPSShield.shieldEquipped && (FPSShield.shieldStates == 0 || FPSShield.shieldStates == 8 || !FPSShield.isBlocking) && (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None))
+                if (FPSShield.shieldEquipped && (FPSShield.shieldStates == 0 || FPSShield.shieldStates == 8 || !FPSShield.isBlocking) && ((DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) || direction != MouseDirections.None))
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
                     FPSShield.shieldStates = 7;
@@ -619,7 +633,7 @@ namespace AmbidexterityModule
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
                     mainWeapon.weaponState = WeaponStateController();
 
-                    if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
+                    if (!classicAnimations && mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
                         mainWeapon.weaponState = WeaponStates.StrikeDownRight;
 
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(mainWeapon.weaponState);
@@ -633,12 +647,12 @@ namespace AmbidexterityModule
                 if (!FPSShield.shieldEquipped)
                 {
                     //both weapons are idle, then perform attack routine....
-                    if (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None)
+                    if ((DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) || direction != MouseDirections.None)
                     {
                         offhandWeapon.PrimerCoroutine = new Task(offhandWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, mainWeapon.totalAnimationTime * .5f, 0, true, true, false));
                         mainWeapon.weaponState = WeaponStateController();
 
-                        if (mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
+                        if (!classicAnimations && mainWeapon.WeaponType == WeaponTypes.Melee && mainWeapon.weaponState == WeaponStates.StrikeUp)
                             mainWeapon.weaponState = WeaponStates.StrikeDownRight;
 
                         GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
@@ -656,13 +670,13 @@ namespace AmbidexterityModule
         void OffhandAttack()
         {
             //both weapons are idle, then perform attack routine....
-            if (AttackState == 0 && !FPSShield.shieldEquipped && AttackState != 7 && (DaggerfallUnity.Settings.ClickToAttack || direction != MouseDirections.None))
+            if (AttackState == 0 && !FPSShield.shieldEquipped && AttackState != 7 && ((DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) || direction != MouseDirections.None))
             {
                 //trigger offhand weapon attack animation routines.
                 mainWeapon.attackWeaponCoroutine = new Task(mainWeapon.AnimationCalculator(0, -.25f, 0, -.4f, true, .5f, offhandWeapon.totalAnimationTime * .5f, 0, true, true, false));
                 offhandWeapon.weaponState = WeaponStateController(true);
 
-                if (offhandWeapon.WeaponType == WeaponTypes.Melee && offhandWeapon.weaponState == WeaponStates.StrikeUp)
+                if (!classicAnimations && offhandWeapon.WeaponType == WeaponTypes.Melee && offhandWeapon.weaponState == WeaponStates.StrikeUp)
                     offhandWeapon .weaponState = WeaponStates.StrikeDownRight;
 
                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
@@ -680,7 +694,7 @@ namespace AmbidexterityModule
             WeaponStates state = (WeaponStates)randomattack[UnityEngine.Random.Range(0, randomattack.Length)];
 
             //if player has drag attack selected, and either weapon attack key is pressed, then return the attack direction based on mouse drag,
-            if (!DaggerfallUnity.Settings.ClickToAttack)
+            if (!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1))
             {
                 return OnAttackDirection(direction);
             }           
@@ -736,14 +750,20 @@ namespace AmbidexterityModule
         //CONTROLS KEY INPUT TO ALLOW FOR NATURAL PARRY/ATTACK ANIMATIONS/REPONSES\\
         void KeyPressCheck()
         {
+
+            if (DaggerfallUnity.Settings.WeaponSwingMode == 2 && attackKeyPressed && (Input.GetKeyUp(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKeyUp(offHandKeyCode)))
+            {
+                holdAttackOver = true;
+                attackKeyPressed = false;                
+            }
             //if either attack input is press, start the system.
-            if (Input.GetKeyDown(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKeyDown(offHandKeyCode))
+            else if (Input.GetKeyDown(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKeyDown(offHandKeyCode) || (!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) && direction != MouseDirections.None))
             {
                 attackKeyPressed = true;
             }
 
             //start monitoring key input for que system.
-            if(attackKeyPressed || (!DaggerfallUnity.Settings.ClickToAttack && direction != MouseDirections.None))
+            if (attackKeyPressed)
             {
                 timePass += Time.deltaTime;
 
@@ -752,14 +772,22 @@ namespace AmbidexterityModule
 
                 if (Input.GetKey(offHandKeyCode))
                     playerInput.Enqueue(1);
-            }               
+            }
+            else
+            {
+                if (holdAttackOver)
+                {
+                    holdAttackOver = false;
+                    timePass = 0;
+                    playerInput.Clear();
+                    direction = MouseDirections.None;
+                    return;
+                }
+            }
 
             //if the player has qued up an input routine and .16 seconds have passed, do...     
             while (playerInput.Count > 0 && timePass > AttackPrimerTime)
             {
-                attackKeyPressed = false;
-                timePass = 0;
-
                 //if both buttons press, clear input, and que up parry.
                 if (playerInput.Contains(1) && playerInput.Contains(0))
                 {
@@ -780,10 +808,17 @@ namespace AmbidexterityModule
                         Parry();
                         break;
                 }
-
+                
+                timePass = 0;
                 playerInput.Clear();
-                direction = MouseDirections.None;
-            } 
+
+                if (DaggerfallUnity.Settings.WeaponSwingMode != 2 || DaggerfallUnity.Settings.WeaponSwingMode != 0)
+                {
+                    _gesture.Clear();
+                    direction = MouseDirections.None;
+                    attackKeyPressed = false;
+                }
+            }
         }
 
         //CHECKS PLAYERS ATTACK STATE USING BOTH HANDS.
@@ -999,37 +1034,7 @@ namespace AmbidexterityModule
         //checks current player hands and the last equipped item. If either changed, update current equip state.
         //The equip states setup all the proper object properties for each script being controlled.
         void UpdateHands(bool forceUpdate = false)
-        {
-            //if the weapons aren't swapping equipping then.
-            if (EquipCountdownMainHand > 0 || EquipCountdownOffHand > 0)
-            {
-                //classic delay countdown timer. Stole and repurposed tons of weaponmanager.cs code.
-                EquipCountdownMainHand -= Time.deltaTime * 980; // Approximating classic update time based off measuring video
-                EquipCountdownOffHand -= Time.deltaTime * 980; // Approximating classic update time based off measuring video
-
-                //inform player he has swapped their weapons. Replacement for old equipping weapon message.
-                if (EquipCountdownMainHand < 0 && EquipCountdownOffHand < 0)
-                {
-                    EquipCountdownMainHand = 0;
-                    EquipCountdownOffHand = 0;
-                    DaggerfallUI.Instance.PopupMessage("Swapped Weapons");
-                }   
-
-                // Do nothing if weapon isn't done equipping
-                if (EquipCountdownMainHand > 0 || EquipCountdownOffHand > 0)
-                {
-                    //disable vanilla render weapon.
-                    GameManager.Instance.WeaponManager.ScreenWeapon.ShowWeapon = false;
-                    //remove offhand weapon.
-                    offhandWeapon.OffHandWeaponShow = false;
-                    //remove altfps weapon.
-                    mainWeapon.AltFPSWeaponShow = false;
-                    //remove shield render.
-                    FPSShield.shieldEquipped = false;
-                    return;
-                }
-            }
-
+        {            
             //if player is idle allow hand swapping.
             if (AttackState == 0)
             {
@@ -1062,7 +1067,7 @@ namespace AmbidexterityModule
         bool updateOffHand(bool forceUpdate = false)
         {
             // if currentoffHandItem item changed, check if the weapon can be equipped, if it can update mainHandItem;
-            if (!DaggerfallUnityItem.CompareItems(currentoffHandItem, offHandItem) || forceUpdate == false)
+            if (!DaggerfallUnityItem.CompareItems(currentoffHandItem, offHandItem) || forceUpdate == true)
             {
                 if (GameManager.Instance.WeaponManager.UsingRightHand || !GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                 {
@@ -1091,7 +1096,7 @@ namespace AmbidexterityModule
         bool updateMainHand(bool forceUpdate = false)
         {
             // if currentmainHandItem item changed, check if the weapon can be equipped, if it can update mainHandItem;
-            if (!DaggerfallUnityItem.CompareItems(currentmainHandItem, mainHandItem) || forceUpdate == false)
+            if (!DaggerfallUnityItem.CompareItems(currentmainHandItem, mainHandItem) || forceUpdate == true)
             {
                 if (!GameManager.Instance.WeaponManager.UsingRightHand || GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                     currentmainHandItem = weaponProhibited(mainHandItem, currentmainHandItem);
@@ -1100,7 +1105,9 @@ namespace AmbidexterityModule
 
                 //set weapon object properties for proper rendering.
                 if (currentmainHandItem == null)
+                {
                     SetMelee(mainWeapon);
+                }
                 else if (!currentmainHandItem.IsShield)
                     SetWeapon(currentmainHandItem, mainWeapon);
                 else if (currentmainHandItem.IsShield)
@@ -1331,7 +1338,7 @@ namespace AmbidexterityModule
             //creates engine raycast, assigns current player camera position as starting vector and attackcast vector as the direction.
             RaycastHit hit;
 
-            Vector3 startPosition = mainCamera.transform.position + offset;
+            Vector3 startPosition = GameManager.Instance.MainCamera.transform.position + offset;
 
             Ray ray = new Ray(startPosition, attackcast);
             //shoots our debug ray for engine level debugging.
@@ -1588,7 +1595,7 @@ namespace AmbidexterityModule
                     return MouseDirections.None;
                 }
             }
-            else if (!DaggerfallUnity.Settings.ClickToAttack && _gesture.TravelDist / _longestDim < AttackThreshold)
+            else if (!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) && _gesture.TravelDist / _longestDim < AttackThreshold)
             {
                 return MouseDirections.None;
             }
@@ -1652,7 +1659,7 @@ namespace AmbidexterityModule
                     break;
             }
             //clears gesture to rest it.
-            if(!DaggerfallUnity.Settings.ClickToAttack)
+            if(!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1))
                 _gesture.Clear();
             //overrides downright/downleft for smooth animations.
             if (!classicAnimations && (direction == MouseDirections.DownRight || direction == MouseDirections.DownLeft))
