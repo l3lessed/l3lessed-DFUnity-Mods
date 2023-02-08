@@ -17,6 +17,7 @@ using System.Collections;
 using DaggerfallWorkshop.Game.Serialization;
 using System.Diagnostics;
 using static DaggerfallWorkshop.Game.WeaponManager;
+using static AmbidexterityModule.AmbidexterityManager;
 
 namespace AmbidexterityModule
 {
@@ -38,7 +39,7 @@ namespace AmbidexterityModule
         public static WeaponAnimation[] weaponAnims;
         public static Rect curAnimRect;
 
-        public static GameObject attackHit;
+        public static RaycastHit attackHit;
 
         public static int currentFrame = 0;
         static int frameBeforeStepping = 0;
@@ -56,15 +57,16 @@ namespace AmbidexterityModule
         public bool OffHandWeaponShow;
         public static bool flip;
         public bool isParrying;
-        private bool lerpfinished;
+        public bool lerpfinished;
         private bool hitObject;
+        private bool hitNPC;
         private bool breatheTrigger;
         private bool attackCasted;
 
         public static float weaponScaleX;
         public static float weaponScaleY;
-        static float offsetY;
-        static float offsetX;
+        public static float offsetY;
+        public static float offsetX;
         static float posi;
         public float totalAnimationTime;
         static float timeCovered;
@@ -119,13 +121,31 @@ namespace AmbidexterityModule
         public int selectedFrame;
         public bool useImportedTextures;
         private float waitTimer;
+        private DaggerfallEntityBehaviour hitEnemyObject;
+        private MobilePersonNPC hitNPCObject;
+        private float lerpRecoilTimer;
+        private int hitframe;
+
+        private void Start()
+        {
+            if (classicAnimations)
+            {
+                PrimerCoroutine = new Task(ClassicAnimationCalculator(offsetX, offsetY, -.2f, offsetY - .45f, true, .65f, totalAnimationTime * .5f, 0, true, true, false), false);
+                ParryCoroutine = new Task(ClassicAnimationCalculator(offsetX, offsetY, .75f, -.5f, true, .5f, 0, 0, true, true, false), false);
+            }                
+            else
+            {
+                PrimerCoroutine = new Task(SmoothAnimationCalculator(offsetX, offsetY, -.2f, offsetY - .45f, true, .65f, totalAnimationTime * .5f, 0, true, true, false), false);
+                ParryCoroutine = new Task(SmoothAnimationCalculator(offsetX, offsetY, .75f, -.5f, true, .5f, 0, 0, true, true, false), false);
+            }            
+        }
 
         public void PlaySwingSound()
         {
-            if (AmbidexterityManager.dfAudioSource)
+            if (dfAudioSource)
             {
-                AmbidexterityManager.dfAudioSource.AudioSource.pitch = 1f * 1;
-                AmbidexterityManager.dfAudioSource.PlayOneShot(SwingWeaponSound, 0, 1.1f);
+                dfAudioSource.AudioSource.pitch = 1f * 1;
+                dfAudioSource.PlayOneShot(SwingWeaponSound, 0, 1.1f);
             }
         }
 
@@ -134,7 +154,7 @@ namespace AmbidexterityModule
         {
             GUI.depth = 2;
             //if shield is not equipped or console is open then....
-            if (!OffHandWeaponShow || GameManager.Instance.WeaponManager.Sheathed || AmbidexterityManager.consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
+            if (!OffHandWeaponShow || GameManager.Instance.WeaponManager.Sheathed || consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return; //show nothing.            
             else
             {
@@ -155,23 +175,23 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
-                if (InputManager.Instance.HasAction(InputManager.Actions.MoveRight) || InputManager.Instance.HasAction(InputManager.Actions.MoveLeft) || InputManager.Instance.HasAction(InputManager.Actions.MoveForwards) || InputManager.Instance.HasAction(InputManager.Actions.MoveBackwards))
+                if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill)
                 {
-                    if (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && AmbidexterityManager.toggleBob)
+                    if (AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && toggleBob)
                     {
 
-                        offsetX = (AmbidexterityManager.AmbidexterityManagerInstance.bobRange / -1.5f);
-                        offsetY = (AmbidexterityManager.AmbidexterityManagerInstance.bobRange * -1.5f);
+                        offsetX = (AmbidexterityManagerInstance.bobRange / -1.5f);
+                        offsetY = (AmbidexterityManagerInstance.bobRange * -1.5f);
 
                         waitTimer += Time.deltaTime;
 
-                        if (waitTimer > .75f && AmbidexterityManager.classicAnimations)
+                        if (waitTimer > .75f && classicAnimations)
                         {
                             waitTimer = 0;
                             UpdateWeapon();
                             return;
                         }
-                        else if (!AmbidexterityManager.classicAnimations)
+                        else if (!classicAnimations)
                             UpdateWeapon();
                     }
                 }
@@ -232,7 +252,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public IEnumerator AnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false, bool raycast = true)
+        public IEnumerator SmoothAnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false, bool raycast = true)
         {
             while (true)
             {
@@ -248,85 +268,29 @@ namespace AmbidexterityModule
                 if (CustomTime != 0)
                     totalTime = CustomTime;
                 else
-                    totalTime = totalAnimationTime;
-
-                //if there is a start time for the animation, then start the animation timer there.
-                if (startTime != 0 && timeCovered == 0)
-                    timeCovered = startTime * totalTime;
-
-                if(AmbidexterityManager.classicAnimations && !raycast)
                 {
-                    if (!breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered + (totalTime / 5);
-                    else if (breatheTrigger)
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered = timeCovered - (totalTime / 5);
-                }
-                else
-                {
-                    if (hitObject)
-                    {
-                        frametime -= Time.deltaTime * 2;
-                        timeCovered -= Time.deltaTime * 2;
-                    }
-                    else if (!breatheTrigger && !hitObject)
-                    {
-                        frametime += Time.deltaTime;
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered += Time.deltaTime;
-                    }
-                    else if (breatheTrigger && !hitObject)
-                    {
-                        frametime -= Time.deltaTime;
-                        // Distance moved equals elapsed time times speed.
-                        timeCovered -= Time.deltaTime;
-                    }
+                    if (startTime != 0)
+                        totalTime = totalAnimationTime + startTime;
+                    else
+                        totalTime = totalAnimationTime;
                 }
 
-                //how much time has passed in the animation
-                percentagetime = (float)Math.Round(timeCovered / totalTime, 2);
-                framepercentage = (float)Math.Round(frametime / attackFrameTime, 2);
-
-                if (!frameLock)
-                    currentFrame = Mathf.FloorToInt(percentagetime * 5);
-
-
-                //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime >= triggerpoint && !breatheTrigger)
-                    breatheTrigger = true;
-                else if (percentagetime <= 0 && breatheTrigger)
-                    breatheTrigger = false;
-
-                if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
+                //if physical weapons isn't selected, then shoot out single ray on frame two like classic.
+                if (!physicalWeapons && !isParrying && !attackCasted && currentFrame == 2)
                 {
-                    lerpfinished = true;
-                    ResetAnimation();
-                    UpdateWeapon();
-                    yield break;
-                }
-                else
-                {
-                    //AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = true;
-                    lerpfinished = false;
+                    Vector3 attackCast = mainCamera.transform.forward * weaponReach;
+                    AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackCast, new Vector3(0, 0, 0), out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject);
+                    attackCasted = true;
                 }
 
-                offsetX = Mathf.Lerp(startX, endX, percentagetime);
-                offsetY = Mathf.Lerp(startY, endY, percentagetime);
-                posi = Mathf.Lerp(0, smoothingRange, framepercentage);
-
-                UnityEngine.Debug.Log(posi.ToString() + " | " + percentagetime.ToString() + " | " + currentFrame.ToString() + " | " + weaponState.ToString());
-
-                if (raycast)
+                if (physicalWeapons && raycast && !hitObject && !isParrying)
                 {
-                    if (currentFrame == 2 && !isParrying && !attackCasted && !AmbidexterityManager.physicalWeapons)
-                    {
-                        Vector3 attackCast = AmbidexterityManager.mainCamera.transform.forward * weaponReach;
-                        AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackCast, new Vector3(0,0,0), out attackHit);
-                        attackCasted = true;
-                    }
+                    float modifiedWeaponHitEnd = weaponHitEndStart;
 
-                    if ((percentagetime > hitStart && percentagetime < hitEnd) && !hitObject && AmbidexterityManager.physicalWeapons && !isParrying)
+                    if (weaponState == WeaponStates.StrikeUp)
+                        modifiedWeaponHitEnd = 1;
+
+                    if(percentagetime > weaponHitCastStart && percentagetime < modifiedWeaponHitEnd)
                     {
                         //gets forward facing vector using player camera.
                         Vector3 attackcast = GameManager.Instance.MainCamera.transform.forward;
@@ -337,6 +301,247 @@ namespace AmbidexterityModule
                         float yAngleCast = 0;
                         float modifiedWeaponReach = weaponReach;
 
+                        switch (WeaponType)
+                        {
+                            //all melee weapon arc cast code.
+                            case WeaponTypes.Melee:
+                                switch (weaponState)
+                                {
+                                    case WeaponStates.StrikeRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-60, 90, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 15, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeLeft:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(0, -.55f, xModifier2), new Vector3(0, -.2f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-5, 5, percentagetime);
+                                        yAngleCast = Mathf.Lerp(10, -20, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDown:
+                                        offsetCast = Vector3.Lerp(new Vector3(.3f, -.05f, xModifier2), new Vector3(-.35f, .1f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-20, 15, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeUp:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(xModifier, -.65f, xModifier2), new Vector3(yModifier, -.3f, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, -25, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownLeft:
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(xModifier, -.15f, xModifier2), new Vector3(yModifier2, yModifier1, yModifier2), percentagetime);
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
+                                        offsetCast = Vector3.Lerp(new Vector3(-.2f, -.15f, xModifier2), new Vector3(.1f, .01f, yModifier2), percentagetime);
+                                        XAngleCast = Mathf.Lerp(-5, 15, percentagetime);
+                                        yAngleCast = Mathf.Lerp(55, -35, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                }
+                                hitObject = AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject, modifiedWeaponReach);
+                                break;
+
+                            default:
+                                switch (weaponState)
+                                {
+                                    case WeaponStates.StrikeRight:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(130, -110f, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeLeft:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        XAngleCast = Mathf.Lerp(-130, 110f, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDown:
+                                        //lerps through arc degrees to make an arc ray cast.
+                                        yAngleCast = Mathf.Lerp(-90, 70, percentagetime);
+                                        //rotates vector3 position  using above lerp calculator then shoots it forward.
+                                        attackcast = Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeUp:
+                                        if (percentagetime >= .75f)
+                                            modifiedWeaponReach = Mathf.Lerp(0, weaponReach * 4.7f, percentagetime - .75f);
+                                        else
+                                            modifiedWeaponReach = 0;
+                                        attackcast = Quaternion.AngleAxis(0, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownLeft:
+                                        //compute both the x and y vector position based on complete % animation time of attack.
+                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
+                                        XAngleCast = Mathf.Lerp(-110, 110f, percentagetime);
+                                        //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                    case WeaponStates.StrikeDownRight:
+                                        //compute both the x and y vector position based on complete % animation time of attack.
+                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
+                                        XAngleCast = Mathf.Lerp(110, -110f, percentagetime);
+                                        //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
+                                        attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
+                                }
+                                hitObject = AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject, modifiedWeaponReach);
+                                break;
+                        }
+                    }
+                }
+
+                //if there is a start time for the animation, then start the animation timer there.
+                if (startTime != 0 && timeCovered == 0)
+                    timeCovered = startTime * totalTime;
+
+                if (hitObject && !hitNPC)
+                {
+                    frametime -= Time.deltaTime;
+                    // Distance moved equals elapsed time times speed.
+                    timeCovered -= Time.deltaTime;
+                }
+                else if (!breatheTrigger && !hitObject)
+                {
+                    frametime += Time.deltaTime;
+                    // Distance moved equals elapsed time times speed.
+                    timeCovered += Time.deltaTime;
+                }
+                else if (breatheTrigger && !hitObject)
+                {
+                    frametime -= Time.deltaTime;
+                    // Distance moved equals elapsed time times speed.
+                    timeCovered -= Time.deltaTime;
+                }
+
+                //how much time has passed in the animation
+                percentagetime = (float)Math.Round(timeCovered / totalTime, 2);
+                framepercentage = (float)Math.Round(frametime / attackFrameTime, 2);
+
+                if (!frameLock)
+                    currentFrame = Mathf.Clamp(Mathf.FloorToInt(percentagetime * 5), 0, 4);
+
+                //breath trigger to allow lerp to breath naturally back and fourth.
+                if (percentagetime >= triggerpoint && !breatheTrigger)
+                    breatheTrigger = true;
+                else if (percentagetime <= 0 && breatheTrigger)
+                    breatheTrigger = false;
+
+                if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
+                    lerpfinished = true;
+                else
+                    //AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = true;
+                    lerpfinished = false;
+
+                if (startX != 0 || startY != 0 || endX != 0 || endY != 0)
+                {
+                    offsetX = Mathf.Lerp(startX, endX, percentagetime);
+                    offsetY = Mathf.Lerp(startY, endY, percentagetime);
+                }
+
+                posi = Mathf.Lerp(0, smoothingRange, framepercentage);
+
+                if (frameBeforeStepping != currentFrame)
+                {
+                    if (!hitObject || hitframe == currentFrame)
+                    {
+                        posi = 0;
+                        frametime = 0;
+                    }
+                    else if (hitObject)
+                    {
+                        posi = smoothingRange;
+                        frametime = attackFrameTime;
+                    }
+                }
+
+                //update actual animation sprite and frame.
+                UpdateWeapon();
+
+                //if animation is finished and it isn't a start, then reset, update, and exit animation routine.
+                if (lerpfinished && timeCovered != 0)
+                {
+                    ResetAnimation(frameLock);
+                    UpdateWeapon();
+                    yield break;
+                }
+                yield return new WaitForFixedUpdate();
+            }
+        }
+
+        public IEnumerator ClassicAnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false, bool raycast = true)
+        {
+            while (true)
+            {
+                float totalTime;
+
+                //*COMBAT OVERHAUL ADDITION*//
+                //calculates lerp values for each frame change. When the frame changes,
+                //it grabs the current total animation time, amount of passed time, users fps,
+                //and then uses them to calculate and set the lerp value to ensure proper animation
+                //offsetting no matter users fps or attack speed.
+                frameBeforeStepping = currentFrame;
+
+                if (CustomTime != 0)
+                    totalTime = CustomTime;
+                else
+                {
+                    if (startTime != 0)
+                        totalTime = totalAnimationTime + startTime;
+                    else
+                        totalTime = totalAnimationTime;
+                }
+
+                //if physical weapons isn't selected, then shoot out single ray on frame two like classic.
+                if (!physicalWeapons && !isParrying && !attackCasted && currentFrame == 2)
+                {
+                    Vector3 attackCast = mainCamera.transform.forward * weaponReach;
+                    AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackCast, new Vector3(0, 0, 0), out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject);
+                    attackCasted = true;
+                }
+
+                if (physicalWeapons && raycast && !hitObject)
+                {
+                    //setup float to store default end frame as 3. Used to shift end frame for stab animation.
+                    float modifiedWeaponHitEnd = 3;
+
+                    //stab frame needs to end on last frame.
+                    if (weaponState == WeaponStates.StrikeUp)
+                        modifiedWeaponHitEnd = 4;
+
+                    //if the animation is just starting, and physical weapons are selected, and they aren't parrying, begin attack cast routine.
+                    if (!isParrying && currentFrame > 0 && currentFrame <= modifiedWeaponHitEnd)
+                    {
+                        //gets forward facing vector using player camera.
+                        Vector3 attackcast = GameManager.Instance.MainCamera.transform.forward;
+
+                        //variables for mulipulating raycast arc.Vector3 for offsetting the ray, float for holding current angle of ray, and float for holding current weapon reach/ray length.
+                        Vector3 offsetCast = new Vector3(xModifier, xModifier1, xModifier2);
+                        float XAngleCast = 0;
+                        float yAngleCast = 0;
+                        float modifiedWeaponReach = weaponReach;
+
+                        //switch to decide proper raycast inputs based on melee weapon or not, since animations differ widely.
                         switch (WeaponType)
                         {
                             //all melee weapon arc cast code.
@@ -395,77 +600,127 @@ namespace AmbidexterityModule
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
                                 }
-                                hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, modifiedWeaponReach);
+                                hitObject = AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject, modifiedWeaponReach);
                                 break;
-
+                            //everything else raycast.
                             default:
                                 switch (weaponState)
                                 {
                                     case WeaponStates.StrikeRight:
                                         //lerps through arc degrees to make an arc ray cast.
-                                        XAngleCast = Mathf.Lerp(110, -110f, percentagetime);
+                                        XAngleCast = Mathf.Lerp(50f, -95f, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
                                     case WeaponStates.StrikeLeft:
                                         //lerps through arc degrees to make an arc ray cast.
-                                        XAngleCast = Mathf.Lerp(-110, 110f, percentagetime);
+                                        XAngleCast = Mathf.Lerp(-50f, 95f, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
                                     case WeaponStates.StrikeDown:
                                         //lerps through arc degrees to make an arc ray cast.
-                                        yAngleCast = Mathf.Lerp(-90, 70, percentagetime);
+                                        yAngleCast = Mathf.Lerp(-65, 75, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
-                                    case WeaponStates.StrikeUp:
-                                        modifiedWeaponReach = weaponReach * (percentagetime + .25f);
-                                        attackcast = Quaternion.AngleAxis(0, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
-                                        break;
                                     case WeaponStates.StrikeDownLeft:
                                         //compute both the x and y vector position based on complete % animation time of attack.
-                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
-                                        XAngleCast = Mathf.Lerp(-110, 110f, percentagetime);
+                                        yAngleCast = Mathf.Lerp(-60f, 65f, percentagetime);
+                                        XAngleCast = Mathf.Lerp(-110f, 110f, percentagetime);
                                         //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
                                     case WeaponStates.StrikeDownRight:
                                         //compute both the x and y vector position based on complete % animation time of attack.
-                                        yAngleCast = Mathf.Lerp(-60, 65, percentagetime);
-                                        XAngleCast = Mathf.Lerp(110, -110f, percentagetime);
+                                        yAngleCast = Mathf.Lerp(-60f, 65f, percentagetime);
+                                        XAngleCast = Mathf.Lerp(110f, -110f, percentagetime);
                                         //mutiply the quaternion together to get the combined rotation and shoot it forward from camera.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
+                                    case WeaponStates.StrikeUp:
+                                        //compute both the x and y vector position based on complete % animation time of attack.
+                                        modifiedWeaponReach = weaponReach * (currentFrame * .27f);
+                                        attackcast = Quaternion.AngleAxis(0, GameManager.Instance.MainCamera.transform.up) * GameManager.Instance.MainCamera.transform.forward;
+                                        break;
                                 }
 
-                                hitObject = AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, modifiedWeaponReach);
-                                break;                                
-                        }                        
+                                //send out attack cast and return bool if hit something. Use outs to grab specific hit object from the raycast.
+                                hitObject = AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject, modifiedWeaponReach);
+                                break;
+                        }
+
+                        //if object hit, set the hitframe to current frame to deal with frame skipping below.
+                        if (hitObject)
+                            hitframe = currentFrame;
+                        else
+                            hitframe = 0;
                     }
                 }
 
-                if (frameBeforeStepping != currentFrame)
+                //if there is a start time for the animation, then start the animation timer there.
+                if (startTime != 0 && timeCovered == 0)
+                    timeCovered = startTime * totalTime;
+
+                //if hit object, start going backwards.
+                if (hitObject)
                 {
-                    if (!hitObject)
-                    {
-                        posi = 0;
-                        frametime = 0;
-                    }
-                    else
-                    {
-                        posi = smoothingRange;
-                        frametime = attackFrameTime;
-                    }
+                    timeCovered = timeCovered - (totalTime / 5);
+                }
+                else
+                {
+                    if (!breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered + (totalTime / 5);
+                    else if (breatheTrigger)
+                        // Distance moved equals elapsed time times speed.
+                        timeCovered = timeCovered - (totalTime / 5);
                 }
 
+                //how much time has passed in the animation
+                percentagetime = (float)Math.Round(timeCovered / totalTime, 2);
+
+                if (!frameLock)
+                    currentFrame = Mathf.Clamp(Mathf.FloorToInt(percentagetime * 5), 0, 4);
+
+                //breath trigger to allow lerp to breath naturally back and fourth.
+                if (percentagetime >= triggerpoint && !breatheTrigger)
+                    breatheTrigger = true;
+                else if (percentagetime <= 0 && breatheTrigger)
+                    breatheTrigger = false;
+
+                //if the animation time is over 100% and the animation hasn't finished, mark it finished to stop animation numerator below.                
+                if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
+                    lerpfinished = true;
+                else
+                    lerpfinished = false;
+
+                if (startX != 0 || startY != 0 || endX != 0 || endY != 0)
+                {
+                    offsetX = Mathf.Lerp(startX, endX, percentagetime);
+                    offsetY = Mathf.Lerp(startY, endY, percentagetime);
+                }
+
+                posi = Mathf.Lerp(0, smoothingRange, framepercentage);
+
+                //if the current frame changes, and it didn't hit an object or the hitframe is the same current frame, set frame position to 0
+                //stops frame jumping when switching between frames during hits.
+                if (frameBeforeStepping != currentFrame && (!hitObject || hitframe == currentFrame))
+                    posi = 0;
+
+                //update actual sprite on screen based on this numerators calculations.
                 UpdateWeapon();
 
-                if (AmbidexterityManager.classicAnimations && !raycast)
-                    yield return new WaitForSecondsRealtime(totalTime / 5);
-                else
-                    yield return new WaitForFixedUpdate();
+                //if the animation is finished, and it isn't the beginning, then reset and update animation, then end/break from numerator.
+                if (lerpfinished && timeCovered != 0)
+                {
+                    ResetAnimation(frameLock);
+                    UpdateWeapon();
+                    yield break;
+                }
 
+                //take the animation total time and divide it by the 5 frames, and then wait that time for updating classic frame. Mimics classic animation system.
+                yield return new WaitForSecondsRealtime(totalTime / 5);
             }
         }
         //uses vector3 axis rotations to figure out starting and ending point of arc, then uses lerp to calculate where the ray is in the arc, and then returns the calculations.
@@ -486,23 +741,29 @@ namespace AmbidexterityModule
             return attackcast;
         }
 
-        public void ResetAnimation()
+        public void ResetAnimation(bool savePosition = false)
         {
             timeCovered = 0;
-            currentFrame = 0;
+            lerpRecoilTimer = 0;
+            hitNPC = false;
             frametime = 0;
-            isParrying = false;
+            currentFrame = 0;
             breatheTrigger = false;
             hitObject = false;
+            isParrying = false;
             attackCasted = false;
             weaponState = WeaponStates.Idle;
-            AmbidexterityManager.AmbidexterityManagerInstance.AttackState = 0;
-            AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = false;
+            AmbidexterityManagerInstance.AttackState = 0;
+            AmbidexterityManagerInstance.isAttacking = false;
             GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
-            AmbidexterityManager.isHit = false;
-            posi = 0;
-            offsetX = 0;
-            offsetY = 0;
+            isHit = false;
+
+            if (!savePosition)
+            {
+                posi = 0;
+                offsetX = 0;
+                offsetY = 0;
+            }
         }
 
         public void UpdateWeapon()
@@ -514,7 +775,7 @@ namespace AmbidexterityModule
                 weaponRects == null || weaponIndices == null)
             {
                 return;
-            }
+            }            
 
             // Store rect and anim
             int weaponAnimRecordIndex;
@@ -532,7 +793,7 @@ namespace AmbidexterityModule
                     curCustomTexture = null;
 
 
-                if (!isParrying && weaponState != WeaponStates.Idle && !AmbidexterityManager.classicAnimations)
+                if (!isParrying && weaponState != WeaponStates.Idle && !classicAnimations)
                 {
                     if (weaponState == WeaponStates.StrikeLeft)
                     {
@@ -1403,8 +1664,8 @@ namespace AmbidexterityModule
                         curAnimRect = weaponRects[weaponIndices[weaponAnimRecordIndex].startIndex + selectedFrame];
                 }
 
-                //checks if player is parying. and not hit. If so, keep in idle frame for animation cleanliness.
-                if (isParrying && !AmbidexterityManager.isHit)
+                //checks if player is parrying. and not hit. If so, keep in idle frame for animation cleanliness.
+                if (isParrying && !isHit)
                 {
                     weaponAnimRecordIndex = 0;
                     rect = weaponRects[weaponIndices[0].startIndex];
@@ -1417,11 +1678,11 @@ namespace AmbidexterityModule
                 {
                     if (weaponState == WeaponStates.Idle)
                     {
-                        offsetY = -.05f + (AmbidexterityManager.AmbidexterityManagerInstance.bobRange * -1.5f) + yModifier;
+                        offsetY = -.05f + (AmbidexterityManagerInstance.bobRange * -1.5f) + yModifier;
 
                         if (flip)
                         {
-                            offsetX = -.7f + (AmbidexterityManager.AmbidexterityManagerInstance.bobRange / 1.5f) + xModifier;
+                            offsetX = -.7f + (AmbidexterityManagerInstance.bobRange / 1.5f) + xModifier;
                             if (isImported)
                                 curAnimRect = new Rect(1, 0, -1, 1);
                             else
@@ -1429,7 +1690,7 @@ namespace AmbidexterityModule
                         }
                         else
                         {
-                            offsetX = .7f - (AmbidexterityManager.AmbidexterityManagerInstance.bobRange / 1.5f) + xModifier;
+                            offsetX = .7f - (AmbidexterityManagerInstance.bobRange / 1.5f) + xModifier;
                             if (isImported)
                                 curAnimRect = new Rect(0, 0, 1, 1);
                             else

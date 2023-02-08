@@ -8,12 +8,14 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallConnect;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
+using DaggerfallWorkshop.Utility;
 
 namespace AmbidexterityModule
 {
     public class ShieldFormulaHelper : MonoBehaviour
     {
         public static ShieldFormulaHelper ShieldFormulaHelperInstance;
+        private static MobileAnimation[] anims;
 
         #region BaseformulaOverwrite
         public static int CalculateAttackDamage(DaggerfallEntity attacker, DaggerfallEntity target, bool enemyAnimStateRecord, int weaponAnimTime, DaggerfallUnityItem weapon)
@@ -90,7 +92,6 @@ namespace AmbidexterityModule
             }
 
             // Choose struck body part
-            backstabChance = FormulaHelper.CalculateBackstabChance(player, null, enemyAnimStateRecord);
             int struckBodyPart = FormulaHelper.CalculateStruckBodyPart();
 
             // Get damage for weaponless attacks
@@ -171,6 +172,22 @@ namespace AmbidexterityModule
 
             damage = Mathf.Max(0, damage);
 
+            if (damage == 0 && attacker == GameManager.Instance.PlayerEntity)
+            {
+                MobileUnit mobile = target.EntityBehaviour.GetComponentInChildren<MobileUnit>();                
+                MobileUnit.MobileUnitSummary summary = mobile.Summary;
+                //summary.StateAnims = (MobileAnimation[])EnemyBasics.PrimaryAttackAnims.Clone();
+                //summary.StateAnimFrames = summary.Enemy.PrimaryAttackAnimFrames2;
+                summary.Enemy.ChanceForAttack2 = 100;
+                summary.Enemy.ChanceForAttack3 = 0;
+                summary.Enemy.ChanceForAttack4 = 0;
+                summary.Enemy.ChanceForAttack5 = 0;
+                summary.Enemy.MaxDamage = 0;
+                summary.Enemy.MinDamage = 0;
+                mobile.ChangeEnemyState(MobileStates.PrimaryAttack);
+                Instantiate(AmbidexterityManager.sparkParticles, target.EntityBehaviour.transform.position + (target.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
+            }
+
             //--->AMBIDEXTERITY MODULE ADDITION<---\\
             //beginning of major code additions to catch and redirect damage for the parry and shield mechanics.
 
@@ -181,8 +198,8 @@ namespace AmbidexterityModule
             if (target != GameManager.Instance.PlayerEntity && attacker != GameManager.Instance.PlayerEntity)
             {
                 //sets up attacker and target objects to check if they are in attack state when damage is being done.
-                DaggerfallMobileUnit targetController = target.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
-                DaggerfallMobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
+                MobileUnit targetController = target.EntityBehaviour.GetComponentInChildren<MobileUnit>();
+                MobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<MobileUnit>();
 
                 if (targetController.Summary.EnemyState == MobileStates.PrimaryAttack && attackerController.Summary.EnemyState == MobileStates.PrimaryAttack)
                 {
@@ -211,7 +228,7 @@ namespace AmbidexterityModule
             if (target == GameManager.Instance.PlayerEntity)
             {
                 //grabs the attackers mobileunit class object to check their state below.
-                DaggerfallMobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
+                MobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<MobileUnit>();
 
                 //if the enemy is in their primary/melee attack state and the player is on frame 1 or 2, do ....
                 if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AmbidexterityManagerInstance.AttackState != 0 && (AltFPSWeapon.currentFrame == 2 || OffHandFPSWeapon.currentFrame == 2))
@@ -247,7 +264,7 @@ namespace AmbidexterityModule
                     //if the enemy is in their primary/melee attack state and the player is on their hit frame, do ....
                     if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AltFPSWeapon.currentFrame > 2)
                     {
-                        Destroy(Instantiate(AmbidexterityManager.sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null), 1.0f);
+                        Instantiate(AmbidexterityManager.sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
                         damage = 0;
                     }
                 }
@@ -280,6 +297,9 @@ namespace AmbidexterityModule
                     AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
                 }
             }
+
+
+            damage = Mathf.Max(0, damage);
 
             FormulaHelper.DamageEquipment(attacker, target, damage, weapon, struckBodyPart);
 
@@ -638,8 +658,8 @@ namespace AmbidexterityModule
             if (target != GameManager.Instance.PlayerEntity && attacker != GameManager.Instance.PlayerEntity)
             {
                 //sets up attacker and target objects to check if they are in attack state when damage is being done.
-                DaggerfallMobileUnit targetController = target.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
-                DaggerfallMobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
+                MobileUnit targetController = target.EntityBehaviour.GetComponentInChildren<MobileUnit>();
+                MobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<MobileUnit>();
 
                 if (targetController.Summary.EnemyState == MobileStates.PrimaryAttack && attackerController.Summary.EnemyState == MobileStates.PrimaryAttack)
                 {

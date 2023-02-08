@@ -46,7 +46,7 @@ namespace AmbidexterityModule
         private IEnumerator currentAnimationNumerator;
         private IEnumerator bashNumerator;
 
-        private static GameObject attackHit;
+        private static RaycastHit attackHit;
 
         public Coroutine Bobcoroutine;
         private Coroutine currentAnimation;
@@ -107,6 +107,12 @@ namespace AmbidexterityModule
         private float bob;
         private bool bobSwitch;
         private int hitType;
+        private float lastxPos = -1;
+        private float lastyPos = -1;
+        private bool blockKeyPressed;
+        private bool hitNPC;
+        private DaggerfallEntityBehaviour hitEnemyObject;
+        private MobilePersonNPC hitNPCObject;
 
         public float currentFrame { get; private set; }
         #endregion
@@ -176,8 +182,11 @@ namespace AmbidexterityModule
             //starts infinite coroutine loop to set current shield position. Below update loop moves the shield position. Coroutine is stopped when shield is not on screen.
             if (!shieldEquipped || (GameManager.Instance.StateManager.CurrentState == StateManager.StateTypes.Paused) || DaggerfallUI.UIManager.WindowCount != 0)
                 shieldPos = new Rect();
-            else
+            else if (xPos != lastxPos || yPos != lastyPos)
             {
+                lastxPos = xPos;
+                lastyPos = yPos;
+
                 if (flip)
                 {
                     shieldPos = new Rect(Screen.width * (.825f + xPos), Screen.height * (1.275f - yPos) - size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleX, size * AmbidexterityManager.AmbidexterityManagerInstance.screenScaleY);
@@ -258,16 +267,16 @@ namespace AmbidexterityModule
         {
             while (true)
             {
-                bob = (AmbidexterityManager.AmbidexterityManagerInstance.bobRange - .1f) * -1;
-
-                xPos = (bob / 1.5f) - .05f;
-                yPos = (bob * 1.5f) - .1f;
-
                 //if classic animation enabled, return animation every 5 frames, just like classic.
                 if (AmbidexterityManager.classicAnimations)
                     yield return new WaitForSeconds(.35f);
                 else
                     yield return new WaitForEndOfFrame();
+
+                bob = (AmbidexterityManager.AmbidexterityManagerInstance.bobRange - .1f) * -1;
+
+                xPos = (bob / 1.5f) - .05f;
+                yPos = (bob * 1.5f) - .1f;
             }
 
         }
@@ -496,10 +505,16 @@ namespace AmbidexterityModule
             else
                 moving = false;
 
+            if (Input.GetKeyDown(AmbidexterityManager.offHandKeyCode))
+                blockKeyPressed = true;
+            else if (Input.GetKeyUp(AmbidexterityManager.offHandKeyCode))
+                blockKeyPressed = false;
+
             //when player pushes down block key do....
-            if (Input.GetKeyDown(AmbidexterityManager.offHandKeyCode) && altFPSWeapon.weaponState == WeaponStates.Idle)
+            if (blockKeyPressed && altFPSWeapon.weaponState == WeaponStates.Idle)
             {
                 totalTime = 0;
+                blockKeyPressed = false;
                 isBlocking = false;
                 //figures out animation time for moving shield out of way during attack by using players live speed.
                 AttackAnimeTime = (float)(100 - GameManager.Instance.PlayerEntity.Stats.LiveSpeed) / 100;
@@ -603,30 +618,28 @@ namespace AmbidexterityModule
                     //calculate animation if player is not vulnerable.....
                     if (AmbidexterityManager.isHit && !isBlocking)
                     {
+
                         //Debug.Log("HIT!!!");                        
                         //plays one of the 9 random parry sounds to simulate a hit.
                         AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
-                        //resets trigger
-                        AmbidexterityManager.isHit = false;
-                        //grabs motor function from enemy entity behavior object and assigns it.
-                        EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
-                        //how far enemy will push back after succesful block.
-                        targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .75f, 2f, 5f);
-                        //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                        targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
-                        //assigns animation routine with timing.
-                        hitCoroutine = OnHit(.25f);
                         //Figures out fatigue penalty for getting hit when vulnerable, which scales with attackers damage.
                         int fatigueamount = (int)((AmbidexterityManager.attackerDamage * agilityMod) * AmbidexterityManager.BlockCostMod);
                         //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                         GameManager.Instance.PlayerEntity.DecreaseFatigue(fatigueamount);
+                        shieldStates = 3;
                         //Debug.Log("Fatigue Mod:" + agilityMod.ToString() + " | " + "Attacker Damage:" + AmbidexterityManager.attackerDamage.ToString() + " | " + " Fatigue Cost:" + fatigueamount.ToString() + " | " + "Current Fatigue Amount:" + PlayerEntity.CurrentFatigue.ToString());
-                        //plays hit animation.
-                        AnimationManager(hitCoroutine, 0, true);
                     }
                     else if (AmbidexterityManager.isHit && isBlocking)
                     {
                         //Debug.Log("Timed Block!!");
+                        //assigns animation routine with timing.
+                        if ((shieldTypes == 109 || shieldTypes == 110) && !isBashing)
+                        {
+                            isBashing = true;
+                            hitCoroutine = Bash(.65f);
+                        }
+                        else
+                            hitCoroutine = OnHit(.25f);
                         //plays one of the 9 random parry sounds to simulate a hit.
                         AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
                         //resets trigger
@@ -637,14 +650,6 @@ namespace AmbidexterityModule
                         targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage, 4f, 8f);
                         //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
                         targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
-                        //assigns animation routine with timing.
-                        if ((shieldTypes == 109 || shieldTypes == 110) && !isBashing)
-                        {
-                            isBashing = true;
-                            hitCoroutine = Bash(.65f);
-                        }
-                        else
-                            hitCoroutine = OnHit(.25f);
                         //run anaimtion: returns true while it runs, flips false once done and takes fatigue from player.
                         //calculates the fatigue cost of blocking an attack. Uses enemy damage as the base value.
                         int fatigueamount = (int)(AmbidexterityManager.attackerDamage * agilityMod * AmbidexterityManager.BlockCostMod);
@@ -680,7 +685,7 @@ namespace AmbidexterityModule
                 //if the shield has raised.....
                 else if (shieldStates == 2)
                 {
-                    if(shieldTypes == 111 || shieldTypes == 112)
+                    if((shieldTypes == 111 || shieldTypes == 112) || (!AmbidexterityManager.bucklerMechanics && (shieldTypes == 109 || shieldTypes == 110)))
                     {
                         if (AmbidexterityManager.isHit && !isBashing)
                         {
@@ -717,16 +722,14 @@ namespace AmbidexterityModule
                             yield return new WaitForSeconds(.2f);
                             Vector3 bashCast = AmbidexterityManager.mainCamera.transform.forward * 1.8f;
                             GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                            AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(null, bashCast, new Vector3(0, 0, 0), out attackHit);
+                            AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(null, bashCast, new Vector3(0, 0, 0), out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject);
                         }
                     }
-                    else if((shieldTypes == 109 || shieldTypes == 110))
+                    else if((shieldTypes == 109 || shieldTypes == 110) && AmbidexterityManager.bucklerMechanics)
                     {
-                        yield return new WaitForEndOfFrame();
-                        yield return new WaitForEndOfFrame();
+                        yield return new WaitForSeconds(totalBlockTime * .15f);
                         if (AmbidexterityManager.isHit && !isBashing)
                         {
-                            Debug.Log("SUPER BASH!!");
                             //Debug.Log("Timed Block!!");
                             //plays one of the 9 random parry sounds to simulate a hit.
                             AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
@@ -949,9 +952,9 @@ namespace AmbidexterityModule
                     shieldTex = smallShieldTexture;
                 else
                     shieldTex = largeShieldTexture;
-
-                shieldEquipped = true;
             }
+
+            shieldEquipped = true;
 
         }
         #endregion

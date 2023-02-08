@@ -27,6 +27,14 @@ namespace AmbidexterityModule
             }
         }
 
+        public bool Completed
+        {
+            get
+            {
+                return task.Completed;
+            }
+        }
+
         /// Delegate for termination subscribers.  manual is true if and only if
         /// the coroutine was stopped with an explicit call to Stop().
         public delegate void FinishedHandler(bool manual);
@@ -68,6 +76,11 @@ namespace AmbidexterityModule
             task.Unpause();
         }
 
+        public void Restart()
+        {
+            task.Restart();
+        }
+
         void TaskFinished(bool manual)
         {
             FinishedHandler handler = Finished;
@@ -98,6 +111,14 @@ namespace AmbidexterityModule
                 }
             }
 
+            public bool Completed
+            {
+                get
+                {
+                    return completed;
+                }
+            }
+
             public delegate void FinishedHandler(bool manual);
             public event FinishedHandler Finished;
 
@@ -106,6 +127,7 @@ namespace AmbidexterityModule
             bool paused;
             bool stopped;
             bool restart;
+            bool completed;
 
             public TaskState(IEnumerator c)
             {
@@ -134,6 +156,13 @@ namespace AmbidexterityModule
                 running = false;
             }
 
+            public void Restart()
+            {
+                running = true;
+                restart = true;
+                singleton.StartCoroutine(CallWrapper());
+            }
+
             IEnumerator CallWrapper()
             {
                 yield return null;
@@ -146,11 +175,13 @@ namespace AmbidexterityModule
                     {
                         if (e != null && e.MoveNext())
                         {
+                            completed = false;
                             yield return e.Current;
                         }
                         else
                         {
                             running = false;
+                            completed = true;
                         }
                     }
                 }                
