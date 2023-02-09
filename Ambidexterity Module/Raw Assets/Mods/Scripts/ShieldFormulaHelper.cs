@@ -174,17 +174,8 @@ namespace AmbidexterityModule
 
             if (damage == 0 && attacker == GameManager.Instance.PlayerEntity)
             {
-                MobileUnit mobile = target.EntityBehaviour.GetComponentInChildren<MobileUnit>();                
-                MobileUnit.MobileUnitSummary summary = mobile.Summary;
-                //summary.StateAnims = (MobileAnimation[])EnemyBasics.PrimaryAttackAnims.Clone();
-                //summary.StateAnimFrames = summary.Enemy.PrimaryAttackAnimFrames2;
-                summary.Enemy.ChanceForAttack2 = 100;
-                summary.Enemy.ChanceForAttack3 = 0;
-                summary.Enemy.ChanceForAttack4 = 0;
-                summary.Enemy.ChanceForAttack5 = 0;
-                summary.Enemy.MaxDamage = 0;
-                summary.Enemy.MinDamage = 0;
-                mobile.ChangeEnemyState(MobileStates.PrimaryAttack);
+                DaggerfallMobileUnit mobile = target.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
+                mobile.ChangeEnemyState(MobileStates.Hurt);
                 Instantiate(AmbidexterityManager.sparkParticles, target.EntityBehaviour.transform.position + (target.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
             }
 
