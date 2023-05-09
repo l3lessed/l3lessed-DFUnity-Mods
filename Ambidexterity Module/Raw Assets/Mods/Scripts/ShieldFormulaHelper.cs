@@ -264,7 +264,7 @@ namespace AmbidexterityModule
             //--SHIELD REDIRECT CODE--\\
             //checks to see if player is blocking yet and if the target is the player. If so, assign damage to attackerDamage, enemy object to enemyEntity, and
             //0 out the damage, so player doesn't take any.
-            if ((FPSShield.isBlocking || AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 7) && target == GameManager.Instance.PlayerEntity && damage != 0)
+            if ((FPSShield.isBlocking || (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 7 && AmbidexterityManager.AmbidexterityManagerInstance.doneParrying)) && target == GameManager.Instance.PlayerEntity && damage != 0)
             {
                 //grabs attackers sense object.
                 EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();

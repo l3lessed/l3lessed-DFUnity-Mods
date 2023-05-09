@@ -18,6 +18,7 @@ using DaggerfallWorkshop.Game.Serialization;
 using System.Diagnostics;
 using static DaggerfallWorkshop.Game.WeaponManager;
 using static AmbidexterityModule.AmbidexterityManager;
+using System.Linq;
 
 namespace AmbidexterityModule
 {
@@ -76,10 +77,10 @@ namespace AmbidexterityModule
         private float animTickTime;
         private float lerpRange;
 
-        public WeaponTypes currentWeaponType;
+        public WeaponTypes currentWeaponType = WeaponTypes.None;
+        public WeaponTypes previousWeaponType = WeaponTypes.None;
         public MetalTypes currentMetalType;
         public WeaponStates weaponState = WeaponStates.Idle;
-        public WeaponTypes WeaponType = WeaponTypes.None;
         public MetalTypes MetalType = MetalTypes.None;
         public ItemHands WeaponHands;
         public SoundClips SwingWeaponSound = SoundClips.SwingMediumPitch;
@@ -125,19 +126,40 @@ namespace AmbidexterityModule
         private MobilePersonNPC hitNPCObject;
         private float lerpRecoilTimer;
         private int hitframe;
+        private IEnumerator AnimationManagerRoutine;
+        public bool playingAnimation;
+
+
+        public Task currentAnimationtask = null;
+        private Queue<Task> animationQueue = new Queue<Task>();
+        public int animationQeueSize;
+        public int animationListSize;
+        private List<Task> animationLoaderList = new List<Task>();
+        public Animation CurrentAnimation = new Animation();
+
+        public string PeekAnimationName { get; private set; }
+
+        public bool attackPrimed;
+        public WeaponStates primedWeaponState;
+        public bool toggleBob;
+        public bool isLowered;
+        public bool isRaised = true;
+        public Queue<Animation> CurrentAnimationList = new Queue<Animation>();
+
+        public class Animation
+        {
+            public string AnimationName { get; set; }
+            private List<Task> LocalAnimationList = new List<Task>();
+            public List<Task> PublicAnimationList
+            {
+                get { return LocalAnimationList; }
+                set { LocalAnimationList = value; }
+            }
+        }
 
         private void Start()
         {
-            if (classicAnimations)
-            {
-                PrimerCoroutine = new Task(ClassicAnimationCalculator(offsetX, offsetY, -.2f, offsetY - .45f, true, .65f, totalAnimationTime * .5f, 0, true, true, false), false);
-                ParryCoroutine = new Task(ClassicAnimationCalculator(offsetX, offsetY, .75f, -.5f, true, .5f, 0, 0, true, true, false), false);
-            }                
-            else
-            {
-                PrimerCoroutine = new Task(SmoothAnimationCalculator(offsetX, offsetY, -.2f, offsetY - .45f, true, .65f, totalAnimationTime * .5f, 0, true, true, false), false);
-                ParryCoroutine = new Task(SmoothAnimationCalculator(offsetX, offsetY, .75f, -.5f, true, .5f, 0, 0, true, true, false), false);
-            }            
+            AnimationManagerRoutine = RunAnimations();
         }
 
         public void PlaySwingSound()
@@ -147,6 +169,160 @@ namespace AmbidexterityModule
                 dfAudioSource.AudioSource.pitch = 1f * 1;
                 dfAudioSource.PlayOneShot(SwingWeaponSound, 0, 1.1f);
             }
+        }
+
+        //ANIMATION ENGINE: Runs the animations and ensures proper animation continuety betweek individual animation tasks.
+        private IEnumerator RunAnimations()
+        {
+            while (true)
+            {
+                //check the size of the current animation list.
+                animationQeueSize = animationQueue.Count;
+                animationListSize = CurrentAnimationList.Count;
+                //If there is more than one animation.
+                if (animationQueue.Count != 0)
+                {
+                    //current animation is emepty or not running,  get the task animation from the qeued list, start it, and set the animations are playing.
+                    if (currentAnimationtask == null || !currentAnimationtask.Running)
+                    {
+                        //remove the current animation from the animation qeue list.
+                        currentAnimationtask = animationQueue.Dequeue();
+                        CurrentAnimation = CurrentAnimationList.Peek();
+                        PeekAnimationName = CurrentAnimation.AnimationName;
+                        //check if its playing the last animation, and if so, remove the animation from the master list.
+                        if (CurrentAnimation.PublicAnimationList.Last() == currentAnimationtask)
+                        {
+                            CurrentAnimationList.Dequeue();
+                        }
+
+                        //start the current animation
+                        currentAnimationtask.Start();
+                        playingAnimation = true;
+                        toggleBob = false;
+                    }
+                }
+                //if the animations list is empty, there are no running animations, reset the animation properties and stop/break from coroutine.
+                else if (animationQeueSize == 0 && playingAnimation && (currentAnimationtask == null || (currentAnimationtask != null && !currentAnimationtask.Running)))
+                {
+                    //resets the weapon and animation states to ensure proper idle and bobbing is restores.
+                    UnityEngine.Debug.Log("RESETTING STATES");
+                    weaponState = WeaponStates.Idle;
+                    GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
+                    AmbidexterityManagerInstance.AttackState = 0;
+                    AmbidexterityManagerInstance.isAttacking = false;
+                    playingAnimation = false;
+                    toggleBob = true;
+                    PeekAnimationName = "Idle";
+
+                    //Ensures the hands are raised anytime the animations finish and the player isn't in mid parry state.
+                    if (!isParrying && AmbidexterityManagerInstance.mainWeapon.isLowered)
+                    {
+                        AmbidexterityManagerInstance.mainWeapon.isLowered = false;
+                        AmbidexterityManagerInstance.mainWeapon.isRaised = true;
+
+                        //If player has qued up an attack, this ensures it isn't stopped/interrupted.
+                        if(AmbidexterityManagerInstance.mainWeapon.CurrentAnimation.AnimationName != "MainAttack")
+                        {
+                            AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                            AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.033f, -.075f, false, 1, AmbidexterityManagerInstance.offhandWeapon.totalAnimationTime * .35f, 0, true, true, false);
+                            AmbidexterityManagerInstance.mainWeapon.CompileAnimations("MainRaise");
+                            AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                        }
+                    }
+
+                    StopCoroutine(AnimationManagerRoutine);
+                }
+
+                yield return new WaitForFixedUpdate();
+            }
+        }
+
+        //ANIMATION LOADER: Loads all animation settings, including classic or smoothing, and then creates the proper animation task, sorts out if other animations are already loaded, and qeues up proper animation list for playing once ran.
+        public void AnimationLoader(bool classicAnimationSetting = true, WeaponStates attackState = WeaponStates.Idle, WeaponStates nextAttackState = WeaponStates.Idle, float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool positionLock = false, bool frameLock = false, bool raycast = true, bool Parrying = false)
+        {
+            //Only allow one preload animation at a time. The animation list must be empty signalling it is ready to qeue up another animation.
+            if (CurrentAnimationList.Count == 0)
+            {
+                //loads a classic animation or a modern smooth animation based on trigger set.
+                if (classicAnimationSetting)
+                    animationLoaderList.Add(new Task(ClassicAnimationCalculator(attackState, nextAttackState, startX, startY, endX, endY, breath, triggerpoint, CustomTime, startTime, positionLock, frameLock, raycast, Parrying), false));
+                else
+                    animationLoaderList.Add(new Task(SmoothAnimationCalculator(attackState, nextAttackState, startX, startY, endX, endY, breath, triggerpoint, CustomTime, startTime, positionLock, frameLock, raycast, Parrying), false));
+            }
+        }
+
+        public void CompileAnimations(string AnimationName)
+        {
+            if (CurrentAnimationList.Count == 0)
+            {
+                //if there are no current animations waiting to be loaded, put animation right into the list for qeueing below.
+                //If there is already a loaded animation in the list, qeue up the new animation behind the current list. This allows priming one animation after another.
+                Animation TempAnimation = new Animation();
+                TempAnimation.AnimationName = AnimationName;
+                TempAnimation.PublicAnimationList = new List<Task>(animationLoaderList);
+                CurrentAnimationList.Enqueue(TempAnimation);
+                //AnimationList.Insert(0,AnimationName, animationLoaderList);
+
+                //add first animation tasks to the enqeue, if it lacks the animations.
+                foreach (Task singleAnimationTask in CurrentAnimationList.Peek().PublicAnimationList)
+                {
+                    animationQueue.Enqueue(singleAnimationTask);
+                }
+
+                //clear the animation loader and remove the current animation from the loader.
+                animationLoaderList.Clear();
+            }
+        }
+
+        //starts animation running routine. Use to play animations once loaded into system.
+        public void PlayLoadedAnimations()
+        {
+            if (!playingAnimation)
+                StartCoroutine(AnimationManagerRoutine);
+        }
+
+        //ensures proper stopping of current running animation and ensures following animations are still loaded and played.
+        public void StopAnimation(bool PositionLock = false)
+        {
+            //if there isn't a running animation, leave routine.
+            if (currentAnimationtask == null)
+                return;
+
+            //tells the current animation lerp routine its finished to ensure proper end.
+            lerpfinished = true;
+            //clears all current qued animations.
+            animationQueue.Clear();
+            //clears all current stored animations listed for the que process.
+            CurrentAnimationList.Clear();
+            //stops the current animation to ensure the routine is halted completely.
+            currentAnimationtask.Stop();
+            //resets the animation and holds its position.
+            ResetAnimation(PositionLock);
+            return;
+
+        }
+
+        public void ResetAnimation(bool savePosition = false)
+        {
+            timeCovered = 0;
+            lerpRecoilTimer = 0;
+            percentagetime = 0;
+            hitNPC = false;
+            frametime = 0;
+            currentFrame = 0;
+            breatheTrigger = false;
+            hitObject = false;
+            attackCasted = false;
+
+            if (!savePosition)
+            {
+                UnityEngine.Debug.Log("RESET With POSITIONS");
+                posi = 0;
+                offsetX = 0;
+                offsetY = 0;
+            }
+
+            UpdateWeapon();
         }
 
         //draws gui shield.
@@ -159,7 +335,7 @@ namespace AmbidexterityModule
             else
             {
                 // Must have current weapon texture atlas
-                if (weaponAtlas == null || WeaponType != currentWeaponType || MetalType != currentMetalType)
+                if (weaponAtlas == null || currentWeaponType != previousWeaponType || MetalType != currentMetalType)
                 {
                     ResetAnimation();
                     LoadWeaponAtlas();
@@ -175,25 +351,25 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
-                if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill)
+                if (toggleBob && !playingAnimation && isRaised)
                 {
-                    if (AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 && toggleBob)
+                    if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill && AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0)
                     {
 
                         offsetX = (AmbidexterityManagerInstance.bobRange / -1.5f);
                         offsetY = (AmbidexterityManagerInstance.bobRange * -1.5f);
 
                         waitTimer += Time.deltaTime;
-
-                        if (waitTimer > .75f && classicAnimations)
-                        {
-                            waitTimer = 0;
-                            UpdateWeapon();
-                            return;
-                        }
-                        else if (!classicAnimations)
-                            UpdateWeapon();
                     }
+
+                    if (waitTimer >= .65f && classicAnimations)
+                    {
+                        waitTimer = 0;
+                        UpdateWeapon();
+                        return;
+                    }
+                    else if (!classicAnimations)
+                        UpdateWeapon();
                 }
             }
         }
@@ -252,11 +428,17 @@ namespace AmbidexterityModule
             }
         }
 
-        public IEnumerator SmoothAnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false, bool raycast = true)
+        public IEnumerator SmoothAnimationCalculator(WeaponStates attackState, WeaponStates nextAttackState = WeaponStates.Idle, float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool positionLock = false, bool frameLock = false, bool raycast = true, bool Parrying = false)
         {
             while (true)
             {
                 float totalTime;
+
+                //set the weaponstate to the assigned attack state. *Need to code better weaponstate controller setup*
+                if (weaponState != attackState)
+                    weaponState = attackState;
+
+                isParrying = Parrying;
 
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
@@ -301,7 +483,7 @@ namespace AmbidexterityModule
                         float yAngleCast = 0;
                         float modifiedWeaponReach = weaponReach;
 
-                        switch (WeaponType)
+                        switch (currentWeaponType)
                         {
                             //all melee weapon arc cast code.
                             case WeaponTypes.Melee:
@@ -309,7 +491,7 @@ namespace AmbidexterityModule
                                 {
                                     case WeaponStates.StrikeRight:
                                         //lerps through arc degrees to make an arc ray cast.
-                                        XAngleCast = Mathf.Lerp(-60, 90, percentagetime);
+                                        XAngleCast = Mathf.Lerp(-90, 60, percentagetime);
                                         yAngleCast = Mathf.Lerp(0, 15, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
@@ -318,16 +500,16 @@ namespace AmbidexterityModule
                                         modifiedWeaponReach = weaponReach * (percentagetime + .25f);
                                         offsetCast = Vector3.Lerp(new Vector3(0, -.55f, xModifier2), new Vector3(0, -.2f, yModifier2), percentagetime);
                                         //lerps through arc degrees to make an arc ray cast.
-                                        XAngleCast = Mathf.Lerp(-5, 5, percentagetime);
+                                        XAngleCast = Mathf.Lerp(5, -5, percentagetime);
                                         yAngleCast = Mathf.Lerp(10, -20, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
                                     case WeaponStates.StrikeDown:
-                                        offsetCast = Vector3.Lerp(new Vector3(.3f, -.05f, xModifier2), new Vector3(-.35f, .1f, yModifier2), percentagetime);
+                                        offsetCast = Vector3.Lerp(new Vector3(-.05f, -.075f, xModifier2), new Vector3(.05f, 0, yModifier2), percentagetime);
                                         //lerps through arc degrees to make an arc ray cast.
-                                        XAngleCast = Mathf.Lerp(-20, 15, percentagetime);
-                                        yAngleCast = Mathf.Lerp(0, 0, percentagetime);
+                                        XAngleCast = Mathf.Lerp(5, -5, percentagetime);
+                                        yAngleCast = Mathf.Lerp(0, 5, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
                                         break;
@@ -352,8 +534,8 @@ namespace AmbidexterityModule
                                     case WeaponStates.StrikeDownRight:
                                         //lerps through arc degrees to make an arc ray cast.
                                         modifiedWeaponReach = weaponReach * (percentagetime + .25f);
-                                        offsetCast = Vector3.Lerp(new Vector3(-.2f, -.15f, xModifier2), new Vector3(.1f, .01f, yModifier2), percentagetime);
-                                        XAngleCast = Mathf.Lerp(-5, 15, percentagetime);
+                                        offsetCast = Vector3.Lerp(new Vector3(.2f, -.15f, xModifier2), new Vector3(.1f, -.01f, yModifier2), percentagetime);
+                                        XAngleCast = Mathf.Lerp(15, -5, percentagetime);
                                         yAngleCast = Mathf.Lerp(55, -35, percentagetime);
                                         //rotates vector3 position  using above lerp calculator then shoots it forward.
                                         attackcast = (Quaternion.AngleAxis(yAngleCast, GameManager.Instance.MainCamera.transform.right) * Quaternion.AngleAxis(XAngleCast, GameManager.Instance.MainCamera.transform.up)) * GameManager.Instance.MainCamera.transform.forward;
@@ -408,6 +590,9 @@ namespace AmbidexterityModule
                                 hitObject = AmbidexterityManagerInstance.AttackCast(equippedOffHandFPSWeapon, attackcast, offsetCast, out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject, modifiedWeaponReach);
                                 break;
                         }
+
+                        if (hitObject)
+                            hitframe = currentFrame;
                     }
                 }
 
@@ -415,7 +600,7 @@ namespace AmbidexterityModule
                 if (startTime != 0 && timeCovered == 0)
                     timeCovered = startTime * totalTime;
 
-                if (hitObject && !hitNPC)
+                if (hitObject || hitNPC)
                 {
                     frametime -= Time.deltaTime;
                     // Distance moved equals elapsed time times speed.
@@ -441,16 +626,9 @@ namespace AmbidexterityModule
                 if (!frameLock)
                     currentFrame = Mathf.Clamp(Mathf.FloorToInt(percentagetime * 5), 0, 4);
 
-                //breath trigger to allow lerp to breath naturally back and fourth.
-                if (percentagetime >= triggerpoint && !breatheTrigger)
-                    breatheTrigger = true;
-                else if (percentagetime <= 0 && breatheTrigger)
-                    breatheTrigger = false;
-
                 if (percentagetime >= 1 || percentagetime <= 0 && !lerpfinished)
                     lerpfinished = true;
                 else
-                    //AmbidexterityManager.AmbidexterityManagerInstance.isAttacking = true;
                     lerpfinished = false;
 
                 if (startX != 0 || startY != 0 || endX != 0 || endY != 0)
@@ -481,19 +659,35 @@ namespace AmbidexterityModule
                 //if animation is finished and it isn't a start, then reset, update, and exit animation routine.
                 if (lerpfinished && timeCovered != 0)
                 {
-                    ResetAnimation(frameLock);
-                    UpdateWeapon();
+                    if (attackPrimed)
+                    {
+                        attackPrimed = false;
+                        nextAttackState = primedWeaponState;
+                        weaponState = primedWeaponState;
+                    }
+
+                    //if the next attack state is different, assign the weapon and attack state to the new state to ensure frame skipping doesn't appear between animations.
+                    if (attackState != nextAttackState)
+                    {
+                        attackState = nextAttackState;
+                        weaponState = attackState;
+                    }
+
+                    ResetAnimation(positionLock);
                     yield break;
                 }
                 yield return new WaitForFixedUpdate();
             }
         }
 
-        public IEnumerator ClassicAnimationCalculator(float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool natural = false, bool frameLock = false, bool raycast = true)
+        public IEnumerator ClassicAnimationCalculator(WeaponStates attackState, WeaponStates nextAttackState = WeaponStates.Idle, float startX = 0, float startY = 0, float endX = 0, float endY = 0, bool breath = false, float triggerpoint = 1, float CustomTime = 0, float startTime = 0, bool positionLock = false, bool frameLock = false, bool raycast = true, bool Parrying = false)
         {
             while (true)
             {
                 float totalTime;
+
+
+                isParrying = Parrying;
 
                 //*COMBAT OVERHAUL ADDITION*//
                 //calculates lerp values for each frame change. When the frame changes,
@@ -501,6 +695,12 @@ namespace AmbidexterityModule
                 //and then uses them to calculate and set the lerp value to ensure proper animation
                 //offsetting no matter users fps or attack speed.
                 frameBeforeStepping = currentFrame;
+
+                if (!frameLock)
+                    currentFrame = Mathf.Clamp(Mathf.FloorToInt(percentagetime * 5), 0, 4);
+
+                //set the weaponstate to the assigned attack state. *Need to code better weaponstate controller setup*
+                weaponState = attackState;
 
                 if (CustomTime != 0)
                     totalTime = CustomTime;
@@ -542,7 +742,7 @@ namespace AmbidexterityModule
                         float modifiedWeaponReach = weaponReach;
 
                         //switch to decide proper raycast inputs based on melee weapon or not, since animations differ widely.
-                        switch (WeaponType)
+                        switch (currentWeaponType)
                         {
                             //all melee weapon arc cast code.
                             case WeaponTypes.Melee:
@@ -680,9 +880,6 @@ namespace AmbidexterityModule
                 //how much time has passed in the animation
                 percentagetime = (float)Math.Round(timeCovered / totalTime, 2);
 
-                if (!frameLock)
-                    currentFrame = Mathf.Clamp(Mathf.FloorToInt(percentagetime * 5), 0, 4);
-
                 //breath trigger to allow lerp to breath naturally back and fourth.
                 if (percentagetime >= triggerpoint && !breatheTrigger)
                     breatheTrigger = true;
@@ -711,16 +908,22 @@ namespace AmbidexterityModule
                 //update actual sprite on screen based on this numerators calculations.
                 UpdateWeapon();
 
+                //take the animation total time and divide it by the 5 frames, and then wait that time for updating classic frame. Mimics classic animation system.
+                yield return new WaitForSecondsRealtime(totalTime / 5);
+
                 //if the animation is finished, and it isn't the beginning, then reset and update animation, then end/break from numerator.
                 if (lerpfinished && timeCovered != 0)
                 {
-                    ResetAnimation(frameLock);
-                    UpdateWeapon();
+                    //if the next attack state is different, assign the weapon and attack state to the new state to ensure frame skipping doesn't appear between animations.
+                    if (attackState != nextAttackState)
+                    {
+                        attackState = nextAttackState;
+                        weaponState = attackState;
+                    }
+
+                    ResetAnimation(positionLock);
                     yield break;
                 }
-
-                //take the animation total time and divide it by the 5 frames, and then wait that time for updating classic frame. Mimics classic animation system.
-                yield return new WaitForSecondsRealtime(totalTime / 5);
             }
         }
         //uses vector3 axis rotations to figure out starting and ending point of arc, then uses lerp to calculate where the ray is in the arc, and then returns the calculations.
@@ -741,34 +944,8 @@ namespace AmbidexterityModule
             return attackcast;
         }
 
-        public void ResetAnimation(bool savePosition = false)
-        {
-            timeCovered = 0;
-            lerpRecoilTimer = 0;
-            hitNPC = false;
-            frametime = 0;
-            currentFrame = 0;
-            breatheTrigger = false;
-            hitObject = false;
-            isParrying = false;
-            attackCasted = false;
-            weaponState = WeaponStates.Idle;
-            AmbidexterityManagerInstance.AttackState = 0;
-            AmbidexterityManagerInstance.isAttacking = false;
-            GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
-            isHit = false;
-
-            if (!savePosition)
-            {
-                posi = 0;
-                offsetX = 0;
-                offsetY = 0;
-            }
-        }
-
         public void UpdateWeapon()
         {
-            int frameBeforeStepping = currentFrame;
             selectedFrame = currentFrame;
             // Do nothing if weapon not ready
             if (weaponAtlas == null || weaponAnims == null ||
@@ -797,7 +974,7 @@ namespace AmbidexterityModule
                 {
                     if (weaponState == WeaponStates.StrikeLeft)
                     {
-                        if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
+                        if (currentWeaponType == WeaponTypes.Flail || currentWeaponType == WeaponTypes.Flail_Magic)
                         {
                             selectedFrame = currentFrame;
 
@@ -814,7 +991,7 @@ namespace AmbidexterityModule
                                 offsetX = posi - .33f + (.0825f * currentFrame);
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
+                        else if (currentWeaponType == WeaponTypes.Dagger || currentWeaponType == WeaponTypes.Dagger_Magic)
                         {
                             if (currentFrame == 0)
                             {
@@ -836,32 +1013,42 @@ namespace AmbidexterityModule
                             }
 
                         }
-                        else if (WeaponType == WeaponTypes.Melee)
+                       else if (currentWeaponType == WeaponTypes.Melee)
                         {
                             selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 2;
-                            if (currentFrame <= 2)
+                            if (currentFrame == 0)
                             {
-                                offsetX = .25f;
-                                offsetY = posi - .165f;
+                                offsetX = .22f;
+                                offsetY = posi - .33f - yModifier;
+                            }
+                            else if (currentFrame == 1)
+                            {
+                                offsetX = .22f;
+                                offsetY = posi - .31f - yModifier1;
+                            }
+                            else if(currentFrame == 2)
+                            {
+                                offsetX = .22f;
+                                offsetY = posi - .32f - yModifier2;
                             }
                             else if (currentFrame == 3)
                             {
-                                offsetX = .25f;
-                                offsetY = posi * -1;
+                                offsetX = .22F;
+                                offsetY = (posi * -1) - yModifier3;
                             }
                             else if (currentFrame == 4)
                             {
-                                offsetX = .25f;
-                                offsetY = (posi * -1) - .165f;
+                                offsetX = .22f;
+                                offsetY = (posi * -1) - .1f - yModifier4;
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Staff)
+                        else if (currentWeaponType == WeaponTypes.Staff)
                         {
                             selectedFrame = currentFrame;
                             offsetX = posi - .385f;
                         }
-                        else if (WeaponType == WeaponTypes.Werecreature)
+                        else if (currentWeaponType == WeaponTypes.Werecreature)
                         {
                             selectedFrame = currentFrame;
                             offsetX = posi + .33f;
@@ -890,7 +1077,7 @@ namespace AmbidexterityModule
                     }
                     else if (weaponState == WeaponStates.StrikeRight)
                     {
-                        if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
+                        if (currentWeaponType == WeaponTypes.Flail || currentWeaponType == WeaponTypes.Flail_Magic)
                         {
                             selectedFrame = currentFrame;
 
@@ -907,7 +1094,7 @@ namespace AmbidexterityModule
                                 offsetX = (posi * -1) + .33f - (.0825f * currentFrame);
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
+                        else if (currentWeaponType == WeaponTypes.Dagger || currentWeaponType == WeaponTypes.Dagger_Magic)
                         {
                             selectedFrame = currentFrame;
 
@@ -937,7 +1124,7 @@ namespace AmbidexterityModule
                                 offsetY = (posi / 8) * -1;
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Melee)
+                        else if (currentWeaponType == WeaponTypes.Melee)
                         {
                             selectedFrame = currentFrame;
                             if (currentFrame <= 1)
@@ -961,7 +1148,7 @@ namespace AmbidexterityModule
                                 offsetY = ((posi / 2) * -1);
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Werecreature)
+                        else if (currentWeaponType == WeaponTypes.Werecreature)
                         {
                             selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 5;
@@ -969,13 +1156,13 @@ namespace AmbidexterityModule
                             offsetX = (posi * -1) + .3f;
                             offsetY = (posi / 3) * -1;
                         }
-                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        else if (currentWeaponType == WeaponTypes.Staff || currentWeaponType == WeaponTypes.Staff_Magic)
                         {
                             selectedFrame = currentFrame;
 
                             offsetX = (posi * -1.225f) + .4f;
                         }
-                        else if (WeaponType == WeaponTypes.LongBlade)
+                        else if (currentWeaponType == WeaponTypes.LongBlade)
                         {
                             selectedFrame = currentFrame;
 
@@ -1019,7 +1206,7 @@ namespace AmbidexterityModule
                     }
                     else if (weaponState == WeaponStates.StrikeDown)
                     {
-                        if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
+                        if (currentWeaponType == WeaponTypes.Flail || currentWeaponType == WeaponTypes.Flail_Magic)
                         {
                             if (isImported)
                             {
@@ -1100,7 +1287,7 @@ namespace AmbidexterityModule
                             }
 
                         }
-                        else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
+                        else if (currentWeaponType == WeaponTypes.Dagger || currentWeaponType == WeaponTypes.Dagger_Magic)
                         {
                             selectedFrame = currentFrame;
                             if (currentFrame == 0)
@@ -1119,7 +1306,7 @@ namespace AmbidexterityModule
                                 offsetY = (posi) * -1;
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Battleaxe || WeaponType == WeaponTypes.Battleaxe_Magic)
+                        else if (currentWeaponType == WeaponTypes.Battleaxe || currentWeaponType == WeaponTypes.Battleaxe_Magic)
                         {
                             if (currentFrame == 0)
                             {
@@ -1202,7 +1389,7 @@ namespace AmbidexterityModule
                                 }
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Warhammer || WeaponType == WeaponTypes.Warhammer_Magic)
+                        else if (currentWeaponType == WeaponTypes.Warhammer || currentWeaponType == WeaponTypes.Warhammer_Magic)
                         {
                             if (currentFrame == 0)
                             {
@@ -1240,7 +1427,7 @@ namespace AmbidexterityModule
                                 offsetY = (posi * -1f) - .39f + yModifier4;
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Werecreature)
+                        else if (currentWeaponType == WeaponTypes.Werecreature)
                         {
                             curAnimRect = isImported ? new Rect(1, 0, -1, 1) : weaponRects[weaponIndices[6].startIndex + currentFrame];
 
@@ -1253,7 +1440,7 @@ namespace AmbidexterityModule
                             else
                                 offsetY = (posi * -1);
                         }
-                        else if (WeaponType == WeaponTypes.Melee)
+                        else if (currentWeaponType == WeaponTypes.Melee)
                         {
                             weaponAnimRecordIndex = 3;
                             selectedFrame = currentFrame;
@@ -1262,7 +1449,7 @@ namespace AmbidexterityModule
                             else
                                 offsetY = posi * -2.2f + yModifier1;
                         }
-                        else if (WeaponType == WeaponTypes.Mace || WeaponType == WeaponTypes.Mace_Magic)
+                        else if (currentWeaponType == WeaponTypes.Mace || currentWeaponType == WeaponTypes.Mace_Magic)
                         {
                             if (currentFrame == 0)
                             {
@@ -1333,7 +1520,7 @@ namespace AmbidexterityModule
                                 }
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        else if (currentWeaponType == WeaponTypes.Staff || currentWeaponType == WeaponTypes.Staff_Magic)
                         {
                             if (currentFrame == 0)
                             {
@@ -1457,7 +1644,7 @@ namespace AmbidexterityModule
                     }
                     else if (weaponState == WeaponStates.StrikeUp)
                     {
-                        if (WeaponType == WeaponTypes.Flail || WeaponType == WeaponTypes.Flail_Magic)
+                        if (currentWeaponType == WeaponTypes.Flail || currentWeaponType == WeaponTypes.Flail_Magic)
                         {
                             if (isImported)
                             {
@@ -1527,7 +1714,7 @@ namespace AmbidexterityModule
                                 }
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Werecreature)
+                        else if (currentWeaponType == WeaponTypes.Werecreature)
                         {
                             selectedFrame = currentFrame;
                             weaponAnimRecordIndex = 1;
@@ -1536,7 +1723,7 @@ namespace AmbidexterityModule
                             else
                                 offsetY = (posi * -1);
                         }
-                        else if (WeaponType == WeaponTypes.Staff || WeaponType == WeaponTypes.Staff_Magic)
+                        else if (currentWeaponType == WeaponTypes.Staff || currentWeaponType == WeaponTypes.Staff_Magic)
                         {
                             selectedFrame = currentFrame;
                             if (currentFrame == 0)
@@ -1560,7 +1747,7 @@ namespace AmbidexterityModule
                                 offsetY = (posi * .75f) - .25f;
                             }
                         }
-                        else if (WeaponType == WeaponTypes.Dagger || WeaponType == WeaponTypes.Dagger_Magic)
+                        else if (currentWeaponType == WeaponTypes.Dagger || currentWeaponType == WeaponTypes.Dagger_Magic)
                         {
                             selectedFrame = currentFrame;
                             if (currentFrame == 0)
@@ -1632,7 +1819,7 @@ namespace AmbidexterityModule
 
                 if (weaponState == WeaponStates.Idle)
                 {
-                    if (WeaponType != WeaponTypes.Werecreature)
+                    if (currentWeaponType != WeaponTypes.Werecreature)
                     {
                         selectedFrame = 0;
                         weaponAnimRecordIndex = 0;
@@ -1674,7 +1861,7 @@ namespace AmbidexterityModule
                 if (weaponState == WeaponStates.StrikeDownLeft)
                     offsetX = -.09f;
 
-                if (WeaponType == WeaponTypes.Werecreature)
+                if (currentWeaponType == WeaponTypes.Werecreature)
                 {
                     if (weaponState == WeaponStates.Idle)
                     {
@@ -1817,7 +2004,7 @@ namespace AmbidexterityModule
         private void AlignCenter(WeaponAnimation anim, int width, int height)
         {
             weaponPosition = new Rect(
-                (((Screen.width * (1f - offsetX)) / 2f) - (width * weaponScaleX) / 2f),
+                (Screen.width * (1f - offsetX) / 2f) - (width * weaponScaleX) / 2f,
                 Screen.height * (1f - offsetY) - height * weaponScaleY,
                 width * weaponScaleX,
                 height * weaponScaleY);
@@ -1841,7 +2028,24 @@ namespace AmbidexterityModule
 
         private void LoadWeaponAtlas()
         {
-            string filename = WeaponBasics.GetWeaponFilename(WeaponType);
+            string filename = WeaponBasics.GetWeaponFilename(currentWeaponType);
+
+            //grabs the lerping range for the weapon so specific weapons can sync better.
+            weaponSizeValues TempWeaponValues = new weaponSizeValues();
+
+            TempWeaponValues.WeaponSize = 1;
+            TempWeaponValues.WeaponOffset = 0;
+            TempWeaponValues.AnimationSmoothing = .33f;
+
+            TempWeaponValues = weaponOffsetValues.TryGetValue(currentWeaponType, out weaponSizeValues result) ? result : TempWeaponValues;
+
+            smoothingRange = TempWeaponValues.AnimationSmoothing;
+
+            // Store current weapon
+            previousWeaponType = currentWeaponType;
+            currentMetalType = MetalType;
+            attackFrameTime = FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, currentWeaponType, WeaponHands) * AttackSpeedMod;
+            totalAnimationTime = attackFrameTime * 5;
 
             // Load the weapon texture atlas
             // Texture is dilated into a transparent coloured border to remove dark edges when filtered
@@ -1850,15 +2054,7 @@ namespace AmbidexterityModule
             weaponAtlas.filterMode = DaggerfallUnity.Instance.MaterialReader.MainFilterMode;
 
             // Get weapon anims
-            weaponAnims = (WeaponAnimation[])WeaponBasics.GetWeaponAnims(WeaponType).Clone();
-
-            // Store current weapon
-            currentWeaponType = WeaponType;
-            currentMetalType = MetalType;
-            attackFrameTime = FormulaHelper.GetMeleeWeaponAnimTime(GameManager.Instance.PlayerEntity, WeaponType, WeaponHands) * AttackSpeedMod;
-            totalAnimationTime = attackFrameTime * 5;
-
-            smoothingRange = GetAnimationOffset();
+            weaponAnims = (WeaponAnimation[])WeaponBasics.GetWeaponAnims(currentWeaponType).Clone();
         }
         //unload next qued item, running the below input routine.
 

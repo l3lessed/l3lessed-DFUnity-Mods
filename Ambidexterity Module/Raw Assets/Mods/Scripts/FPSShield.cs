@@ -109,7 +109,7 @@ namespace AmbidexterityModule
         private int hitType;
         private float lastxPos = -1;
         private float lastyPos = -1;
-        private bool blockKeyPressed;
+        public static bool blockKeyPressed;
         private bool hitNPC;
         private DaggerfallEntityBehaviour hitEnemyObject;
         private MobilePersonNPC hitNPCObject;
