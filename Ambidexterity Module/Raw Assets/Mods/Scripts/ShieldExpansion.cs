@@ -144,6 +144,7 @@ public class ShieldExpansion : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        return;
         //isBlocking is staying false at all times for some reason. *ERROR HERE!!!*
         if (FPSShield.shieldStates == 1)
         {

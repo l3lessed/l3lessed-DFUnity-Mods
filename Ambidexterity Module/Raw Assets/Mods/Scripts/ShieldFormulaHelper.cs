@@ -9,6 +9,7 @@ using DaggerfallWorkshop.Game.Entity;
 using DaggerfallConnect;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
+using static AmbidexterityModule.AmbidexterityManager;
 
 namespace AmbidexterityModule
 {
@@ -176,7 +177,7 @@ namespace AmbidexterityModule
             {
                 DaggerfallMobileUnit mobile = target.EntityBehaviour.GetComponentInChildren<DaggerfallMobileUnit>();
                 mobile.ChangeEnemyState(MobileStates.Hurt);
-                Instantiate(AmbidexterityManager.sparkParticles, target.EntityBehaviour.transform.position + (target.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
+                Instantiate(sparkParticles, target.EntityBehaviour.transform.position + (target.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
             }
 
             //--->AMBIDEXTERITY MODULE ADDITION<---\\
@@ -222,7 +223,7 @@ namespace AmbidexterityModule
                 MobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<MobileUnit>();
 
                 //if the enemy is in their primary/melee attack state and the player is on frame 1 or 2, do ....
-                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManager.AmbidexterityManagerInstance.AttackState != 0 && (AltFPSWeapon.currentFrame == 2 || OffHandFPSWeapon.currentFrame == 2))
+                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManagerInstance.AttackState != 0 && (AltFPSWeapon.currentFrame == 2 || OffHandFPSWeapon.currentFrame == 2))
                 {
                     //grabs attackers sense object.
                     EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
@@ -240,11 +241,11 @@ namespace AmbidexterityModule
                     if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
                     {
                         Debug.Log("Player Parry!");
-                        AmbidexterityManager.isHit = true;
-                        AmbidexterityManager.attackerDamage = damage;
-                        AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
-                        AmbidexterityManager.AmbidexterityManagerInstance.targetEntity = target;
-                        AmbidexterityManager.AmbidexterityManagerInstance.activatePlayerParry(attacker, damage);
+                        isHit = true;
+                        attackerDamage = damage;
+                        AmbidexterityManagerInstance.attackerEntity = attacker;
+                        AmbidexterityManagerInstance.targetEntity = target;
+                        AmbidexterityManagerInstance.activatePlayerParry(attacker, damage);
                         damage = 0;
                     }
                 }
@@ -255,7 +256,7 @@ namespace AmbidexterityModule
                     //if the enemy is in their primary/melee attack state and the player is on their hit frame, do ....
                     if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AltFPSWeapon.currentFrame > 2)
                     {
-                        Instantiate(AmbidexterityManager.sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
+                        Instantiate(sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
                         damage = 0;
                     }
                 }
@@ -264,7 +265,7 @@ namespace AmbidexterityModule
             //--SHIELD REDIRECT CODE--\\
             //checks to see if player is blocking yet and if the target is the player. If so, assign damage to attackerDamage, enemy object to enemyEntity, and
             //0 out the damage, so player doesn't take any.
-            if ((FPSShield.isBlocking || (AmbidexterityManager.AmbidexterityManagerInstance.AttackState == 7 && AmbidexterityManager.AmbidexterityManagerInstance.doneParrying)) && target == GameManager.Instance.PlayerEntity && damage != 0)
+            if ((FPSShield.isBlocking || (AmbidexterityManagerInstance.AttackState == 7 && !AmbidexterityManagerInstance.doneParrying)) && target == GameManager.Instance.PlayerEntity && damage != 0)
             {
                 //grabs attackers sense object.
                 EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
@@ -282,10 +283,35 @@ namespace AmbidexterityModule
                 if (!(Vector3.Angle(toTarget, targetDirection2D) > FPSShield.blockAngle) || !(Vector3.Angle(toTarget, targetDirection2D) > 40))
                 {
                     Debug.Log("Attack parried!");
-                    AmbidexterityManager.isHit = true;
-                    AmbidexterityManager.attackerDamage = damage;
+                    isHit = true;
+                    attackerDamage = damage;
                     damage = 0;
-                    AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
+                    AmbidexterityManagerInstance.attackerEntity = attacker;
+
+                    Instantiate(sparkParticles, AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.position + (AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
+
+                    //if two-handed is equipped in left hand or duel wield is equipped stop offhand parry animation and start swing two frames in.
+                    if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
+                    {
+                        //stops parry animation
+                        AmbidexterityManagerInstance.offhandWeapon.StopAnimation(true);
+                        AmbidexterityManagerInstance.offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, OffHandFPSWeapon.offsetX - .16f, OffHandFPSWeapon.offsetY - .12f, false, 1, .032f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX - .16f, OffHandFPSWeapon.offsetY - .12f, .2f, -.2f, false, 1, .25f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.offhandWeapon.CompileAnimations(AnimationType.OffHandParryHit);
+                        AmbidexterityManagerInstance.offhandWeapon.PlayLoadedAnimations();
+                    }
+                    //if two-handed is equipped in right hand or one handed is equipped stop main hand parry animation and start swing two frames in.
+                    else if (equipState == 1 || equipState == 4)
+                    {
+                        //stops parry animation
+                        //mainWeapon.ResetAnimation();
+                        //starts attack state two frames in.
+                        AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                        AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, AltFPSWeapon.offsetX - .16f, AltFPSWeapon.offsetY - .12f, false, 1, .032f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX - .16f, AltFPSWeapon.offsetY - .12f, .2f, -.2f, false, 1, .25f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandParryHit);
+                        AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                    }
                 }
             }
 
@@ -668,7 +694,7 @@ namespace AmbidexterityModule
                     //if the attack angle is 35 degree angle degrees or more (player does not have them close to center screen) don't register the parry.
                     if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
                     {
-                        AmbidexterityManager.AmbidexterityManagerInstance.activateNPCParry(target, attacker, damage);
+                        AmbidexterityManagerInstance.activateNPCParry(target, attacker, damage);
                         Debug.Log("Enemy Parry!");
                         damage = 0;
                     }
@@ -696,10 +722,10 @@ namespace AmbidexterityModule
                 if (!(Vector3.Angle(toTarget, targetDirection2D) > FPSShield.blockAngle) || !(Vector3.Angle(toTarget, targetDirection2D) > 40))
                 {
                     Debug.Log("Attack parried!");
-                    AmbidexterityManager.isHit = true;
-                    AmbidexterityManager.attackerDamage = damage;
+                    isHit = true;
+                    attackerDamage = damage;
                     damage = 0;
-                    AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity = attacker;
+                    AmbidexterityManagerInstance.attackerEntity = attacker;
                 }
             }
 

@@ -119,7 +119,7 @@ namespace AmbidexterityModule
         public float yModifier3;
         public float xModifier4;
         public float yModifier4;
-        public int selectedFrame;
+        public int selectedFrame = 0;
         public bool useImportedTextures;
         private float waitTimer;
         private DaggerfallEntityBehaviour hitEnemyObject;
@@ -137,7 +137,7 @@ namespace AmbidexterityModule
         private List<Task> animationLoaderList = new List<Task>();
         public Animation CurrentAnimation = new Animation();
 
-        public string PeekAnimationName { get; private set; }
+        public AnimationType PeekAnimationName { get; private set; }
 
         public bool attackPrimed;
         public WeaponStates primedWeaponState;
@@ -148,7 +148,7 @@ namespace AmbidexterityModule
 
         public class Animation
         {
-            public string AnimationName { get; set; }
+            public AnimationType AnimationName { get; set; }
             private List<Task> LocalAnimationList = new List<Task>();
             public List<Task> PublicAnimationList
             {
@@ -212,7 +212,7 @@ namespace AmbidexterityModule
                     AmbidexterityManagerInstance.isAttacking = false;
                     playingAnimation = false;
                     toggleBob = true;
-                    PeekAnimationName = "Idle";
+                    PeekAnimationName = AnimationType.OffHandIdle;
 
                     //Ensures the hands are raised anytime the animations finish and the player isn't in mid parry state.
                     if (!isParrying && AmbidexterityManagerInstance.mainWeapon.isLowered)
@@ -221,11 +221,11 @@ namespace AmbidexterityModule
                         AmbidexterityManagerInstance.mainWeapon.isRaised = true;
 
                         //If player has qued up an attack, this ensures it isn't stopped/interrupted.
-                        if(AmbidexterityManagerInstance.mainWeapon.CurrentAnimation.AnimationName != "MainAttack")
+                        if(AmbidexterityManagerInstance.mainWeapon.CurrentAnimation.AnimationName != AnimationType.MainHandAttack)
                         {
                             AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
                             AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.033f, -.075f, false, 1, AmbidexterityManagerInstance.offhandWeapon.totalAnimationTime * .35f, 0, true, true, false);
-                            AmbidexterityManagerInstance.mainWeapon.CompileAnimations("MainRaise");
+                            AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
                             AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
                         }
                     }
@@ -251,14 +251,14 @@ namespace AmbidexterityModule
             }
         }
 
-        public void CompileAnimations(string AnimationName)
+        public void CompileAnimations(AnimationType AnimationType)
         {
             if (CurrentAnimationList.Count == 0)
             {
                 //if there are no current animations waiting to be loaded, put animation right into the list for qeueing below.
                 //If there is already a loaded animation in the list, qeue up the new animation behind the current list. This allows priming one animation after another.
                 Animation TempAnimation = new Animation();
-                TempAnimation.AnimationName = AnimationName;
+                TempAnimation.AnimationName = AnimationType;
                 TempAnimation.PublicAnimationList = new List<Task>(animationLoaderList);
                 CurrentAnimationList.Enqueue(TempAnimation);
                 //AnimationList.Insert(0,AnimationName, animationLoaderList);

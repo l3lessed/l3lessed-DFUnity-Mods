@@ -150,16 +150,8 @@ namespace AmbidexterityModule
 
             public void Start()
             {
-                if (completed || stopped || paused)
-                {
-                    Restart();
-                }
-                else
-                {
                     running = true;
-                    coroutineInstance = CallWrapper();
-                    singleton.StartCoroutine(coroutineInstance);
-                }            
+                    singleton.StartCoroutine(CallWrapper());          
             }
 
             public void Stop()
@@ -171,15 +163,14 @@ namespace AmbidexterityModule
             public void Restart()
             {
                 if(running)
-                    singleton.StopCoroutine(coroutineInstance);
+                    singleton.StopCoroutine(CallWrapper());
 
                 Debug.Log("RESTARTING TASK");
                 completed = false;
                 stopped = false;
                 paused = false;
-                IEnumerator testing = CallWrapper();
-                coroutineInstance = testing;
-                singleton.StartCoroutine(coroutineInstance);
+                IEnumerator newInstance = CallWrapper();
+                singleton.StartCoroutine(newInstance);
             }
 
             IEnumerator CallWrapper()
@@ -188,25 +179,20 @@ namespace AmbidexterityModule
                 IEnumerator e = coroutine;
                 while (running)
                 {
-                    if (restart)
-                        restart = false;
-
                     if (paused)
                         yield return null;
                     else
                     {
                         if (e != null && e.MoveNext())
                         {
-                            completed = false;
                             yield return e.Current;
                         }
                         else
                         {
                             running = false;
-                            completed = true;
                         }
                     }
-                }                
+                }
 
                 FinishedHandler handler = Finished;
                 if (handler != null)

@@ -43,7 +43,7 @@ namespace AmbidexterityModule
         public static RecordIndex[] weaponIndices;
         public static Rect weaponPosition;
         public static WeaponAnimation[] weaponAnims;
-        private int selectedFrame;
+        private int selectedFrame = 0;
         public static Rect curAnimRect;
 
         public static RaycastHit attackHit;
@@ -165,7 +165,7 @@ namespace AmbidexterityModule
         public int animationListSize;
         private List<Task> animationLoaderList = new List<Task>();
         public Animation CurrentAnimation = new Animation();
-        public string PeekAnimationName;
+        public AnimationType PeekAnimationName;
         public bool attackPrimed;
         public WeaponStates primedWeaponState;
         public bool toggleBob;
@@ -181,7 +181,7 @@ namespace AmbidexterityModule
         //adjustments to ensure sprites seem as seemless as possible in transition.
         public class Animation
         {
-            public string AnimationName { get; set; }
+            public AnimationType AnimationName { get; set; }
             private List<Task> LocalAnimationList = new List<Task>();
             public List<Task> PublicAnimationList
             {
@@ -262,7 +262,7 @@ namespace AmbidexterityModule
                     AmbidexterityManagerInstance.isAttacking = false;
                     playingAnimation = false;
                     toggleBob = true;
-                    PeekAnimationName = "Idle";
+                    PeekAnimationName = AnimationType.MainHandIdle;
 
                     //Ensures the hands are raised anytime the animations finish and the player isn't in mid parry state.
                     if (!isParrying && AmbidexterityManagerInstance.offhandWeapon.isLowered)
@@ -271,11 +271,11 @@ namespace AmbidexterityModule
                         AmbidexterityManagerInstance.offhandWeapon.isRaised = true;
 
                         //If player has qued up an attack, this ensures it isn't stopped/interrupted.
-                        if (AmbidexterityManagerInstance.offhandWeapon.CurrentAnimation.AnimationName != "OffhandAttack")
+                        if (AmbidexterityManagerInstance.offhandWeapon.CurrentAnimation.AnimationName != AnimationType.OffHandAttack)
                         {
                             AmbidexterityManagerInstance.offhandWeapon.StopAnimation(true);
                             AmbidexterityManagerInstance.offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, -.033f, -.075f, false, 1, AmbidexterityManagerInstance.mainWeapon.totalAnimationTime * .35f, 0, true, true, false);
-                            AmbidexterityManagerInstance.offhandWeapon.CompileAnimations("OffhandRaise");
+                            AmbidexterityManagerInstance.offhandWeapon.CompileAnimations(AnimationType.OffHandRaise);
                             AmbidexterityManagerInstance.offhandWeapon.PlayLoadedAnimations();
                         }
                     }
@@ -301,14 +301,14 @@ namespace AmbidexterityModule
             }
         }
 
-        public void CompileAnimations(string AnimationName)
+        public void CompileAnimations(AnimationType AnimationType)
         {
             if(CurrentAnimationList.Count == 0)
             {
                 //if there are no current animations waiting to be loaded, put animation right into the list for qeueing below.
                 //If there is already a loaded animation in the list, qeue up the new animation behind the current list. This allows priming one animation after another.
                 Animation TempAnimation = new Animation();
-                TempAnimation.AnimationName = AnimationName;
+                TempAnimation.AnimationName = AnimationType;
                 TempAnimation.PublicAnimationList = new List<Task>(animationLoaderList);
                 CurrentAnimationList.Enqueue(TempAnimation);
                 //AnimationList.Insert(0,AnimationName, animationLoaderList);
