@@ -172,6 +172,11 @@ namespace AmbidexterityModule
         public bool isLowered;
         public bool isRaised = true;
         public Queue<Animation> CurrentAnimationList = new Queue<Animation>();
+        public float testbobx = 0;
+        public float testboby = 0;
+        public bool resetBob = false;
+        public float lastBobPosX;
+        public float lastBobPosY;
 
         public IEnumerator AnimationManagerRoutine { get; private set; }
 
@@ -182,6 +187,7 @@ namespace AmbidexterityModule
         public class Animation
         {
             public AnimationType AnimationName { get; set; }
+            public bool positionLockAnimation { get; set; }
             private List<Task> LocalAnimationList = new List<Task>();
             public List<Task> PublicAnimationList
             {
@@ -260,9 +266,13 @@ namespace AmbidexterityModule
                     GameManager.Instance.WeaponManager.ScreenWeapon.ChangeWeaponState(WeaponStates.Idle);
                     AmbidexterityManagerInstance.AttackState = 0;
                     AmbidexterityManagerInstance.isAttacking = false;
-                    playingAnimation = false;
                     toggleBob = true;
-                    PeekAnimationName = AnimationType.MainHandIdle;
+
+                    if(CurrentAnimation.AnimationName == AnimationType.MainHandRaise)
+                    {
+                        PeekAnimationName = AnimationType.MainHandIdle;
+                        CurrentAnimation.AnimationName = AnimationType.MainHandIdle;
+                    }
 
                     //Ensures the hands are raised anytime the animations finish and the player isn't in mid parry state.
                     if (!isParrying && AmbidexterityManagerInstance.offhandWeapon.isLowered)
@@ -280,6 +290,7 @@ namespace AmbidexterityModule
                         }
                     }
 
+                    playingAnimation = false;
                     StopCoroutine(AnimationManagerRoutine);
                 }
 
@@ -301,7 +312,7 @@ namespace AmbidexterityModule
             }
         }
 
-        public void CompileAnimations(AnimationType AnimationType)
+        public void CompileAnimations(AnimationType AnimationType, bool lockPositionDone = false)
         {
             if(CurrentAnimationList.Count == 0)
             {
@@ -309,6 +320,7 @@ namespace AmbidexterityModule
                 //If there is already a loaded animation in the list, qeue up the new animation behind the current list. This allows priming one animation after another.
                 Animation TempAnimation = new Animation();
                 TempAnimation.AnimationName = AnimationType;
+                TempAnimation.positionLockAnimation = lockPositionDone;
                 TempAnimation.PublicAnimationList = new List<Task>(animationLoaderList);
                 CurrentAnimationList.Enqueue(TempAnimation);
                 //AnimationList.Insert(0,AnimationName, animationLoaderList);
@@ -357,7 +369,7 @@ namespace AmbidexterityModule
         {
             while (true)
             {
-                UnityEngine.Debug.Log("Animation Creator0: " + percentagetime + " | " + timeCovered + " | " + lerpfinished + " | " + currentFrame + " | " + attackCasted + " | " + weaponState + " | " + posi + " | " + offsetX + " | " + offsetY);
+                UnityEngine.Debug.Log(CurrentAnimation.AnimationName + " Creator: " + percentagetime + " | " + timeCovered + " | " + lerpfinished + " | " + currentFrame + " | " + attackCasted + " | " + weaponState + " | " + posi + " | " + offsetX + " | " + offsetY);
                 float totalTime;
 
                 //set the weaponstate to the assigned attack state. *Need to code better weaponstate controller setup*
@@ -901,51 +913,111 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
-                if (toggleBob && !playingAnimation && isRaised)
+                //If animation is playing, set default offset for animation types to ensure bob alignment/smoothing.
+                if (playingAnimation && currentAnimationtask.Running)
                 {
-                    if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill && AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0 )
+                    //if parrying or blocking, put hand into lowered position for bobbing mostly off screen.
+                    if (CurrentAnimation.AnimationName == AnimationType.MainHandLower && (FPSShield.isBlocking || OffHandFPSWeapon.OffHandFPSWeaponInstance.CurrentAnimation.AnimationName == AnimationType.OffHandParry))
                     {
-                        if (AmbidexterityManagerInstance.bobRange >= .10f && bobSwitch)
-                            bobSwitch = false;
-                        else if (AmbidexterityManagerInstance.bobRange <= 0 && !bobSwitch)
-                            bobSwitch = true;
-
-                        if (bobSwitch)
-                            AmbidexterityManagerInstance.bobRange = AmbidexterityManagerInstance.bobRange + (UnityEngine.Random.Range(.00025f, .0005f) * AmbidexterityManagerInstance.bobSpeed);
-                        else
-                            AmbidexterityManagerInstance.bobRange = AmbidexterityManagerInstance.bobRange - (UnityEngine.Random.Range(.00025f, .0005f) * AmbidexterityManagerInstance.bobSpeed);
-
-                        offsetX = (AmbidexterityManagerInstance.bobRange / 1.5f) - bobPosX;
-                        offsetY = (AmbidexterityManagerInstance.bobRange * 1.5f) - bobPosY;
-
-                        lastBobPos = AmbidexterityManagerInstance.bobRange;
-
-                        waitTimer += Time.deltaTime;
-                        idleSetTimer = 0;                            
+                        bobPosX = .11f;
+                        bobPosY = .235f;
                     }
-                    else if(weaponState == WeaponStates.Idle && GameManager.Instance.PlayerMotor.IsStandingStill && AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0)
+                    //If mainhand is parrying, move bob position to sword parry position to allow parry bobbing.
+                    else if(CurrentAnimation.AnimationName == AnimationType.MainHandParry)
                     {
-                        if (AmbidexterityManagerInstance.bobRange != .05f)
-                        {
-                            idleSetTimer += Time.deltaTime;
-                            AmbidexterityManagerInstance.bobRange = Mathf.Lerp(lastBobPos, 0.05f, idleSetTimer/1.3f);
-                            offsetX = (AmbidexterityManagerInstance.bobRange / 1.5f) - bobPosX;
-                            offsetY = (AmbidexterityManagerInstance.bobRange * 1.5f) - bobPosY;
-                            waitTimer += Time.deltaTime;
-                        }
+                        bobPosX = -.2f;
+                        bobPosY = .165f;
+                    }
+                    //return to default sprite positions for idle bobbing.
+                    else
+                    {
+                        bobPosX = .033f;
+                        bobPosY = .07f;
                     }
 
-                    if (waitTimer >= .65f && classicAnimations)
-                    {
-                        waitTimer = 0;
-                        UpdateWeapon();
-                        return;
-                    }
-                    else if (!classicAnimations)
-                        UpdateWeapon();
 
+                    if(AmbidexterityManagerInstance.offhandWeapon.CurrentAnimation.AnimationName == AnimationType.OffHandLower)
+                        AmbidexterityManagerInstance.bobRange = .05f;
+
+                    idleSetTimer = 0;
+                }
+
+                //if bob is toggled and not playing animation or player is blocking and has a idle main hand, bob this hand.
+                if ((toggleBob && !playingAnimation) || (CurrentAnimation.AnimationName == AnimationType.MainHandIdle && FPSShield.isBlocking))
+                {
+                    RunBob();
                 }
             }           
+        }
+
+        void RunBob()
+        {
+            if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill && (AmbidexterityManagerInstance.AttackState == 0 || AmbidexterityManagerInstance.AttackState == 7) && (currentAnimationtask != null && !currentAnimationtask.Running) && (FPSShield.CurrentShieldState == FPSShield.ShieldStates.Blocking || FPSShield.CurrentShieldState == FPSShield.ShieldStates.Idle))
+            {
+                if (AmbidexterityManagerInstance.bobRange >= .033f && bobSwitch)
+                    bobSwitch = false;
+                else if (AmbidexterityManagerInstance.bobRange <= -.07f && !bobSwitch)
+                    bobSwitch = true;
+
+                if (bobSwitch)
+                    AmbidexterityManagerInstance.bobRange = AmbidexterityManagerInstance.bobRange + (UnityEngine.Random.Range(.00025f, .0005f) * AmbidexterityManagerInstance.bobSpeed);
+                else
+                    AmbidexterityManagerInstance.bobRange =  AmbidexterityManagerInstance.bobRange - (UnityEngine.Random.Range(.00025f, .0005f) * AmbidexterityManagerInstance.bobSpeed);
+
+                //if not parrying, run normal bob animation.
+                if(CurrentAnimation.AnimationName != AnimationType.MainHandParry)
+                {
+                    offsetX = (AmbidexterityManagerInstance.bobRange / 1.5f) - bobPosX;
+                    offsetY = (AmbidexterityManagerInstance.bobRange * 1.5f) - bobPosY;
+                }
+                //if parrying, reduce bob range by 80%, so parry still bobs, but minimal amount to simulate a parry state on the move.
+                else
+                {
+                    offsetX = ((AmbidexterityManagerInstance.bobRange / 1.5f) * .2f) - bobPosX;
+                    offsetY = ((AmbidexterityManagerInstance.bobRange * 1.5f) * .2f) - bobPosY;
+                }
+
+                waitTimer += Time.deltaTime;
+                idleSetTimer = 0;
+
+                //If done blocking or parrying, raise mainhand back (even while moving), and set default bob position.
+                if ((CurrentAnimation.AnimationName != AnimationType.MainHandIdle && !FPSShield.shieldEquipped && (AmbidexterityManagerInstance.AttackState == 0 || (AmbidexterityManagerInstance.AttackState == 7 && AmbidexterityManagerInstance.doneParrying))) || (FPSShield.shieldEquipped && FPSShield.CurrentShieldState == FPSShield.ShieldStates.Idle && CurrentAnimation.AnimationName != AnimationType.MainHandIdle && !playingAnimation))
+                {
+                    //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
+                    AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                    AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, offsetX, offsetY, -.033f, -.07f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false);
+                    AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
+                    AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                    bobPosX = .033f;
+                    bobPosY = .07f;
+                }
+            }
+            //if player is idle and not attacking, then also raise mainhand back up. This ensures hand always returns to default raised position, even after bob animation stops.
+            else if (weaponState == WeaponStates.Idle && GameManager.Instance.PlayerMotor.IsStandingStill && (currentAnimationtask != null && !currentAnimationtask.Running))
+            {
+                //CONTROLS WEAPON ANIMATIONS FOR SHIELD\\
+                //if the player has a shield equipped, start logic for raising and lowering weapon hand.
+                if ((CurrentAnimation.AnimationName != AnimationType.MainHandIdle && !FPSShield.shieldEquipped && (AmbidexterityManagerInstance.AttackState == 0 || (AmbidexterityManagerInstance.AttackState == 7 && AmbidexterityManagerInstance.doneParrying ))) || (FPSShield.shieldEquipped && FPSShield.CurrentShieldState == FPSShield.ShieldStates.Idle && CurrentAnimation.AnimationName != AnimationType.MainHandIdle))
+                {
+                    //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
+                    AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                    AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, offsetX, offsetY, -.033f, -.07f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false);
+                    AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
+                    AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                    bobPosX = .033f;
+                    bobPosY = .07f;
+                }
+            }
+
+            if (waitTimer >= .65f && classicAnimations)
+            {
+                waitTimer = 0;
+                UpdateWeapon();
+                return;
+            }
+            else if (!classicAnimations)
+                UpdateWeapon();
+
         }
 
         void Update()

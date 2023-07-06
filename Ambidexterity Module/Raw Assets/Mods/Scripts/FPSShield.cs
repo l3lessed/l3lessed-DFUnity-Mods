@@ -11,6 +11,7 @@ using System.IO;
 using System.Collections;
 using Wenzil.Console;
 using DaggerfallWorkshop.Game.Serialization;
+using static AmbidexterityModule.AmbidexterityManager;
 
 namespace AmbidexterityModule
 {
@@ -63,20 +64,21 @@ namespace AmbidexterityModule
         private static bool lerpfinished;
         private static bool breatheTrigger;
         //blocking switches to control the blocking mechanisms.
-        public static bool isBlocking;
-        public static bool shieldEquipped;
+        public static bool isBlocking = false;
+        public static bool shieldEquipped = false;
         public static bool flip;
-        private bool moving;
-        public static bool isBashing;
+        private bool moving = false;
+        public static bool isBashing = false;
 
         public bool checkBashing;
-        public int stateChecker;
+        public ShieldStates stateChecker;
+        public static ShieldTypes currentShieldType;
 
         //Shield state object for assigning shield states.        
-        public static int shieldStates;//0 - idle | 1 - Raising | 2 - Raised | 3 - Lowering | 4 - Bash        
-        public static int shieldTypes;//109 - Buckler | 110 - Round | 111 - Kite | 112 - Tower
+        public static ShieldStates CurrentShieldState = ShieldStates.Idle;
         //amount of damage bash did.
         public static int bashDamage;
+        private static int currentShieldID;
 
         //lerp calculator properties.
         static float TimeCovered;
@@ -120,21 +122,37 @@ namespace AmbidexterityModule
         private bool hitNPC;
         private DaggerfallEntityBehaviour hitEnemyObject;
         private MobilePersonNPC hitNPCObject;
+        private float shieldBlockTime;
 
         public float currentFrame { get; private set; }
+        public float BlockDoneX1;
+        public float BlockDoneY1;
+
+        public float BlockDoneX;
+        public float BlockDoneY;
+
+        public float BlockdoneBob;
+        public float BlockingOffset;
+        public float BlockingXOffset;
+        public float BlockingYOffsetf;
         #endregion
 
-        public enum SheildStates
+        public enum ShieldStates
         {
-            idle,
-            raised,
-            lowering,
-            bash,
+            Idle,
+            Raising,
+            Blocking,
+            Lowering,
+            Bash,
+            BlockHit,
         }
 
-        public enum ShieldTyoes
+        public enum ShieldTypes
         {
-
+            Buckler,
+            Round,
+            Kite,
+            Tower
         }
 
         void Start()
@@ -151,19 +169,15 @@ namespace AmbidexterityModule
             TextureDrawTask = new Task(ShieldAnimation(), false);
 
             //sets shield to idle.
-            shieldStates = 0;
+            CurrentShieldState = ShieldStates.Idle;
             //debug coroutine for development purposes.
             //StartCoroutine(debug());
         }
 
         void Update()
         {
-            if(BlockActivateTask == null)
-            {
-
-            }
             checkBashing = isBashing;
-            stateChecker = shieldStates;
+            stateChecker = CurrentShieldState;
             //if weapon is showing and no windows are open...
             if (DaggerfallUI.UIManager.WindowCount == 0)
             {
@@ -237,8 +251,34 @@ namespace AmbidexterityModule
         //Custom built animation system. It uses IEnumerator object passthroughs and comparisons to find out what
         //current animation has already been loaded and then manages animation coroutines based
         //on input animation and vars. Look at region individualAnimations to see how the coroutines are built.
-        bool AnimationManager(IEnumerator loadAnimation, float waitTime = 0, bool reset = false)
+        public bool AnimationManager(ShieldStates shieldState, float animationTime, float waitTime = 0, bool reset = false)
         {
+            IEnumerator TempAnimation = null;
+            switch (shieldState)
+            {
+                case ShieldStates.Idle:
+                    break;
+                case ShieldStates.Lowering:
+                    TempAnimation = BlockDone(animationTime);
+                    break;
+                case ShieldStates.Blocking:
+                    break;
+                case ShieldStates.Raising:
+                    TempAnimation = BlockStart(animationTime);
+                    break;
+                case ShieldStates.Bash:
+                    TempAnimation = Bash(animationTime);
+                    break;
+                case ShieldStates.BlockHit:
+                    TempAnimation = OnHit(animationTime);
+                    break;
+            }
+
+            if (TempAnimation == null)
+                return false;
+            else
+                CurrentShieldState = shieldState;
+
             //checks to see if a current animation has been loaded yet by the manager. If not, load  player selected animation coroutine
             //to the current global static animation var.
             if (currentAnimation == null)
@@ -248,16 +288,16 @@ namespace AmbidexterityModule
                 currentxPos = xPos;
                 currentyPos = yPos;
                 currentSize = size;
-                currentAnimation = new Task(loadAnimation);
+                currentAnimation = new Task(TempAnimation);
             }
 
             if (currentAnimationNumerator == null)
-                currentAnimationNumerator = loadAnimation;
+                currentAnimationNumerator = TempAnimation;
 
             //compare loaded animation with the current animation. If different, load new animation.
-            if (currentAnimationNumerator.ToString() != loadAnimation.ToString())
+            if (currentAnimationNumerator.ToString() != TempAnimation.ToString())
             {
-                Debug.Log(currentAnimationNumerator + " || " + loadAnimation);
+                Debug.Log(currentAnimationNumerator + " || " + TempAnimation);
                 TimeCovered = 0;
                 totalTime = 0;
                 lerpfinished = false;
@@ -265,13 +305,13 @@ namespace AmbidexterityModule
                 currentyPos = yPos;
                 currentSize = size;
                 currentAnimation.Stop();
-                currentAnimation = new Task(loadAnimation);
+                currentAnimation = new Task(TempAnimation);
                 currentAnimation.Start();
-                currentAnimationNumerator = loadAnimation;
+                currentAnimationNumerator = TempAnimation;
             }
-            else if (currentAnimationNumerator.ToString() == loadAnimation.ToString() && reset)
+            else if (currentAnimationNumerator.ToString() == TempAnimation.ToString() && reset)
             {
-                Debug.Log("RESET:" + currentAnimationNumerator + " || " + loadAnimation);
+                Debug.Log("RESET:" + currentAnimationNumerator + " || " + TempAnimation);
                 TimeCovered = 0;
                 totalTime = 0;
                 lerpfinished = false;
@@ -280,15 +320,15 @@ namespace AmbidexterityModule
                 currentSize = size;
                 Debug.Log(currentxPos + " | " + currentyPos + " | " + currentSize);
                 currentAnimation.Stop();
-                currentAnimation = new Task(loadAnimation);
+                currentAnimation = new Task(TempAnimation);
                 currentAnimation.Start();
-                currentAnimationNumerator = loadAnimation;
+                currentAnimationNumerator = TempAnimation;
             }
             //if animation/lerp calculator is finished reset animation/lerp calculator below and return a true for this bool.
 
             if (lerpfinished)
             {
-                Debug.Log("Stopped:" + loadAnimation.ToString());
+                Debug.Log("Stopped:" + TempAnimation.ToString());
                 currentAnimation.Stop();
                 return true;
             }
@@ -305,15 +345,24 @@ namespace AmbidexterityModule
             while (true)
             {
                 //if classic animation enabled, return animation every 5 frames, just like classic.
-                if (AmbidexterityManager.classicAnimations)
+                if (classicAnimations)
                     yield return new WaitForSeconds(.35f);
                 else
                     yield return new WaitForEndOfFrame();
 
-                bob = (AmbidexterityManager.AmbidexterityManagerInstance.bobRange - .1f) * -1;
+                if(CurrentShieldState == ShieldStates.Idle)
+                {
+                    bob = Mathf.Clamp((AmbidexterityManagerInstance.bobRange - .1f) * -1, .07f, .17f);
+                    xPos = (bob / 1.5f) - .05f;
+                    yPos = (bob * 1.5f) - .1f;
+                }
+                else if (CurrentShieldState == ShieldStates.Blocking && altFPSWeapon.CurrentAnimation.AnimationName == AnimationType.MainHandLower && !altFPSWeapon.playingAnimation)
+                {
+                    bob = ((AmbidexterityManagerInstance.bobRange - .1f) * -.15f);
+                    xPos = (bob / 1.5f) - .3f;
+                    yPos = (bob * 1.5f) + .21f;
+                }
 
-                xPos = (bob / 1.5f) - .05f;
-                yPos = (bob * 1.5f) - .1f;
             }
 
         }
@@ -323,7 +372,7 @@ namespace AmbidexterityModule
             while (true)
             {
                 //forces time covered update. Override of usual lerp calculatator time counter.
-                if (AmbidexterityManager.classicAnimations)
+                if (classicAnimations)
                 {
                     TimeCovered = TimeCovered + (animeTime / 5);
                     TimeCovered = (float)Math.Round(TimeCovered, 2);
@@ -358,20 +407,28 @@ namespace AmbidexterityModule
         {
             while (true)
             {
+
+                //if classic animation enabled, return animation every 5 frames, just like classic.
+                //has to be split into 5ths to mimic the 5 frame setup of traditional DF.
+                if (classicAnimations)
+                    yield return new WaitForSeconds(animeTime / 5);
+                else
+                    yield return new WaitForEndOfFrame();
+
                 //forces time covered update. Override of usual lerp calculatator time counter.
                 //has to be split into 5ths to mimic the 5 frame setup of traditional DF.
-                if (AmbidexterityManager.classicAnimations)
+                if (classicAnimations)
                 {
                     TimeCovered = TimeCovered + (animeTime / 5);
                     TimeCovered = (float)Math.Round(TimeCovered, 2);
                     totalTime = totalTime + (animeTime / 5);
                 }
-
+                bob = Mathf.Clamp((AmbidexterityManagerInstance.bobRange - .1f) * -1, .07f, .17f);
                 startxPos = currentxPos;
-                endxPos = (bob / 1.5f) - .05f;
+                endxPos = (bob / 1.5f) + BlockDoneX;
 
                 startyPos = currentyPos;
-                endyPos = (bob * 1.5f) - .1f;
+                endyPos = (bob * 1.5f) + BlockDoneY;
 
                 startSize = currentSize;
                 endSize = 118;
@@ -379,13 +436,6 @@ namespace AmbidexterityModule
                 CalculateShieldx(animeTime, 0, "easein", false, false, 1);
                 CalculateShieldy(animeTime, 0, "easein", false, false, 1);
                 CalculateShieldsize(animeTime, 0, "easein", false, false, 1);              
-
-                //if classic animation enabled, return animation every 5 frames, just like classic.
-                //has to be split into 5ths to mimic the 5 frame setup of traditional DF.
-                if (AmbidexterityManager.classicAnimations)
-                    yield return new WaitForSeconds(animeTime / 5);
-                else
-                    yield return new WaitForEndOfFrame();
             }
         }
 
@@ -394,17 +444,17 @@ namespace AmbidexterityModule
             while (true)
             {
                 //forces time covered update. Override of usual lerp calculatator time counter.
-                if (AmbidexterityManager.classicAnimations)
+                if (classicAnimations)
                 {
                     TimeCovered = TimeCovered + (float)Math.Round((animeTime / 5), 2);
                     totalTime = totalTime + (animeTime / 5);
                 }
-
+                bob = ((AmbidexterityManagerInstance.bobRange - .1f) * -.15f);
                 startxPos = currentxPos;
-                endxPos = -.3f;
+                endxPos = (bob / 1.5f) - .35f - BlockDoneX1;
 
                 startyPos = currentyPos;
-                endyPos = .275f;
+                endyPos = (bob * 1.5f) + .15f - BlockDoneY1;
 
                 startSize = size;
                 endSize = 118;
@@ -508,7 +558,7 @@ namespace AmbidexterityModule
                     breatheTrigger = true;
                     yield return new WaitForSeconds(.2f);
                     isBashing = false;
-                    isBlocking = true;
+                    //isBlocking = true;
                 }
 
                 //if classic animation enabled, return animation every 5 frames, just like classic.
@@ -543,14 +593,18 @@ namespace AmbidexterityModule
                 else
                     moving = false;
 
-                if (Input.GetKeyDown(AmbidexterityManager.offHandKeyCode))
-                    blockKeyPressed = true;
-                else if (Input.GetKeyUp(AmbidexterityManager.offHandKeyCode))
-                    blockKeyPressed = false;
-
                 //when player pushes down block key do....
                 if (blockKeyPressed && altFPSWeapon.weaponState == WeaponStates.Idle)
                 {
+                    //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
+                    if (CurrentShieldState != ShieldStates.Blocking)
+                    {
+                        AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                        AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.11f, -.235f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false);
+                        AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandLower);
+                        AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                    }
+
                     totalTime = 0;
                     blockKeyPressed = false;
                     isBlocking = false;
@@ -565,52 +619,54 @@ namespace AmbidexterityModule
                     totalBlockTime = (2f - agilityTimeMod) * AmbidexterityManager.BlockTimeMod;
 
                     //Sets shields custom vulnerable window. Placed here instead of in shield state, so it only calculates on single frame.
-                    if (shieldTypes == 109 && !isBashing)
+                    if (currentShieldType == ShieldTypes.Buckler && !isBashing)
                         vulnerableTime = totalBlockTime * .25f;
-                    else if (shieldTypes == 110 && !isBashing)
+                    else if (currentShieldType == ShieldTypes.Round && !isBashing)
                         vulnerableTime = totalBlockTime * .35f;
-                    else if (shieldTypes == 111 && !isBashing)
+                    else if (currentShieldType == ShieldTypes.Kite && !isBashing)
                         vulnerableTime = totalBlockTime * .5f;
-                    else if (shieldTypes == 112 && !isBashing)
+                    else if (currentShieldType == ShieldTypes.Tower && !isBashing)
                         vulnerableTime = totalBlockTime * .65f;
 
                     //Sets shields custom raise times increasing based on shield size/mechanics. Placed here instead of in shield state, so it only calculates on single frame.
-                    if (shieldTypes == 109 && AmbidexterityManager.bucklerMechanics)
-                        startCoroutine = BlockStart(totalBlockTime * .60f);
-                    else if (shieldTypes == 110 && AmbidexterityManager.bucklerMechanics)
-                        startCoroutine = BlockStart(totalBlockTime * .70f);
-                    else if (shieldTypes == 111)
-                        startCoroutine = BlockStart(totalBlockTime * .9f);
-                    else if (shieldTypes == 112)
-                        startCoroutine = BlockStart(totalBlockTime);
+                    if (currentShieldType == ShieldTypes.Buckler && AmbidexterityManager.bucklerMechanics)
+                        shieldBlockTime = totalBlockTime * .60f;
+                    else if (currentShieldType == ShieldTypes.Round && AmbidexterityManager.bucklerMechanics)
+                        shieldBlockTime = totalBlockTime * .70f;
+                    else if (currentShieldType == ShieldTypes.Kite)
+                        shieldBlockTime = totalBlockTime * .9f;
+                    else if (currentShieldType == ShieldTypes.Tower)
+                        shieldBlockTime = totalBlockTime;
                     else
-                        startCoroutine = BlockStart(totalBlockTime * .70f);
+                        shieldBlockTime = totalBlockTime * .70f;
 
                     //triggers blocking code in below loop.
-                    shieldStates = 1;
+                    CurrentShieldState = ShieldStates.Raising;
 
                     //plays cloth equipping sound with a reduced sound level to simulate equipment rustling.
                     AmbidexterityManager.dfAudioSource.PlayOneShot(417, 1, .3f);
                 }
                 //when player lets go of block key do....
-                else if (Input.GetKeyUp(AmbidexterityManager.offHandKeyCode))
+
+                if (Input.GetKeyUp(offHandKeyCode))
                 {
                     isBashing = false;
+                    blockKeyPressed = false;
 
                     //if shield is equipped and player disabled buckler mechanic, then
-                    if (shieldTypes != 0 || !AmbidexterityManager.bucklerMechanics)
+                    if (currentShieldType != null || currentShieldType != 0 || !AmbidexterityManager.bucklerMechanics)
                         //lets below loop know user has decided to finish blocking.
-                        shieldStates = 3;
+                        CurrentShieldState = ShieldStates.Lowering;
 
                     //changes attack delay on lower for differing shield mechanics.
                     //if buckler, only tiny delay. All other shield, half the lower time.
-                    if (shieldTypes == 109 && AmbidexterityManager.bucklerMechanics)
+                    if (currentShieldType == ShieldTypes.Buckler && AmbidexterityManager.bucklerMechanics)
                         totalBlockTime = totalBlockTime * .25f;
-                    else if (shieldTypes == 110 && AmbidexterityManager.bucklerMechanics)
+                    else if (currentShieldType == ShieldTypes.Round && AmbidexterityManager.bucklerMechanics)
                         totalBlockTime = totalBlockTime * .45f;
-                    else if (shieldTypes == 111)
+                    else if (currentShieldType == ShieldTypes.Kite)
                         totalBlockTime = totalBlockTime * .65f;
-                    else if (shieldTypes == 112)
+                    else if (currentShieldType == ShieldTypes.Tower)
                         totalBlockTime = totalBlockTime * .85f;
                     else
                         totalBlockTime = totalBlockTime * .45f;
@@ -618,34 +674,18 @@ namespace AmbidexterityModule
 
                 //Controls Shield Bob when shield is idle:
                 //if player is moving, not attacking, and bob coroutine isn't running/present, setup and start bobbing system coroutine.
-                if (shieldStates == 0 && moving && (shieldBobTask == null || !shieldBobTask.Running))
+                if (CurrentShieldState == ShieldStates.Idle && AmbidexterityManagerInstance.AttackState == 0 && (shieldBobTask == null || !shieldBobTask.Running))
                 {
                     shieldBobTask.Start();
                 }
                 //if they attack or stop moving, stop the bob coroutine in its tracks.
-                else if ((shieldStates != 0 || !moving) && shieldBobTask != null)
+                else if (AmbidexterityManagerInstance.AttackState != 0 && shieldBobTask != null && shieldBobTask.Running)
                 {
                     shieldBobTask.Stop();
                 }
 
-                if (shieldStates == 7)
-                {
-                    //stops the attack animation from playing and restarts the shield bob loop.
-                    ShieldAttackcoroutine = AttackShield(1f - AttackAnimeTime);
-                    if (AnimationManager(ShieldAttackcoroutine, 0))
-                        shieldStates = 8;
-                }
-                else if (shieldStates == 8)
-                {
-                    //stops the attack animation from playing and restarts the shield bob loop.
-                    doneCoroutine = BlockDone(totalBlockTime);
-                    if (AnimationManager(doneCoroutine, 0))
-                        shieldStates = 0;
-                }
-                else if (shieldStates != 0)
-                {
                     //if the player has pressed block key/is raising shield...
-                    if (shieldStates == 1)
+                    if (CurrentShieldState == ShieldStates.Raising)
                     {
                         //total animation time for block raising is greater than vuln window, set player to blocking.
                         if (totalTime >= vulnerableTime)
@@ -654,48 +694,49 @@ namespace AmbidexterityModule
                             isBlocking = false;
 
                         //calculate animation if player is not vulnerable.....
-                        if (AmbidexterityManager.isHit && !isBlocking)
+                        if (isHit && !isBlocking)
                         {
 
                             //Debug.Log("HIT!!!");                        
                             //plays one of the 9 random parry sounds to simulate a hit.
-                            AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
+                            dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
                             //Figures out fatigue penalty for getting hit when vulnerable, which scales with attackers damage.
-                            int fatigueamount = (int)((AmbidexterityManager.attackerDamage * agilityMod) * AmbidexterityManager.BlockCostMod);
+                            int fatigueamount = (int)((attackerDamage * agilityMod) * BlockCostMod);
                             //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                             GameManager.Instance.PlayerEntity.DecreaseFatigue(fatigueamount);
-                            shieldStates = 3;
+                            CurrentShieldState = ShieldStates.Lowering;
                             //Debug.Log("Fatigue Mod:" + agilityMod.ToString() + " | " + "Attacker Damage:" + AmbidexterityManager.attackerDamage.ToString() + " | " + " Fatigue Cost:" + fatigueamount.ToString() + " | " + "Current Fatigue Amount:" + PlayerEntity.CurrentFatigue.ToString());
                         }
-                        else if (AmbidexterityManager.isHit && isBlocking)
+                        else if (isHit && isBlocking)
                         {
                             //Debug.Log("Timed Block!!");
                             //assigns animation routine with timing.
-                            if ((shieldTypes == 109 || shieldTypes == 110) && !isBashing)
+                            if ((currentShieldType == ShieldTypes.Buckler || currentShieldType == ShieldTypes.Round) && !isBashing)
                             {
                                 isBashing = true;
-                                hitCoroutine = Bash(.65f);
+                                AnimationManager(ShieldStates.Bash, .65f, 0, true);
                             }
                             else
-                                hitCoroutine = OnHit(.25f);
+                                AnimationManager(ShieldStates.BlockHit, .35f, 0, true);
+
                             //plays one of the 9 random parry sounds to simulate a hit.
-                            AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
+                            dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
                             //resets trigger
-                            AmbidexterityManager.isHit = false;
+                            isHit = false;
                             //grabs motor function from enemy entity behavior object and assigns it.
-                            EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                            EnemyMotor targetMotor = AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                             //how far enemy will push back after succesful block.
-                            targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage, 4f, 8f);
+                            targetMotor.KnockbackSpeed = Mathf.Clamp(attackerDamage, 4f, 8f);
                             //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                            targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
+                            targetMotor.KnockbackDirection = mainCamera.transform.forward;
                             //run anaimtion: returns true while it runs, flips false once done and takes fatigue from player.
                             //calculates the fatigue cost of blocking an attack. Uses enemy damage as the base value.
-                            int fatigueamount = (int)(AmbidexterityManager.attackerDamage * agilityMod * AmbidexterityManager.BlockCostMod);
+                            int fatigueamount = (int)(attackerDamage * agilityMod * BlockCostMod);
                             //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                             GameManager.Instance.PlayerEntity.DecreaseFatigue(fatigueamount);
                             //Debug.Log("Fatigue Mod:" + agilityMod.ToString() + " | " + "Attacker Damage:" + AmbidexterityManager.attackerDamage.ToString() + " | " + " Fatigue Cost:" + fatigueamount.ToString() + " | " + "Current Fatigue Amount:" + PlayerEntity.CurrentFatigue.ToString());
                             //if buckler is equipped and mechanics enabled, damage enemy by the enemies damage * how far into the animation they are; the further in the more damage deflected.
-                            if ((shieldTypes == 109 || shieldTypes == 110) && AmbidexterityManager.bucklerMechanics)
+                            if ((currentShieldType == ShieldTypes.Buckler || currentShieldType == ShieldTypes.Round) && bucklerMechanics)
                             {
                                 AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), .5f, .5f);
 
@@ -705,46 +746,42 @@ namespace AmbidexterityModule
                                     blood.ShowBloodSplash(0, targetMotor.transform.TransformPoint(0, 0, 0));
                                 }
 
-                                float deflectedDamage = (int)(AmbidexterityManager.attackerDamage * fractionOfJourney);
+                                float deflectedDamage = (int)(attackerDamage * fractionOfJourney);
                                 Debug.Log("Deflected:" + deflectedDamage.ToString());
-                                AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
+                                AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
                             }
-                            //plays hit animation.
-                            AnimationManager(hitCoroutine, 0, true);
                         }
                         //calculate animation if player is holding block key.....
                         else if (!isBashing)
                         {
                             //finished raising shield, set state to raised.
-                            if (AnimationManager(startCoroutine, 0))
-                                shieldStates = 2;
+                            if (AnimationManager(ShieldStates.Raising, shieldBlockTime))
+                                CurrentShieldState = ShieldStates.Blocking;
                         }
                     }
                     //if the shield has raised.....
-                    else if (shieldStates == 2)
+                    else if (CurrentShieldState == ShieldStates.Blocking)
                     {
-                        if ((shieldTypes == 111 || shieldTypes == 112) || (!AmbidexterityManager.bucklerMechanics && (shieldTypes == 109 || shieldTypes == 110)))
+                        if ((currentShieldType == ShieldTypes.Kite || currentShieldType == ShieldTypes.Tower) || (!AmbidexterityManager.bucklerMechanics && (currentShieldType == ShieldTypes.Buckler || currentShieldType == ShieldTypes.Round)))
                         {
-                            if (AmbidexterityManager.isHit && !isBashing)
+                            if (isHit && !isBashing)
                             {
                                 Debug.Log("HIT SHIELD!");
-                                AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436));
-                                AmbidexterityManager.isHit = false;
+                                dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436));
+                                isHit = false;
                                 //grabs motor function from enemy entity behavior object and assigns it.
-                                EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                                EnemyMotor targetMotor = AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                                 //how far enemy will push back after succesful block.
-                                targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * .5f, 2f, 5f);
+                                targetMotor.KnockbackSpeed = Mathf.Clamp(attackerDamage * .5f, 2f, 5f);
                                 //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                                targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
-                                //sets up hit animations
-                                hitCoroutine = OnHit(.3f);
+                                targetMotor.KnockbackDirection = mainCamera.transform.forward;
                                 //calculates the fatigue cost of blocking an attack. Uses enemy damage as the base value.
-                                int fatigueamount = (int)((AmbidexterityManager.attackerDamage * agilityMod) * AmbidexterityManager.BlockCostMod);
+                                int fatigueamount = (int)((attackerDamage * agilityMod) * BlockCostMod);
                                 //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                                 GameManager.Instance.PlayerEntity.DecreaseFatigue(fatigueamount);
                                 //Debug.Log("Fatigue Mod:" + agilityMod.ToString() + " | " + "Attacker Damage:" + AmbidexterityManager.attackerDamage.ToString() + " | " + " Fatigue Cost:" + fatigueamount.ToString() + " | " + "Current Fatigue Amount:" + PlayerEntity.CurrentFatigue.ToString());
                                 //plays hit animation.
-                                AnimationManager(hitCoroutine, 0, true);
+                                AnimationManager(ShieldStates.BlockHit, .35f, 0, true);
                             }
                             else if (InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon) && !isBashing)
                             {
@@ -752,50 +789,43 @@ namespace AmbidexterityModule
                                 int fatigueamount = 11 + ((int)((50 / GameManager.Instance.PlayerEntity.Stats.LiveStrength) * 10 * AmbidexterityManager.BlockCostMod));
                                 //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                                 isBashing = true;
-                                bashNumerator = Bash(.4f);
-                                AnimationManager(bashNumerator, 0, true);
+                                AnimationManager(ShieldStates.Bash, .5f, 0, true);
                                 //plays cloth equipping sound with a reduced sound level to simulate equipment rustling.
-                                AmbidexterityManager.dfAudioSource.PlayOneShot(417, 1, 1);
+                                dfAudioSource.PlayOneShot(417, 1, 1);
                                 //plays cloth equipping sound with a reduced sound level to simulate equipment rustling.
-                                AmbidexterityManager.dfAudioSource.PlayOneShot(418, .15f, .15f);
+                                dfAudioSource.PlayOneShot(418, .15f, .15f);
                                 yield return new WaitForSeconds(.2f);
-                                Vector3 bashCast = AmbidexterityManager.mainCamera.transform.forward * 1.8f;
+                                Vector3 bashCast = mainCamera.transform.forward * 1.8f;
                                 GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
-                                AmbidexterityManager.AmbidexterityManagerInstance.AttackCast(null, bashCast, new Vector3(0, 0, 0), out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject);
+                                AmbidexterityManagerInstance.AttackCast(null, bashCast, new Vector3(0, 0, 0), out attackHit, out hitNPC, out hitEnemyObject, out hitNPCObject);
                             }
                         }
-                        else if ((shieldTypes == 109 || shieldTypes == 110) && AmbidexterityManager.bucklerMechanics)
+                        else if ((currentShieldType == ShieldTypes.Buckler || currentShieldType == ShieldTypes.Round) && bucklerMechanics)
                         {
                             yield return new WaitForSeconds(totalBlockTime * .15f);
-                            if (AmbidexterityManager.isHit && !isBashing)
+                            if (isHit && !isBashing)
                             {
                                 //Debug.Log("Timed Block!!");
                                 //plays one of the 9 random parry sounds to simulate a hit.
-                                AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
+                                dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(428, 436), 1, 4);
                                 //resets trigger
-                                AmbidexterityManager.isHit = false;
+                                isHit = false;
                                 //grabs motor function from enemy entity behavior object and assigns it.
-                                EnemyMotor targetMotor = AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
+                                EnemyMotor targetMotor = AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.GetComponent<EnemyMotor>();
                                 //how far enemy will push back after succesful block.
-                                targetMotor.KnockbackSpeed = Mathf.Clamp(AmbidexterityManager.attackerDamage * 2, 8f, 12f);
+                                targetMotor.KnockbackSpeed = Mathf.Clamp(attackerDamage * 2, 8f, 12f);
                                 //what direction they will go. Grab the players camera and push them the direction they are looking (aka away from player since they are looking forward).
-                                targetMotor.KnockbackDirection = AmbidexterityManager.mainCamera.transform.forward;
-                                //assigns animation routine with timing.
-                                if (!isBashing)
-                                {
-                                    isBashing = true;
-                                    hitCoroutine = Bash(1.25f);
-                                }
+                                targetMotor.KnockbackDirection = mainCamera.transform.forward;
                                 //run anaimtion: returns true while it runs, flips false once done and takes fatigue from player.
                                 //calculates the fatigue cost of blocking an attack. Uses enemy damage as the base value.
-                                int fatigueamount = (int)(AmbidexterityManager.attackerDamage / 2 * agilityMod * AmbidexterityManager.BlockCostMod);
+                                int fatigueamount = (int)(attackerDamage / 2 * agilityMod * BlockCostMod);
                                 //subtracts the cost from current player fatigue and assigns it to players fatigue for dodge cost.
                                 GameManager.Instance.PlayerEntity.DecreaseFatigue(fatigueamount);
                                 //Debug.Log("Fatigue Mod:" + agilityMod.ToString() + " | " + "Attacker Damage:" + AmbidexterityManager.attackerDamage.ToString() + " | " + " Fatigue Cost:" + fatigueamount.ToString() + " | " + "Current Fatigue Amount:" + PlayerEntity.CurrentFatigue.ToString());
                                 //if buckler is equipped and mechanics enabled, damage enemy by the enemies damage * how far into the animation they are; the further in the more damage deflected.
-                                if (AmbidexterityManager.bucklerMechanics)
+                                if (bucklerMechanics)
                                 {
-                                    AmbidexterityManager.dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
+                                    dfAudioSource.PlayOneShot(DFRandom.random_range_inclusive(108, 112), 1, 1);
 
                                     EnemyBlood blood = targetMotor.GetComponent<EnemyBlood>();
                                     if (blood)
@@ -805,23 +835,26 @@ namespace AmbidexterityModule
                                         blood.ShowBloodSplash(0, targetMotor.transform.TransformPoint(-5, 0, 0));
                                     }
 
-                                    float deflectedDamage = (int)(AmbidexterityManager.attackerDamage * (fractionOfJourney + .1f));
+                                    float deflectedDamage = (int)(attackerDamage * (fractionOfJourney + .1f));
                                     Debug.Log("Deflected:" + deflectedDamage.ToString());
-                                    AmbidexterityManager.AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
+                                    AmbidexterityManagerInstance.attackerEntity.DecreaseHealth((int)deflectedDamage);
                                 }
-                                //plays hit animation.
-                                AnimationManager(hitCoroutine, 0, true);
+
+                                //assigns animation routine with timing.
+                                isBashing = true;
+                                AnimationManager(ShieldStates.Bash, 1.25f, 0, true);
+
                             }
-                            else if (AmbidexterityManager.bucklerMechanics)
+                            else if (bucklerMechanics)
                             {
-                                //use thise if you want to allow shield bashing for bucklers too.
-                                //if(!isBashing)
-                                shieldStates = 3;
+                            //use thise if you want to allow shield bashing for bucklers too.
+                            //if(!isBashing)
+                                CurrentShieldState = ShieldStates.Lowering;
                             }
                         }
                     }
                     //if the shield is lowering....
-                    else if (shieldStates == 3)
+                    else if (CurrentShieldState == ShieldStates.Lowering)
                     {
                         //allows the player to begin attacking earlier that finishing the done animation to make the differing shields feel more unqiue
                         //it also feels more natural/less robotic to be able to attack on the back end of the shield drop.
@@ -829,15 +862,12 @@ namespace AmbidexterityModule
                             isBlocking = false;
 
                         //sets up and plays lowering/reset animation, and when done, sets shield state to idle again.
-                        doneCoroutine = BlockDone(totalBlockTime);
-                        if (AnimationManager(doneCoroutine, 0))
-                            shieldStates = 0;
-                    }
+                        if (AnimationManager(ShieldStates.Lowering,totalBlockTime, 0))
+                            CurrentShieldState = ShieldStates.Idle;
                 }
-
                 //yield code returns at the end of the frame.
                 yield return new WaitForFixedUpdate();
-            }            
+                }
         }
         #endregion
 
@@ -971,23 +1001,35 @@ namespace AmbidexterityModule
                 return;
             }
 
-            if(shieldTypes != equippedShield.TemplateIndex)
+            if(currentShieldID != equippedShield.TemplateIndex)
             {
                 //uses the unique item template index value to set what shield tupe it is.
-                shieldTypes = equippedShield.TemplateIndex;
+                currentShieldID = equippedShield.TemplateIndex;
 
                 //sets block angle for shield type.
-                if (shieldTypes == 109)
-                    blockAngle = 35;
-                else if (shieldTypes == 110)
-                    blockAngle = 50;
-                else if (shieldTypes == 111)
-                    blockAngle = 70;
-                else if (shieldTypes == 112)
-                    blockAngle = 90;
+
+                switch (currentShieldID)
+                {
+                    case 109:
+                        currentShieldType = ShieldTypes.Buckler;
+                        blockAngle = 35;
+                        break;
+                    case 110:
+                        currentShieldType = ShieldTypes.Round;
+                        blockAngle = 50;
+                        break;
+                    case 111:
+                        currentShieldType = ShieldTypes.Kite;
+                        blockAngle = 70;
+                        break;
+                    case 112:
+                        currentShieldType = ShieldTypes.Tower;
+                        blockAngle = 90;
+                        break;
+                }
 
                 //checks what shield it is and then loads/assigns corresponding texture to shieldTex using loadPNG method.
-                if (shieldTypes == 110 || shieldTypes == 109)
+                if (currentShieldType == ShieldTypes.Buckler || currentShieldType == ShieldTypes.Round)
                     shieldTex = smallShieldTexture;
                 else
                     shieldTex = largeShieldTexture;

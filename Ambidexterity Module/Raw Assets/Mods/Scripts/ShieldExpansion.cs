@@ -146,7 +146,7 @@ public class ShieldExpansion : MonoBehaviour
     {
         return;
         //isBlocking is staying false at all times for some reason. *ERROR HERE!!!*
-        if (FPSShield.shieldStates == 1)
+        if (FPSShield.CurrentShieldState == FPSShield.ShieldStates.Raising)
         {
             //custom reflect spell, but not really effecive way of managing this.
             //EntityEffectBundle bundle = GameManager.Instance.PlayerEffectManager.CreateSpellBundle("SpellResistance",ElementTypes.Magic,effectSettings);
@@ -165,7 +165,7 @@ public class ShieldExpansion : MonoBehaviour
 
             Debug.Log("Blocked Spell!");
         }
-        else if(FPSShield.shieldStates == 2)
+        else if(FPSShield.CurrentShieldState == FPSShield.ShieldStates.Blocking)
         {
             Debug.Log("RAISED!");
             width = LerpCalculator(out lerpfinished, 1, 0, 500, 900, "smootherstep", true, false, 1);

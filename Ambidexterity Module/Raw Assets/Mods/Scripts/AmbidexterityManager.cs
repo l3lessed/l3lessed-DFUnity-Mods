@@ -198,6 +198,8 @@ namespace AmbidexterityModule
         public bool releaseParry;
         public bool attackedPrimed;
         public bool raiseHands;
+        private int lastSwingMode;
+        private KeyCode savedSwingKey;
 
         //starts mod manager on game begin. Grabs mod initializing paramaters.
         //ensures SateTypes is set to .Start for proper save data restore values.
@@ -252,7 +254,7 @@ namespace AmbidexterityModule
                 Debug.Log("DREAM Handheld detected. Activated Dream Textures");
                 AltFPSWeapon.AltFPSWeaponInstance.useImportedTextures = true;
                 OffHandFPSWeapon.OffHandFPSWeaponInstance.useImportedTextures = true;
-                bobSpeed = bobSpeed * 2f;
+                bobSpeed = bobSpeed * 2;
             }
 
             AltFPSWeapon.AltFPSWeaponInstance.bobPosX = .07f;
@@ -550,22 +552,26 @@ namespace AmbidexterityModule
                 ToggleHand();
 
             //catches drag attack clicks to initiate classic drag attack mechanisms.
-            if (!(equipState == 6 || DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1))
+            if (equipState != 6 || DaggerfallUnity.Settings.WeaponSwingMode != 2 || DaggerfallUnity.Settings.WeaponSwingMode != 1)
             {
                 //if either attack key is not pressed, clear out attacking and mouse gesture/drection and reset mouse look sensitivity to default.
-                if (!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) && !Input.GetKey(offHandKeyCode))
+                if ((!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) && !Input.GetKey(offHandKeyCode)) || AttackState == 7 || (equipState == 3 && Input.GetKey(offHandKeyCode)))
                 {
+                    //restores the default swing mode and mouse sensitivity, and resets the mouse look gesture and is attacking.
                     isAttacking = false;
                     GameManager.Instance.PlayerMouseLook.sensitivityScale = lastMouseSensitivity;
                     _gesture.Clear();
                 }
                 //if the player is pressing either attack key, zero out mouse sensitivity to lock the mouse look and tell input manager player isAttacking
-                else if(equipState != 3 && !FPSShield.blockKeyPressed)
+                else
                 {
-                    if(GameManager.Instance.PlayerMouseLook.sensitivityScale != 0)
+                    //saves default default mouse sensitivity.
+                    if (GameManager.Instance.PlayerMouseLook.sensitivityScale != 0)
                         lastMouseSensitivity = GameManager.Instance.PlayerMouseLook.sensitivityScale;
 
+                    //Sets mouse sensitivity to 0 to lock the mouse look.
                     GameManager.Instance.PlayerMouseLook.sensitivityScale = 0;
+                    //Sets attacking to true.
                     isAttacking = true;
                 }
             }
@@ -575,27 +581,7 @@ namespace AmbidexterityModule
             UpdateHands();
 
             //CONTROLS WEAPON ANIMATIONS FOR SHIELD\\
-            //if the player has a shield equipped, start logic for raising and lowering weapon hand.
-            if (FPSShield.shieldEquipped && !GameManager.Instance.WeaponManager.Sheathed)
-            {
-                //if the shield is raising and the weapon lowering animation routine is empty or not running, stop the raising animation and start the lowering animation.
-                if (FPSShield.shieldStates == 1 && (mainWeapon.currentAnimationtask == null || !mainWeapon.currentAnimationtask.Running))
-                {
-                    mainWeapon.StopAnimation(true);
-                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.1f, -.2f, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false);
-                    mainWeapon.CompileAnimations(AnimationType.MainHandLower);
-                    mainWeapon.PlayLoadedAnimations();
-                }
-
-                //if the shield is lowering and the weapon raising animation routine is empty or not running, stop the lowering animation and start the raising animation.
-                if (FPSShield.shieldStates == 3 && (mainWeapon.currentAnimationtask == null || !mainWeapon.currentAnimationtask.Running))
-                {
-                    mainWeapon.StopAnimation(true);
-                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, 0, 0, false, 1, FPSShield.totalBlockTime * .5f, 0, true, true, false);
-                    mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
-                    mainWeapon.PlayLoadedAnimations();
-                }
-            }                       
+            //if the player has a shield equipped, start logic for raising and lowering weapon hand.                   
         }
 
         //sets players current movement using overrides and override float values. Ensures triggered only once when setting values to save update cycles.
@@ -669,13 +655,13 @@ namespace AmbidexterityModule
                         mainWeapon.isLowered = true;
                         mainWeapon.isRaised = false;
                         mainWeapon.StopAnimation(true);
-                        mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.2f, AltFPSWeapon.offsetY - .45f, false, 1, offhandWeapon.totalAnimationTime * .35f, 0, true, true, false);
+                        mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.11f, -.235f, false, 1, offhandWeapon.totalAnimationTime * .45f, 0, true, true, false);
                         mainWeapon.CompileAnimations(AnimationType.MainHandLower);
                         mainWeapon.PlayLoadedAnimations();
                     }
 
-                    offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, 0, -.15f, false, 1, .35f, 0, true, true, false, true);
-                    offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.15f, .2f, -.2f, false, 1, .4f, 0, true, true, false, true);
+                    offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, 0, -.12f, false, 1, .35f, 0, true, true, false, true);
+                    offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.12f, .2f, -.165f, false, 1, .4f, 0, true, true, false, true);
                     offhandWeapon.CompileAnimations(AnimationType.OffHandParry);
                     offhandWeapon.PlayLoadedAnimations();
                     offhandWeapon.PlaySwingSound();
@@ -692,14 +678,14 @@ namespace AmbidexterityModule
                         offhandWeapon.isLowered = true;
                         offhandWeapon.isRaised = false;
                         offhandWeapon.StopAnimation(true);
-                        offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, -.2f, OffHandFPSWeapon.offsetY - .45f, false, 1, mainWeapon.totalAnimationTime * .35f, 0, true, true, false);
+                        offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, -.11f, -.235f, false, 1, mainWeapon.totalAnimationTime * .45f, 0, true, true, false);
                         offhandWeapon.CompileAnimations(AnimationType.OffHandLower);
                         offhandWeapon.PlayLoadedAnimations();
                     }
 
 
-                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, 0, -.15f, false, 1, .35f, 0, true, true, false, true);
-                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.15f, .2f, -.2f, false, 1, .4f, 0, true, true, false, true);
+                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, 0, -.12f, false, 1, .35f, 0, true, true, false, true);
+                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.12f, .2f, -.165f, false, 1, .4f, 0, true, true, false, true);
                     mainWeapon.CompileAnimations(AnimationType.MainHandParry);
                     mainWeapon.PlayLoadedAnimations();
                     GameManager.Instance.WeaponManager.ScreenWeapon.PlaySwingSound();
@@ -711,22 +697,22 @@ namespace AmbidexterityModule
         //controls main hand attack and ensures it can't be spammed/bugged.
         void MainAttack()
         {
-            if (!mainWeapon.AltFPSWeaponShow)
+            if (!mainWeapon.AltFPSWeaponShow || AttackState == 7)
                 return;
 
             //if idle and not playing an animation or not idle and on the last frame, allow attack.
             if (AttackState == 0 || (AttackState != 0 && AttackState != 7 && OffHandFPSWeapon.currentFrame > 2 || AltFPSWeapon.currentFrame > 2))
             {
-                if (mainWeapon.CurrentAnimation.AnimationName == AnimationType.MainHandRaise|| mainWeapon.CurrentAnimation.AnimationName == AnimationType.MainHandLower)
+                if (mainWeapon.CurrentAnimation.AnimationName == AnimationType.MainHandRaise || mainWeapon.CurrentAnimation.AnimationName == AnimationType.MainHandLower && FPSShield.CurrentShieldState == FPSShield.ShieldStates.Idle)
                     mainWeapon.StopAnimation(true);
 
                 WeaponStates tempWeaponstate = WeaponStateController();
 
                 //if the player has a shield equipped, and it is not being used, let them attack.
-                if (FPSShield.shieldEquipped && (FPSShield.shieldStates == 0 || FPSShield.shieldStates == 8 || !FPSShield.isBlocking) && ((DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) || direction != MouseDirections.None))
+                if (FPSShield.shieldEquipped && (FPSShield.CurrentShieldState == FPSShield.ShieldStates.Idle || FPSShield.CurrentShieldState == FPSShield.ShieldStates.Lowering || !FPSShield.isBlocking) && ((DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1) || direction != MouseDirections.None))
                 {
                     //sets shield state to weapon attacking, which activates corresponding` coroutines and animations.
-                    FPSShield.shieldStates = 7;
+                        FPSShield.FPSShieldInstance.AnimationManager(FPSShield.ShieldStates.Lowering, mainWeapon.totalAnimationTime * .45f,0,true);
 
                     GameManager.Instance.PlayerEntity.DecreaseFatigue(11);
 
@@ -796,13 +782,13 @@ namespace AmbidexterityModule
         //controls off hand attack and ensures it can't be spammed/bugged.
         void OffhandAttack()
         {
-            if (!offhandWeapon.OffHandWeaponShow)
+            if (!offhandWeapon.OffHandWeaponShow || FPSShield.shieldEquipped)
                 return;
 
             WeaponStates tempWeaponstate = WeaponStates.Idle;
 
             //both weapons are idle, then perform attack routine....
-            if ((AttackState == 0 || (AttackState != 0 && OffHandFPSWeapon.currentFrame > 2 || AltFPSWeapon.currentFrame > 2)) && !FPSShield.shieldEquipped && AttackState != 7 && (DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1 || direction != MouseDirections.None))
+            if ((AttackState == 0 || (AttackState != 0 && OffHandFPSWeapon.currentFrame > 2 || AltFPSWeapon.currentFrame > 2)) && AttackState != 7 && (DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1 || direction != MouseDirections.None))
             {
                 if (offhandWeapon.CurrentAnimation.AnimationName == AnimationType.OffHandLower || offhandWeapon.CurrentAnimation.AnimationName == AnimationType.OffHandRaise)
                     offhandWeapon.StopAnimation(true);
@@ -908,13 +894,10 @@ namespace AmbidexterityModule
         {
             float tempAttackPrimerTime = AttackPrimerTime;
 
-            if (FPSShield.isBlocking)
-                return;
-
             if (DaggerfallUnity.Settings.WeaponSwingMode == 2 && attackKeyPressed && (Input.GetKeyUp(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKeyUp(offHandKeyCode)))
             {
                 holdAttack = false;
-                attackKeyPressed = false;                
+                attackKeyPressed = false;
             }
             //if either attack input is press, start the system.
             else if ((Input.GetKeyDown(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || Input.GetKeyDown(offHandKeyCode)) || ((!(DaggerfallUnity.Settings.WeaponSwingMode == 2 || DaggerfallUnity.Settings.WeaponSwingMode == 1)) && direction != MouseDirections.None))
@@ -934,8 +917,8 @@ namespace AmbidexterityModule
                 {
                     mainWeapon.StopAnimation(true);
                     mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, 0, -.15f, false, 1, .2f, 0, true, true, false, false);
-                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.15f, 0, 0, false, 1, .2f, 0, true, true, false, false);
-                    mainWeapon.CompileAnimations(AnimationType.MainHandAttack);
+                    mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, 0, -.15f, -.033f, -.07f, false, 1, .2f, 0, true, true, false, false);
+                    mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
                     mainWeapon.PlayLoadedAnimations();
                     doneParrying = true;
                 }
@@ -962,7 +945,11 @@ namespace AmbidexterityModule
                         playerInput.Enqueue(0);
 
                     if (Input.GetKey(offHandKeyCode))
+                    {
                         playerInput.Enqueue(1);
+                        //activates block immediately to allow responsive blocking.
+                        FPSShield.blockKeyPressed = true;
+                    }
                 }
             }
             else
@@ -991,11 +978,11 @@ namespace AmbidexterityModule
                 switch (playerInput.Dequeue())
                 {
                     case 0:
-                        Debug.Log("Attack Key Pressed");
                         MainAttack();
                         break;
                     case 1:
-                        OffhandAttack();
+                        if (!FPSShield.shieldEquipped)
+                            OffhandAttack();
                         break;
                     case 2:
                         if (!Input.GetKey(InputManager.Instance.GetBinding(InputManager.Actions.SwingWeapon)) || !Input.GetKey(offHandKeyCode))

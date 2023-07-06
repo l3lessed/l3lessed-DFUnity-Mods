@@ -665,6 +665,7 @@ namespace AmbidexterityModule
             }
 
 
+
             //--->AMBIDEXTERITY MODULE ADDITION<---\\
             //beginning of major code additions to catch and redirect damage for the parry and shield mechanics.
 
@@ -694,8 +695,54 @@ namespace AmbidexterityModule
                     //if the attack angle is 35 degree angle degrees or more (player does not have them close to center screen) don't register the parry.
                     if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
                     {
-                        AmbidexterityManagerInstance.activateNPCParry(target, attacker, damage);
+                        AmbidexterityManager.AmbidexterityManagerInstance.activateNPCParry(target, attacker, damage);
                         Debug.Log("Enemy Parry!");
+                        damage = 0;
+                    }
+                }
+            }
+
+            //if the player is the target of the attack, do the following player parry check code.....
+            if (target == GameManager.Instance.PlayerEntity)
+            {
+                //grabs the attackers mobileunit class object to check their state below.
+                MobileUnit attackerController = attacker.EntityBehaviour.GetComponentInChildren<MobileUnit>();
+
+                //if the enemy is in their primary/melee attack state and the player is on frame 1 or 2, do ....
+                if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AmbidexterityManagerInstance.AttackState != 0 && (AltFPSWeapon.currentFrame == 2 || OffHandFPSWeapon.currentFrame == 2))
+                {
+                    //grabs attackers sense object.
+                    EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
+
+                    //uses attackers sense to figure out their direction to target using their position data.
+                    Vector3 toTarget = attackerSenses.PredictedTargetPos - attackerSenses.transform.position;
+                    toTarget.y = 0;
+
+                    //grabs players main camera object and sets up player direction using the camera object.
+                    Vector3 targetDirection2D;
+                    Camera mainCamera = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
+                    targetDirection2D = -new Vector3(mainCamera.transform.forward.x, 0, mainCamera.transform.forward.z);
+
+                    //if the attack angle is 35 degree angle degrees or more (player does not have them close to center screen) don't register the parry.
+                    if (!(Vector3.Angle(toTarget, targetDirection2D) > 30))
+                    {
+                        Debug.Log("Player Parry!");
+                        isHit = true;
+                        attackerDamage = damage;
+                        AmbidexterityManagerInstance.attackerEntity = attacker;
+                        AmbidexterityManagerInstance.targetEntity = target;
+                        AmbidexterityManagerInstance.activatePlayerParry(attacker, damage);
+                        damage = 0;
+                    }
+                }
+
+                //if the player is the target of the attack, do the following player parry check code.....
+                if (attacker == GameManager.Instance.PlayerEntity)
+                {
+                    //if the enemy is in their primary/melee attack state and the player is on their hit frame, do ....
+                    if (attackerController.Summary.EnemyState == MobileStates.PrimaryAttack && AltFPSWeapon.currentFrame > 2)
+                    {
+                        Instantiate(sparkParticles, attacker.EntityBehaviour.transform.position + (attacker.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
                         damage = 0;
                     }
                 }
@@ -704,7 +751,7 @@ namespace AmbidexterityModule
             //--SHIELD REDIRECT CODE--\\
             //checks to see if player is blocking yet and if the target is the player. If so, assign damage to attackerDamage, enemy object to enemyEntity, and
             //0 out the damage, so player doesn't take any.
-            if (FPSShield.isBlocking && target == GameManager.Instance.PlayerEntity && damage != 0)
+            if ((FPSShield.isBlocking || (AmbidexterityManagerInstance.AttackState == 7 && !AmbidexterityManagerInstance.doneParrying)) && target == GameManager.Instance.PlayerEntity && damage != 0)
             {
                 //grabs attackers sense object.
                 EnemySenses attackerSenses = attacker.EntityBehaviour.GetComponent<EnemySenses>();
@@ -726,6 +773,31 @@ namespace AmbidexterityModule
                     attackerDamage = damage;
                     damage = 0;
                     AmbidexterityManagerInstance.attackerEntity = attacker;
+
+                    Instantiate(sparkParticles, AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.position + (AmbidexterityManagerInstance.attackerEntity.EntityBehaviour.transform.forward * .35f), Quaternion.identity, null);
+
+                    //if two-handed is equipped in left hand or duel wield is equipped stop offhand parry animation and start swing two frames in.
+                    if (equipState == 5 || (equipState == 4 && !GameManager.Instance.WeaponManager.UsingRightHand))
+                    {
+                        //stops parry animation
+                        AmbidexterityManagerInstance.offhandWeapon.StopAnimation(true);
+                        AmbidexterityManagerInstance.offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX, OffHandFPSWeapon.offsetY, OffHandFPSWeapon.offsetX - .16f, OffHandFPSWeapon.offsetY - .12f, false, 1, .032f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.offhandWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, OffHandFPSWeapon.offsetX - .16f, OffHandFPSWeapon.offsetY - .12f, .2f, -.2f, false, 1, .25f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.offhandWeapon.CompileAnimations(AnimationType.OffHandParryHit);
+                        AmbidexterityManagerInstance.offhandWeapon.PlayLoadedAnimations();
+                    }
+                    //if two-handed is equipped in right hand or one handed is equipped stop main hand parry animation and start swing two frames in.
+                    else if (equipState == 1 || equipState == 4)
+                    {
+                        //stops parry animation
+                        //mainWeapon.ResetAnimation();
+                        //starts attack state two frames in.
+                        AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
+                        AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, AltFPSWeapon.offsetX - .16f, AltFPSWeapon.offsetY - .12f, false, 1, .032f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX - .16f, AltFPSWeapon.offsetY - .12f, .2f, -.2f, false, 1, .25f, 0, true, true, false, true);
+                        AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandParryHit);
+                        AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
+                    }
                 }
             }
 

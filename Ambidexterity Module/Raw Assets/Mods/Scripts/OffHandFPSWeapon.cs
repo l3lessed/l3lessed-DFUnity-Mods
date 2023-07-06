@@ -212,25 +212,20 @@ namespace AmbidexterityModule
                     AmbidexterityManagerInstance.isAttacking = false;
                     playingAnimation = false;
                     toggleBob = true;
-                    PeekAnimationName = AnimationType.OffHandIdle;
 
-                    //Ensures the hands are raised anytime the animations finish and the player isn't in mid parry state.
+                    if (CurrentAnimation.AnimationName == AnimationType.MainHandRaise)
+                    {
+                        PeekAnimationName = AnimationType.MainHandIdle;
+                        CurrentAnimation.AnimationName = AnimationType.MainHandIdle;
+                    }
+
                     if (!isParrying && AmbidexterityManagerInstance.mainWeapon.isLowered)
                     {
                         AmbidexterityManagerInstance.mainWeapon.isLowered = false;
                         AmbidexterityManagerInstance.mainWeapon.isRaised = true;
-
-                        //If player has qued up an attack, this ensures it isn't stopped/interrupted.
-                        if(AmbidexterityManagerInstance.mainWeapon.CurrentAnimation.AnimationName != AnimationType.MainHandAttack)
-                        {
-                            AmbidexterityManagerInstance.mainWeapon.StopAnimation(true);
-                            AmbidexterityManagerInstance.mainWeapon.AnimationLoader(classicAnimations, WeaponStates.Idle, WeaponStates.Idle, AltFPSWeapon.offsetX, AltFPSWeapon.offsetY, -.033f, -.075f, false, 1, AmbidexterityManagerInstance.offhandWeapon.totalAnimationTime * .35f, 0, true, true, false);
-                            AmbidexterityManagerInstance.mainWeapon.CompileAnimations(AnimationType.MainHandRaise);
-                            AmbidexterityManagerInstance.mainWeapon.PlayLoadedAnimations();
-                        }
                     }
 
-                    StopCoroutine(AnimationManagerRoutine);
+                        StopCoroutine(AnimationManagerRoutine);
                 }
 
                 yield return new WaitForFixedUpdate();
@@ -351,13 +346,35 @@ namespace AmbidexterityModule
                     GUI.DrawTextureWithTexCoords(weaponPosition, curCustomTexture ? curCustomTexture : weaponAtlas, curAnimRect);
                 }
 
-                if (toggleBob && !playingAnimation && isRaised)
-                {
-                    if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill && AmbidexterityManagerInstance.AttackState == 0 && FPSShield.shieldStates == 0)
-                    {
+                float OffhandTempBob = AmbidexterityManagerInstance.bobRange;
+                float BobOffsetX = .07f;
+                float BobOffsetY = .15f;
 
-                        offsetX = (AmbidexterityManagerInstance.bobRange / -1.5f);
-                        offsetY = (AmbidexterityManagerInstance.bobRange * -1.5f);
+                if (toggleBob && !playingAnimation)
+                {
+                    if (weaponState == WeaponStates.Idle && !GameManager.Instance.PlayerMotor.IsStandingStill && (AmbidexterityManagerInstance.AttackState == 0 || AmbidexterityManagerInstance.AttackState == 7) && (currentAnimationtask != null && !currentAnimationtask.Running))
+                    {
+                        if (CurrentAnimation.AnimationName == AnimationType.OffHandParry)
+                        {
+                            BobOffsetX = -.2f;
+                            BobOffsetY = .2f;
+                        }
+                        else if(AltFPSWeapon.AltFPSWeaponInstance.CurrentAnimation.AnimationName == AnimationType.MainHandParry && CurrentAnimation.AnimationName == AnimationType.OffHandLower)
+                        {
+                            BobOffsetX = .11f;
+                            BobOffsetY = .235f;
+                        }
+
+                        if (CurrentAnimation.AnimationName != AnimationType.OffHandParry)
+                        {
+                            offsetX = (OffhandTempBob / -1.5f) - BobOffsetX;
+                            offsetY = (OffhandTempBob * -1.5f) - BobOffsetY;
+                        }
+                        else
+                        {
+                            offsetX = ((OffhandTempBob / -1.5f) * .2f) - BobOffsetX;
+                            offsetY = ((OffhandTempBob * -1.5f) * .2f) - BobOffsetY;
+                        }
 
                         waitTimer += Time.deltaTime;
                     }
