@@ -19,13 +19,13 @@ namespace Minimap
         public Color textureColor = new Color(1, 1, 1, 1);
 
         public Vector2 randomPosition;
-        public Vector2 currentAnchorPosition;
+        public Vector2 currentAnchorPosition { get; set; }
 
         public RectTransform effectRectTransform;
         public RawImage effectRawImage { get; private set; }
 
         private float random;
-        public int randomScale;
+        public int randomScale { get; set; }
         public float updateTimer;
         public float dripMovement { get; private set; }
         public int lastSiblingIndex { get; private set; }
@@ -58,11 +58,9 @@ namespace Minimap
 
         void Update()
         {
-            effectRectTransform.localPosition = currentAnchorPosition;
-
-            if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
+            if (!Minimap.MinimapInstance.minimapActive)
                 return;
-
+            effectRectTransform.localPosition = currentAnchorPosition;
             if (newEffect != null && lastSiblingIndex != siblingIndex)
             {
                 newEffect.transform.SetSiblingIndex(siblingIndex);

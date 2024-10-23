@@ -15,6 +15,7 @@ using TMPro;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallConnect.Utility;
+using System.Collections;
 
 namespace Minimap
 {
@@ -164,9 +165,11 @@ namespace Minimap
             {
                 permCompass = ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex);
                 permCompass.SetItem(ItemGroups.UselessItems2, 720);
-            }                
+            }
 
             iconGroupColors = myModSaveData.IconGroupColors;
+            minimapControls.colorSelector = myModSaveData.IconGroupColors[MarkerGroups.Shops];
+            minimapControls.lastColor = myModSaveData.IconGroupColors[MarkerGroups.Shops];
             iconGroupTransperency = myModSaveData.IconGroupTransperency;
             iconGroupActive = myModSaveData.IconGroupActive;
             npcFlatActive = myModSaveData.NpcFlatActive;
@@ -284,6 +287,7 @@ namespace Minimap
             minimapControls.realDetectionEnabled = myModSaveData.RealDetectionEnabled;
             minimapControls.cameraDetectionEnabled = myModSaveData.CameraDetectionEnabled;
             minimapControls.iconSize = myModSaveData.IconSize;
+            minimapControls.lastIconSize = myModSaveData.IconSize;
             minimapControls.doorIndicatorActive = myModSaveData.DoorIndicatorActive;
             minimapControls.questIndicatorActive = myModSaveData.QuestIndicatorActive;
             generatedStartingEquipment = myModSaveData.GeneratedStartingEquipment;
@@ -337,7 +341,7 @@ namespace Minimap
             ragCleaningObject.transform.SetParent(minimapObject.transform);
             ragCleaningInstance = ragCleaningObject.AddComponent<RagClean>();
 
-            repairCompassObject = new GameObject("Rag Manager");
+            repairCompassObject = new GameObject("Repair Kit Manager");
             repairCompassObject.transform.SetParent(minimapObject.transform);
             repairCompassInstance = repairCompassObject.AddComponent<RepairController>();
 
@@ -413,8 +417,8 @@ namespace Minimap
 
         //textures
         public static RenderTexture minimapTexture;
-        private Texture2D greenCrystalCompass;
-        private Texture2D redCrystalCompass;
+        public Texture2D greenCrystalCompass;
+        public Texture2D redCrystalCompass;
         public Texture2D cleanGlass;
 
         //daggerfall unity items.
@@ -489,7 +493,7 @@ namespace Minimap
         private float savedMinimapSize;
         public float nearClipValue;
         public float farClipValue;
-        public float playerIndicatorHeight;
+        public float playerIndicatorHeight = .1f;
         public static float minimapSensingRadius = 40f;
         public float iconSetupSize = .1f;
         public static float indicatorSize = 3f;
@@ -693,6 +697,8 @@ namespace Minimap
             else
                 changedLocations = true;
 
+
+
             currentLocation = null;
             minimapControls.updateMinimapUI();
             MinimapInstance.SetupMinimapLayers(true);
@@ -708,7 +714,7 @@ namespace Minimap
 
         //main code to setup all needed canvas, camera, and other objects for minimap mod; runs once on start of mod.
         public void SetupMinimap()
-        {            
+        {
             //AUTO PATCHERS FOR DIFFERING MODS\\
             //checks if there is a mod present in their load list, and if it was loaded, do the following to ensure compatibility.
             if (ModManager.Instance.GetMod("DREAM - HANDHELD") != null)
@@ -1051,8 +1057,11 @@ namespace Minimap
 
             //if compass is equipped, disabled, has a "dirty" effect, and isn't currently being cleaned, start cleaning cycle.
             //else, if compass is disabled, or game is loading or there is no compass equipped, disable compass.
-            if (!minimapActive)
+            if (!minimapActive || currentEquippedCompass == null)
+            {
+                minimapActive = false;
                 return;
+            }
 
             compassHealth = currentEquippedCompass.currentCondition;
             compassPerc = currentEquippedCompass.ConditionPercentage;
@@ -1137,6 +1146,7 @@ namespace Minimap
                     outsideViewSize = outsideViewSize * 2;
                     insideViewSize = insideViewSize * 2;
                     minimapControls.markerSwitchSize = 160;
+                    minimapControls.updateMinimap = true;
                     SetupMinimapLayers(true);
                 }
                 else
@@ -1146,6 +1156,7 @@ namespace Minimap
                     outsideViewSize = outsideViewSize * .5f; ;
                     insideViewSize = insideViewSize * .5f;
                     minimapControls.markerSwitchSize = 80;
+                    minimapControls.updateMinimap = true;
                     SetupMinimapLayers(true);
                 }
             }
@@ -1633,7 +1644,16 @@ namespace Minimap
             else if (!GameManager.Instance.IsPlayerInside)
                 publicQuestBearing.SetActive(true);
         }
-        
+
+        private IEnumerator WaitAndPrint(float waitTime)
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(waitTime);
+                DaggerfallUI.Instance.PopupMessage(PlayerHeightChanger.ToString());
+            }
+        }
+
         public void SetupPlayerIndicator()
         {
             //setup and place/rotate player arrow mesh for minimap. Use automap layer only.
@@ -1648,9 +1668,10 @@ namespace Minimap
                 gameobjectPlayerMarkerArrow.GetComponent<MeshRenderer>().material.color = Color.yellow;
             }
 
-            //tie player arrow to player position and rotation.
-            if (GameManager.Instance.PlayerMotor.IsGrounded)
-                PlayerHeightChanger = GameManager.Instance.PlayerEntityBehaviour.transform.position.y + playerIndicatorHeight + .1f;
+            if (Input.GetKeyDown(KeyCode.O) && playerIndicatorHeight <= 5f)
+                playerIndicatorHeight = playerIndicatorHeight + .1f;          
+
+            PlayerHeightChanger = GameManager.Instance.PlayerEntityBehaviour.transform.position.y + playerIndicatorHeight;
 
             float markerSize = 120;
 

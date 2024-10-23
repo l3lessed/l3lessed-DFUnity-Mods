@@ -152,7 +152,7 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
+            if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
             if (gameObject == null)

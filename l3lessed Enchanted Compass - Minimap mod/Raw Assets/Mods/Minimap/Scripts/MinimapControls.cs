@@ -27,7 +27,7 @@ namespace Minimap
         public float blendValue = 1f;
         public float iconSize = 1f;
         public float minimapRotationValue;
-        public static Color colorSelector;
+        public Color colorSelector;
         public float lastBlend;
         public float lastAlphaValue;
         public float lastIndicatorSize;
@@ -58,7 +58,7 @@ namespace Minimap
         public bool cameraDetectionEnabled;
 
         public string selectedIcon = "Shops";
-        private float lastMinimapSize;
+        public float lastMinimapSize;
         public float dragSpeed = .0165f;
         private float xAccumulator;
         private float yAccumulator;
@@ -81,9 +81,9 @@ namespace Minimap
         {
             compassMenu = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/ScrollCleaned.png");
             colorSelector = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops];
-            redValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].r;
-            blueValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].b;
-            greenValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].g;
+            redValue = colorSelector.r;
+            blueValue = colorSelector.b;
+            greenValue = colorSelector.g;
         }
         private void Update()
         {
@@ -96,6 +96,8 @@ namespace Minimap
         }
         void OnGUI()
         {
+            if (updateMinimap == true)
+                updateMinimap = false;
 
             if (smartViewActive)
             {
@@ -114,6 +116,7 @@ namespace Minimap
             //if player is over minimap, minimap controls are open, and they click down mouse begin map dragging code.
             if (Input.GetMouseButton(0) && !Minimap.MinimapInstance.fullMinimapMode && (Input.GetAxis("Mouse X") != 0 || Input.GetAxis("Mouse Y") != 0) && minimapMenuEnabled && IsPointerOverUIElement())
             {
+                updateMinimap = true;
                 float inputX = Input.GetAxis("Mouse X") * dragSpeed;
                 float inputY = Input.GetAxis("Mouse Y") * dragSpeed;
                 //computes drag using mouse x and y input movement.
@@ -304,13 +307,10 @@ namespace Minimap
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
             //check if any controls have been updated, and if so, pushed window trigger update.
-            if (Input.GetMouseButtonUp(0) || colorSelector != Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] || iconSize != Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] || Minimap.MinimapInstance.minimapSize != lastMinimapSize)
+            if (Input.GetMouseButtonUp(0) || colorSelector != lastColor || iconSize != lastIconSize || Minimap.MinimapInstance.minimapSize != lastMinimapSize)
             {
-                lastMinimapSize = Minimap.MinimapInstance.minimapSize;
                 updateMinimapUI();
             }
-
-            updateMinimap = false;
         }       
 
         public void updateMinimapUI()
@@ -318,7 +318,9 @@ namespace Minimap
             UnityEngine.Debug.Log("SELECTED FOR CONTROLS: " + (Minimap.MarkerGroups)selectedIconInt);
             Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = iconSize;
             Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
-
+            lastMinimapSize = Minimap.MinimapInstance.minimapSize;
+            lastColor = colorSelector;
+            lastIconSize = iconSize;
             //sets minimap transperency level.
             Color loadedBackgroundColor = new Color(Minimap.MinimapInstance.loadedBackgroundColor.r * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.b * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.g * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.minimapBackgroundTransperency * alphaValue);
 
@@ -329,7 +331,6 @@ namespace Minimap
             Minimap.MinimapInstance.publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.6f, .6f, .6f, alphaValue * Minimap.MinimapInstance.glassTransperency);
 
             IconController.UpdateIcon = true;
-
             updateMinimap = true;
         }
 

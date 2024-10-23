@@ -29,17 +29,18 @@ namespace Minimap
         {
             List<DaggerfallUnityItem> dwemerGearsList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
             List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
+
             if(Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage >= 90)
             {
                 DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "Your compass is in fine shape");
                 confirmBox.Show();
                 return false;
             }
-            Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 52;
-            //if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
-                //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 0;
-            //else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 51)
-                //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 51;
+            //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 52;
+            if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
+                Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 0;
+            else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 51)
+                Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 51;
 
             if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)
             {

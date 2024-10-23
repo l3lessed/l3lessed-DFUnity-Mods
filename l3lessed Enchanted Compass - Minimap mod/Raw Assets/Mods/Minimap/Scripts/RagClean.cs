@@ -1,10 +1,6 @@
 using UnityEngine;
-using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Utility.ModSupport;
-using static TreeEditor.TextureAtlas;
 using UnityEngine.UI;
 using System.IO;
-using DaggerfallWorkshop.Game.Questing;
 
 namespace Minimap
 {

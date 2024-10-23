@@ -87,7 +87,7 @@ namespace Minimap
         // Update is called once per frame
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
+            if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
             //if player is outside and the streaming world is ready/generated for play setup building indicators.

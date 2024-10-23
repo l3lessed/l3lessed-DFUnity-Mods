@@ -9,8 +9,6 @@ using DaggerfallWorkshop;
 using System;
 using System.Linq;
 using System.Collections;
-using static TreeEditor.TextureAtlas;
-using UnityEditor.Localization.Plugins.XLIFF.V20;
 
 namespace Minimap
 {
@@ -48,7 +46,7 @@ namespace Minimap
         public DustEffect dustEffectInstance;
         public RainEffect rainEffectInstance;
         public MagicEffect damageMagicEffectInstance;
-        public DamageEffect damageGlassEffectInstance;
+        public static DamageEffect damageGlassEffectInstance;
 
         public static Dictionary<ulong, List<BloodEffect>> compassBloodDictionary = new Dictionary<ulong, List<BloodEffect>>();
         public static Dictionary<ulong, List<DirtEffect>> compassDirtDictionary = new Dictionary<ulong, List<DirtEffect>>();
@@ -289,7 +287,6 @@ namespace Minimap
 
                 damageGlassEffectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<DamageEffect>();
                 damageGlassEffectInstance.siblingIndex = Minimap.MinimapInstance.publicMinimap.transform.childCount;
-                damageGlassEffectInstance.textureColor = new Color(1, 1, 1, 1);
                 damageGlassEffectInstance.effectType = Minimap.EffectType.Damage;
                 damageGlassEffectInstance.effectTexture = singleTexture;
                 damageGlassEffectInstance.textureName = "damage1.png";
@@ -300,7 +297,7 @@ namespace Minimap
         void Update()
         {
 
-            if (!GameManager.Instance.IsPlayingGame())
+            if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
             //always allow the effects to be enabled and disabled. This will not trigger unless there is an equipped, functioning compass.
@@ -310,7 +307,8 @@ namespace Minimap
                 Minimap.gameLoaded = false;
                 CleanUpCompass(false, false);
                 Minimap.MinimapInstance.currentEquippedCompass.currentCondition = Minimap.MinimapInstance.Amulet0Item.currentCondition;
-                LoadCompassEffects();
+                IEnumerator LoadEffectsRoutine = LoadCompassEffects();
+                StartCoroutine(LoadEffectsRoutine);
             }
 
             if (toggleEffects && !effectsOn)
@@ -363,7 +361,7 @@ namespace Minimap
             int bloodTriggerChance = (int)(bloodTriggerDifference * .5f);
             int currentBloodTextureID = 0;
             //when player healtt changes, find difference and apply blood and damage effects using it.
-            if (lastHealth != GameManager.Instance.PlayerEntity.CurrentHealthPercent)
+            if (lastHealth != GameManager.Instance.PlayerEntity.CurrentHealthPercent && repairingCompass == false)
             {
                 //grab health from player and subtract it from last health amount to get the difference in damage.
                 difference = lastHealth - GameManager.Instance.PlayerEntity.CurrentHealthPercent;
@@ -380,7 +378,7 @@ namespace Minimap
 
             //BLOOD EFFECT\\
             //setup health damage blood layer effects. If players health changes run effect code.
-            if (enabledBloodEffect && bloodEffectTrigger)
+            if (enabledBloodEffect && (bloodEffectTrigger || reapplyDamageEffects))
             {
                 effectTriggered = true;
                 int randomID = Minimap.MinimapInstance.randomNumGenerator.Next(0, bloodTextureDict.Count - 1);
@@ -462,7 +460,7 @@ namespace Minimap
                 //set clean glass if compass is above 80% of health. Else, begin damage glass update routine.
                 if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 81)
                 {
-                    Minimap.minimapEffects.damageGlassEffectInstance.newEffect.SetActive(false);
+                    damageGlassEffectInstance.newEffect.SetActive(false);
                     Minimap.MinimapInstance.publicCompassGlass.SetActive(true);
                     maxMagicRips = 0;
                 }
@@ -470,44 +468,44 @@ namespace Minimap
                 {
                     if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 80 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 61)
                     {
-                        Debug.Log("LOADING DAMAGE EFFECT: " + Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage);
                         if (enableMagicTearEffect)
                             maxMagicRips =  Minimap.MinimapInstance.randomNumGenerator.Next(1, 2);
 
-                        Minimap.minimapEffects.damageGlassEffectInstance.textureName= "damage1.png";
-                        Minimap.minimapEffects.damageGlassEffectInstance.effectTexture = damageTextureDict["damage1.png"];
-                        Minimap.minimapEffects.damageGlassEffectInstance.newEffect.SetActive(true);
+                        damageGlassEffectInstance.textureName= "damage1.png";
+                        damageGlassEffectInstance.effectTexture = damageTextureDict["damage1.png"];
+                        damageGlassEffectInstance.textureColor = new Color(1, 1, 1, Minimap.minimapControls.alphaValue * 1);
+                        damageGlassEffectInstance.newEffect.SetActive(true);
                         Minimap.MinimapInstance.publicCompassGlass.SetActive(true); 
                     }
                     else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 60 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 41 && Minimap.MinimapInstance.glassRawImage.texture != damageTextureDict["damage2.png"])
                     {
                         if (enableMagicTearEffect)
                             maxMagicRips =  Minimap.MinimapInstance.randomNumGenerator.Next(3, 4);
-
-                        Minimap.minimapEffects.damageGlassEffectInstance.textureName = "damage2.png";
-                        Minimap.minimapEffects.damageGlassEffectInstance.effectTexture = damageTextureDict["damage2.png"];
+                        damageGlassEffectInstance.textureName = "damage2.png";
+                        damageGlassEffectInstance.effectTexture = damageTextureDict["damage2.png"];
+                        damageGlassEffectInstance.textureColor = new Color(.65f, .65f, .65f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency);
                         Minimap.MinimapInstance.publicCompassGlass.SetActive(false);
-                        Minimap.minimapEffects.damageGlassEffectInstance.newEffect.SetActive(true);
+                        damageGlassEffectInstance.newEffect.SetActive(true);
                     }
                     else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 40 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 21 && Minimap.MinimapInstance.glassRawImage.texture != damageTextureDict["damage3.png"])
                     {
                         if (enableMagicTearEffect)
                             maxMagicRips =  Minimap.MinimapInstance.randomNumGenerator.Next(5, 6);
-
-                        Minimap.minimapEffects.damageGlassEffectInstance.textureName = "damage3.png";
-                        Minimap.minimapEffects.damageGlassEffectInstance.effectTexture = damageTextureDict["damage3.png"];
+                        damageGlassEffectInstance.textureColor = new Color(.65f, .65f, .65f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency);
+                        damageGlassEffectInstance.textureName = "damage3.png";
+                        damageGlassEffectInstance.effectTexture = damageTextureDict["damage3.png"];
                         Minimap.MinimapInstance.publicCompassGlass.SetActive(false);
-                        Minimap.minimapEffects.damageGlassEffectInstance.newEffect.SetActive(true);
+                        damageGlassEffectInstance.newEffect.SetActive(true);
                     }
                     else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 20 && Minimap.MinimapInstance.glassRawImage.texture != damageTextureDict["damage4.png"])
                     {
                         if (enableMagicTearEffect)
                             maxMagicRips =  Minimap.MinimapInstance.randomNumGenerator.Next(7, 8);
-
-                        Minimap.minimapEffects.damageGlassEffectInstance.textureName = "damage4.png";
-                        Minimap.minimapEffects.damageGlassEffectInstance.effectTexture = damageTextureDict["damage4.png"];
+                        damageGlassEffectInstance.textureColor = new Color(.65f, .65f, .65f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency);
+                        damageGlassEffectInstance.textureName = "damage4.png";
+                        damageGlassEffectInstance.effectTexture = damageTextureDict["damage4.png"];
                         Minimap.MinimapInstance.publicCompassGlass.SetActive(false);
-                        Minimap.minimapEffects.damageGlassEffectInstance.newEffect.SetActive(true);
+                        damageGlassEffectInstance.newEffect.SetActive(true);
                     }
                 }
                 reapplyDamageEffects = false;
@@ -563,13 +561,13 @@ namespace Minimap
                     //counts up mud timer.
                     mudTimer += Time.deltaTime;
                     //sets duration before mud check is done.
-                    float mudDuration = 2;
-                    int chanceRollCheck = 3;
+                    float mudDuration = mudLoopTimer;
+                    int chanceRollCheck = 2;
                     //adjusts for seasons.
                     if (playerSeason == DaggerfallDateTime.Seasons.Winter)
                     {
                         mudDuration = mudDuration * 2f;
-                        chanceRollCheck = 2;
+                        chanceRollCheck = 3;
                     }
                     if (playerSeason == DaggerfallDateTime.Seasons.Fall)
                     {
@@ -582,7 +580,7 @@ namespace Minimap
                         chanceRollCheck = 4;
                     }
                     //once timer and chance are trigger, apply mud effect.
-                    if (mudTimer > mudDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) < chanceRollCheck)
+                    if (mudTimer > mudDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) > chanceRollCheck)
                     {
                         effectTriggered = true;
                         mudTimer = 0;
@@ -651,30 +649,30 @@ namespace Minimap
                 if (dirtEffectTrigger || (!GameManager.Instance.PlayerMotor.IsStandingStill && (!GameManager.Instance.IsPlayerInsideBuilding && !GameManager.Instance.IsPlayerInsideCastle && GameManager.Instance.IsPlayerInsideDungeon)))
                 {
                     dirtEffectTrigger = false;
-                    float dirtDuration = 2;
-                    int chanceRollCheck = 3;
+                    float dirtDuration = dirtLoopTimer;
+                    int chanceRollCheck = 5;
                     if (!GameManager.Instance.IsPlayerInside)
                     {
                         if (playerSeason == DaggerfallDateTime.Seasons.Winter)
                         {
-                            dirtDuration = dirtDuration * 4f;
-                            chanceRollCheck = 2;
+                            dirtDuration = dirtDuration * 3f;
+                            chanceRollCheck = 3;
                         }
                         if (playerSeason == DaggerfallDateTime.Seasons.Fall)
                         {
-                            dirtDuration = dirtDuration * .75f;
+                            dirtDuration = dirtDuration * .7f;
                             chanceRollCheck = 4;
                         }
                         if (playerSeason == DaggerfallDateTime.Seasons.Spring)
                         {
-                            dirtDuration = dirtDuration * 1.5f;
+                            dirtDuration = dirtDuration * .8f;
                             chanceRollCheck = 4;
                         }
                     }
 
                     dirtTimer += Time.deltaTime;
 
-                    if (dirtTimer > dirtDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) < chanceRollCheck)
+                    if (dirtTimer > dirtDuration &&  Minimap.MinimapInstance.randomNumGenerator.Next(0, 9) > chanceRollCheck)
                     {
                         effectTriggered = true;
 
@@ -802,22 +800,13 @@ namespace Minimap
             return true;
         }
 
-        public bool LoadCompassEffects()
+        public IEnumerator LoadCompassEffects()
         {
             //if the dictionary contains blood effects for the compass, load the saved dictionary effect instances to the list.
             if (compassBloodDictionary != null && compassBloodDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
             {
-                foreach(var savedEffect in compassBloodDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
+                foreach (var savedEffect in compassBloodDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
                 {
-                    bool foundTexture = false;
-                    foreach (string textureName in bloodTextureDict.Keys)
-                    {
-                        if (textureName == savedEffect.textureName)
-                            foundTexture = true;
-                        else
-                            ;
-                    }
-
                     //adds a new blood effect to compass on load.
                     BloodEffect effectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<BloodEffect>();
                     //sets proper layer on compass based on compass damage/health.
@@ -837,6 +826,7 @@ namespace Minimap
                     effectInstance.effectTimer = savedEffect.effectTimer;
                     //adds the loaded affect to the effect list.
                     bloodEffectList.Add(effectInstance);
+                    yield return new WaitForEndOfFrame();
                 }
             }
 
@@ -866,6 +856,7 @@ namespace Minimap
                     effectInstance.effectTimer = savedEffect.effectTimer;
                     //adds the loaded affect to the effect list.
                     dirtEffectList.Add(effectInstance);
+                    yield return new WaitForEndOfFrame();
                 }
             }
 
@@ -875,7 +866,6 @@ namespace Minimap
                 //if the dictionary contains mud effects for the compass, load the saved dictionary effect instances to the list.
                 foreach (var savedEffect in compassMudDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
                 {
-
                     //adds a new blood effect to compass on load.
                     MudEffect effectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<MudEffect>();
                     //sets proper layer on compass based on compass damage/health.
@@ -895,6 +885,7 @@ namespace Minimap
                     effectInstance.effectTimer = savedEffect.effectTimer;
                     //adds the loaded affect to the effect list.
                     mudEffectList.Add(effectInstance);
+                    yield return new WaitForEndOfFrame();
                 }
             }
 
@@ -918,7 +909,6 @@ namespace Minimap
             Minimap.repairCompassInstance.screwEffect.transform.SetAsLastSibling();
 
             totalEffects = maxMagicRips + mudEffectList.Count + dirtEffectList.Count + bloodEffectList.Count;
-            return true;
         }
 
 

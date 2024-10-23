@@ -10,6 +10,8 @@ namespace Minimap
         // Update is called once per frame
         void Update()
         {
+            if (!Minimap.MinimapInstance.minimapActive)
+                return;
             gameObject.transform.RotateAround(gameObject.transform.position, new Vector3(0, 1, 0), lastRotation);
         }
     }
