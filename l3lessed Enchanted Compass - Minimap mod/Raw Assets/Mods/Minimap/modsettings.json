@@ -2,6 +2,21 @@
     "Version": null,
     "Sections": [
         {
+            "Name": "GeneralSettings",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": true,
+                    "Name": "ForceCompassGeneration",
+                    "Description": null,
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        },
+        {
             "Name": "CompassKeys",
             "Description": "Setup smart control keys",
             "IsAdvanced": false,
@@ -148,6 +163,13 @@
                     "Description": "What frame interval at 60 fps should the effects update. Higher numbers = better performance, but the choppier effect is.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                },
+                {
+                    "Value": false,
+                    "Name": "RealisticViewMap",
+                    "Description": null,
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }
             ],
             "$version": "v1"
@@ -187,7 +209,7 @@
                 {
                     "Min": 0.0,
                     "Max": 600.0,
-                    "Value": 120.0,
+                    "Value": 5.0,
                     "Name": "DirtLoopTimer",
                     "Description": "How many seconds for random dirt check on your compass? Seasons, climates, & weather affect this.",
                     "$version": "v1",

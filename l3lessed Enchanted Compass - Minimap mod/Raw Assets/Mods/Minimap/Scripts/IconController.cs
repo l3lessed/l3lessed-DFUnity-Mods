@@ -11,14 +11,20 @@ namespace Minimap
         private Material iconMaterials;
         private Renderer iconRenderer;
         private float savedSize;
-        public Minimap.MarkerGroups buildingtype;
+        public int buildingtype;
         public static bool UpdateIcon;
 
         void Start()
         {
+            if(gameObject == null)
+            {
+                Destroy(gameObject);
+                Destroy(this);
+            }
+
             iconMaterials = gameObject.GetComponent<MeshRenderer>().material;
             iconRenderer = gameObject.GetComponent<Renderer>();
-            savedSize = Minimap.iconSizes[buildingtype];
+            savedSize = Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype];
             currentSize = iconMaterials.GetFloat("_LineLength");
 
             if (savedSize != currentSize)
@@ -43,13 +49,15 @@ namespace Minimap
                 //updates rotation for each icon, if they are existing.
                 iconMaterials.SetFloat("_Rotation", lastRotation);
             }
+            UnityEngine.Debug.Log("ATTEMPTING ICON UPDATE: " + Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype]);
 
             if (UpdateIcon)
             {
+                UnityEngine.Debug.Log("UPDATED ICON UPDATE: " + Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype]);
                 if (Minimap.minimapControls.smartViewActive)
                 {
                     if (Minimap.minimapControls.iconsActive)
-                        iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[buildingtype];
+                        iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype];
                     else
                         iconRenderer.forceRenderingOff = true;
                 }
@@ -61,7 +69,7 @@ namespace Minimap
                     if (iconMaterials.GetFloat("_Spacing") != 0)
                         iconMaterials.SetFloat("_Spacing", 0);
 
-                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[buildingtype] + 1) / 2));
+                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
                 }
                 else if (!Minimap.minimapControls.smartViewActive)
                 {
@@ -72,12 +80,10 @@ namespace Minimap
                     }
                     else if (!Minimap.minimapControls.labelsActive && Minimap.minimapControls.iconsActive)
                     {
-                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[buildingtype] + 1) / 2));
+                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
                         iconMaterials.SetFloat("_Spacing", 0);
                     }
                 }
-
-                UpdateIcon = false;
             }
         }
     }

@@ -35,6 +35,11 @@ namespace Minimap
                 confirmBox.Show();
                 return false;
             }
+            Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 52;
+            //if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
+                //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 0;
+            //else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 51)
+                //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 51;
 
             if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)
             {
@@ -43,8 +48,8 @@ namespace Minimap
                 if (EffectManager.compassDirty)
                     EffectManager.cleaningCompass = true;
 
+                EffectManager.CompassState = 0;
                 EffectManager.repairingCompass = true;
-                Minimap.MinimapInstance.minimapActive = false;
             }
             else
             {

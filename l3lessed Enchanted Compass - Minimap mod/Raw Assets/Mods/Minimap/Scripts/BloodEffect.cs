@@ -6,36 +6,40 @@ namespace Minimap
 {
     public class BloodEffect : MonoBehaviour
     {
-        private float effectTimer;
+        public float effectTimer;
         public  float randomEffectDuration;
 
         public int textureID;
-        public Minimap.EffectType effectType = new Minimap.EffectType();
+        public string textureName;
+        public Minimap.EffectType effectType;
         public int siblingIndex = 0;
         public Texture2D effectTexture;
-        public GameObject newEffect;
+        public GameObject newEffect { get; private set; }
         private float dripSpeed;
-        public Color textureColor = new Color(1,1,1,1);
-        private Vector2 randomPosition;
-        private Vector2 currentAnchorPosition;
+        public Color textureColor = new Color(1, 1, 1, 1);
 
-        public RectTransform effectRectTransform { get; private set; }
+        public Vector2 randomPosition;
+        public Vector2 currentAnchorPosition;
+
+        public RectTransform effectRectTransform;
         public RawImage effectRawImage { get; private set; }
 
         private float random;
-        private int randomScale;
-        private float updateTimer;
-        private float dripMovement;
-        private int lastSiblingIndex;
+        public int randomScale;
+        public float updateTimer;
+        public float dripMovement { get; private set; }
+        public int lastSiblingIndex { get; private set; }
 
         void Start()
         {
-            randomPosition = new Vector2( Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128),  Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128));
-            currentAnchorPosition = randomPosition;
-            random = Random.Range(.5f, 1f);
-            randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next((int)(Minimap.MinimapInstance.minimapSize * random), (int)Minimap.MinimapInstance.minimapSize);
+            if (currentAnchorPosition == new Vector2(0,0))
+                currentAnchorPosition = new Vector2(Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128), Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128));
 
-            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, string.Concat("Blood Effect", textureID), false, false, true, true, false, 1, 1, randomScale, randomScale, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
+            random = Random.Range(.5f, 1f);
+            if(randomScale == 0)
+                randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next((int)(Minimap.MinimapInstance.minimapSize * random), (int)Minimap.MinimapInstance.minimapSize);
+
+            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, textureName, false, false, true, true, false, 1, 1, randomScale, randomScale, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);
             newEffect.GetComponent<RawImage>().GetComponent<RectTransform>().localScale = new Vector3(1f, 1f, 0);
@@ -46,12 +50,16 @@ namespace Minimap
             effectRectTransform.localPosition = randomPosition;
             effectRectTransform.sizeDelta = new Vector2(randomScale, randomScale);
 
-            randomEffectDuration =  Minimap.MinimapInstance.randomNumGenerator.Next(8, 16);
+            if(randomEffectDuration == 0)
+                randomEffectDuration =  Minimap.MinimapInstance.randomNumGenerator.Next(8, 16);
+
             dripSpeed =  Random.Range(2, Minimap.MinimapInstance.dripSpeed);
         }
 
         void Update()
         {
+            effectRectTransform.localPosition = currentAnchorPosition;
+
             if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
                 return;
 
@@ -62,12 +70,15 @@ namespace Minimap
                 Minimap.MinimapInstance.publicQuestBearing.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1);
                 Minimap.MinimapInstance.publicDirections.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1);
                 Minimap.MinimapInstance.publicCompassGlass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 2);
-                Minimap.MinimapInstance.publicCompass.transform.SetAsLastSibling();
+                Minimap.MinimapInstance.publicCompass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimap.transform.GetSiblingIndex() + 1);
+                Minimap.repairCompassInstance.screwEffect.transform.SetAsLastSibling();
                 lastSiblingIndex = siblingIndex;
-            }                
+            }
 
-            if(effectTimer < randomEffectDuration)
+            if (effectTimer < randomEffectDuration)
                 effectTimer += Time.deltaTime;
+            else
+                return;
 
             if ((effectTimer < randomEffectDuration || effectRectTransform.localPosition.y > -130) && effectTimer > updateTimer + Minimap.MinimapInstance.fpsUpdateInterval)
             {
@@ -77,7 +88,6 @@ namespace Minimap
                 float lerpDrip = Mathf.Lerp(Minimap.MinimapInstance.dripSpeed, 0, effectTimer/ randomEffectDuration);
 
                 currentAnchorPosition = new Vector2(effectRectTransform.localPosition.x, effectRectTransform.localPosition.y - (lerpDrip * Time.deltaTime));
-                effectRectTransform.localPosition = currentAnchorPosition;
             }
 
             if (!GameManager.Instance.IsPlayerInside && GameManager.Instance.WeatherManager.IsRaining)
@@ -86,7 +96,6 @@ namespace Minimap
                 {
                     effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(1, 0, effectTimer / randomEffectDuration));
                     currentAnchorPosition = new Vector2(effectRectTransform.localPosition.x, effectRectTransform.localPosition.y - (dripMovement * 1.5f));
-                    effectRectTransform.localPosition = currentAnchorPosition;
                 }
                 else
                 {

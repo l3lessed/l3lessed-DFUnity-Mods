@@ -14,11 +14,12 @@ using Wenzil.Console;
 using TMPro;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Utility;
-using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallConnect.Utility;
 
 namespace Minimap
 {
+  
+
     #region saveDataClass
     [FullSerializer.fsObject("v1")]
     public class MyModSaveData
@@ -28,10 +29,10 @@ namespace Minimap
         public Dictionary<Minimap.MarkerGroups, bool> IconGroupActive = new Dictionary<Minimap.MarkerGroups, bool>();
         public Dictionary<Minimap.MarkerGroups, bool> NpcFlatActive = new Dictionary<Minimap.MarkerGroups, bool>();
         public Dictionary<Minimap.MarkerGroups, float> IconSizes = new Dictionary<Minimap.MarkerGroups, float>();
-        public Dictionary<ulong, List<int>> CompassBloodDictionary = new Dictionary<ulong, List<int>>();
-        public Dictionary<ulong, List<int>> CompassDirtDictionary = new Dictionary<ulong, List<int>>();
-        public Dictionary<ulong, List<int>> CompassDamageDictionary = new Dictionary<ulong, List<int>>();
-        public Dictionary<ulong, List<int>> CompassMudDictionary = new Dictionary<ulong, List<int>>();
+        public Dictionary<ulong, List<BloodEffect>> CompassBloodDictionary = new Dictionary<ulong, List<BloodEffect>>();
+        public Dictionary<ulong, List<DirtEffect>> CompassDirtDictionary = new Dictionary<ulong, List<DirtEffect>>();
+        public Dictionary<ulong, List<string>> CompassDamageDictionary = new Dictionary<ulong, List<string>>();
+        public Dictionary<ulong, List<MudEffect>> CompassMudDictionary = new Dictionary<ulong, List<MudEffect>>();
         public Dictionary<ulong, int> CompassMagicDictionary = new Dictionary<ulong, int>();
         public Dictionary<ulong, float> CompassDustDictionary = new Dictionary<ulong, float>();
         public DaggerfallUnityItem EnchantedCompass = new DaggerfallUnityItem();
@@ -75,10 +76,10 @@ namespace Minimap
                 IconGroupActive = new Dictionary<MarkerGroups, bool>(),
                 NpcFlatActive = new Dictionary<MarkerGroups, bool>(),
                 IconSizes = new Dictionary<MarkerGroups, float>(),
-                CompassBloodDictionary = new Dictionary<ulong, List<int>>(),
-                CompassDirtDictionary = new Dictionary<ulong, List<int>>(),
-                CompassDamageDictionary = new Dictionary<ulong, List<int>>(),
-                CompassMudDictionary = new Dictionary<ulong, List<int>>(),
+                CompassBloodDictionary = new Dictionary<ulong, List<BloodEffect>>(),
+                CompassDirtDictionary = new Dictionary<ulong, List<DirtEffect>>(),
+                CompassDamageDictionary = new Dictionary<ulong, List<string>>(),
+                CompassMudDictionary = new Dictionary<ulong, List<MudEffect>>(),
                 CompassMagicDictionary = new Dictionary<ulong, int>(),
                 CompassDustDictionary = new Dictionary<ulong, float>(),
                 EnchantedCompass = null,
@@ -332,6 +333,14 @@ namespace Minimap
             MinimapInputManagerObject.transform.SetParent(minimapObject.transform);
             MinimapInputManager = MinimapInputManagerObject.AddComponent<SmartKeyManager>();
 
+            ragCleaningObject = new GameObject("Rag Manager");
+            ragCleaningObject.transform.SetParent(minimapObject.transform);
+            ragCleaningInstance = ragCleaningObject.AddComponent<RagClean>();
+
+            repairCompassObject = new GameObject("Rag Manager");
+            repairCompassObject.transform.SetParent(minimapObject.transform);
+            repairCompassInstance = repairCompassObject.AddComponent<RepairController>();
+
             //initiates mod paramaters for class/script.
             mod = initParams.Mod;
             //initates mod settings
@@ -370,6 +379,10 @@ namespace Minimap
         public static BuildingManager minimapBuildingManager { get; private set; }
         public static GameObject MinimapInputManagerObject { get; private set; }
         public static SmartKeyManager MinimapInputManager { get; private set; }
+        public static GameObject ragCleaningObject { get; private set; }
+        public static RagClean ragCleaningInstance { get; private set; }
+        public static GameObject repairCompassObject { get; private set; }
+        public static RepairController repairCompassInstance { get; private set; }
 
         Color[] colorArray = new Color[3];
 
@@ -381,6 +394,8 @@ namespace Minimap
 
         //random number generator.
         public System.Random randomNumGenerator = new System.Random();
+
+        private LayerMask AutomapLayer;
 
         //general parent objects for calling and storing.
         public static NPCMarker npcMarkerInstance;
@@ -404,6 +419,8 @@ namespace Minimap
 
         //daggerfall unity items.
         public DaggerfallUnityItem Amulet0Item { get; private set; }
+        public DaggerfallUnityItem Amulet1Item { get; private set; }
+
         public DaggerfallUnityItem currentEquippedCompass;
         private DaggerfallUnityItem cutGlass;
         private DaggerfallUnityItem permCompass;
@@ -481,6 +498,10 @@ namespace Minimap
         public float glassTransperency = .3f;
         public float lastHealth;
         public float compassHealth;
+
+        public int compassPerc;
+        public int compassHealthMax;
+        public int compassHitPoints;
         private float lastMinimapSize;
         public float minimapPositionX = .6f;
         public float minimapPositionY = .67f;
@@ -533,8 +554,7 @@ namespace Minimap
         public RectTransform minimapRenderRectTransform;
         public RectTransform minimapGoldCompassRectTransform;
         public RectTransform minimapDirectionsRectTransform;
-        private RectTransform minimapGlassRectTransform;
-        private RectTransform minimapBloodRectTransform;
+        public RectTransform minimapGlassRectTransform;
         public RectTransform minimapQuestRectTransform;
         public RectTransform canvasScreenSpaceRectTransform;
 
@@ -620,10 +640,9 @@ namespace Minimap
         };
         private float autoMapTimer;
         private bool setPermCompass;
-
-        [SerializeField]
+        public int currentPositionUID;
+        public int generatedPositionUID;
         #endregion
-
         #region enums
         //sets up marker groups to assign each marker type. This is crucial for seperating and controlling each indicator types appearance and use.
         //technically, you can add to this enum, add to the individual dictionary's, and construct your own marker group to assign to specific objects/npcs.
@@ -808,6 +827,7 @@ namespace Minimap
             //zeros out bearings canvas position so it centers on its parent canvas layer.
             publicDirections.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             publicCompassGlass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
+            publicCompassGlass.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
             //zeros out rendering canvas position so it centers on its parent canvas layer.
             publicMinimapRender.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             //sets the golden compass canvas to the proper screen position on the main screen space layer so it sits right on top of the rendreing canvas.
@@ -815,11 +835,13 @@ namespace Minimap
             //assign the camera view and the render texture output.
             minimapCamera.targetTexture = minimapTexture;
 
+            AutomapLayer = LayerMask.NameToLayer("Automap");
+
             //setup the minimap material for indicator meshes.
             buildingMarkerMaterial = minimapMaterial[0];
             iconMarkerMaterial = minimapMaterial[1];
-            playerArrowMaterial = minimapMaterial[2];
-            labelMaterial = minimapMaterial[3];
+            playerArrowMaterial = minimapMaterial[3];
+            labelMaterial = minimapMaterial[2];
 
             //grab the mask and canvas layer rect transforms of the minimap object.
             minimapRectTransform = publicMinimap.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
@@ -849,14 +871,14 @@ namespace Minimap
             }
             //sets up a new layer mask to assign to minimap Camera.
             minimapLayerMaskOutside = (1 << LayerMask.NameToLayer("Default")) | (1 << 31) | (1 << LayerMask.NameToLayer("Enemies")) | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water"));
-            minimapLayerMaskInside = (1 << LayerMask.NameToLayer("Enemies")) | (1 << 31)  | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water")) | (1 << LayerMask.NameToLayer("Automap"));
+            minimapLayerMaskInside = (1 << LayerMask.NameToLayer("Enemies")) | (1 << 31)  | (1 << LayerMask.NameToLayer("SpellMissiles")) | (1 << LayerMask.NameToLayer("BankPurchase")) | (1 << LayerMask.NameToLayer("Water")) | (1 << LayerMask.NameToLayer("Automap") | (1 << LayerMask.NameToLayer("PostProcessing")));
             //assigns minimap layer mask for proper camera object rendering.
             minimapCamera.cullingMask = minimapLayerMaskOutside;
             //removes games automap layer so it doesn't show on minimap
             minimapCamera.cullingMask = minimapCamera.cullingMask ^ (1 << 10);
             //removes minimap layer from main camera to ensure it doesn't show minimap objects.
             GameManager.Instance.MainCamera.cullingMask = GameManager.Instance.MainCamera.cullingMask ^ (1 << 31);
-            minimapCamera.renderingPath = RenderingPath.VertexLit;
+            minimapCamera.renderingPath = RenderingPath.DeferredShading;
 
             //setup all properties for mouse over icon obect. Will be used below when player drags mouse over icons in full screen mode.
             if (!mouseOverIcon)
@@ -900,8 +922,7 @@ namespace Minimap
 
             //checks if player doesn't want equippable compass. If so, check to see if a permanent compass has been created.
             //if not, create one, so the player still has full compass effects and features, without needing to equip the item
-            //This compass is hidden from the player, but is required so compass effects can work.
-
+            //This compass is hidden from the player, but is required so compass effects can work
 
             minimapControls.updateMinimapUI();
         }
@@ -918,8 +939,7 @@ namespace Minimap
             {
                 minimapActive = false;
                 return;
-            }         
-
+            }
             //UnityEngine.Profiling.Profiler.BeginSample("Minimap Updates");
 
             //set main compass objects to the compass state selected.
@@ -934,13 +954,13 @@ namespace Minimap
             }
 
             //toggle the minimap on/off when player presses toggle button.
-            if (minimapToggle && MinimapInputManager.DblePress)
+            if (minimapToggle && SmartKeyManager.Key3Press)
                 minimapToggle = false;
-            else if (MinimapInputManager.DblePress)
+            else if (SmartKeyManager.Key3Press)
                 minimapToggle = true;
 
             //check to see if minimap should be disabled. Also, if the player was in the start menu, tell mod they aren't anymore for code to run properly.
-            if (!minimapToggle || !GameManager.HasInstance | GameManager.Instance.SaveLoadManager.LoadInProgress || onstartMenu || !GameManager.Instance.IsPlayerOnHUD || EffectManager.repairingCompass || EffectManager.cleaningCompass)
+            if (!minimapToggle || !GameManager.HasInstance | GameManager.Instance.SaveLoadManager.LoadInProgress || onstartMenu || !GameManager.Instance.IsPlayerOnHUD)
             {
                 onstartMenu = false;
                 minimapActive = false;
@@ -958,7 +978,7 @@ namespace Minimap
                 permCompass = ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex);
 
                 if (equippableCompass)
-                    GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemMagicalCompass.templateIndex));
+                    GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex));
 
                 if (minimapEffects.enableDamageEffect)
                 {
@@ -978,67 +998,66 @@ namespace Minimap
             {
                 //default to false, so when the compass is changed to a new one, it updates everything only once.
                 changedCompass = false;
-                bool Amulet0Changed = false;
 
                 //if the equipped amulet isn't null, check to see if it has changed, and if so, update the item.               
-                if (Amulet0Item != null && Amulet0Item.UID != lastAmuletID)
+                if (!GameManager.Instance.PlayerEntity.ItemEquipTable.IsSlotOpen(EquipSlots.Amulet0) || !GameManager.Instance.PlayerEntity.ItemEquipTable.IsSlotOpen(EquipSlots.Amulet1))
                 {
-                    Amulet0Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0);
-                    lastCompassCondition = 0;
-                    lastAmuletID = Amulet0Item.UID;
-                    //if there is a equipped item in compass slot loaded and its a magical compass, then.
-                    if (equippableCompass && Amulet0Item != null && Amulet0Item.TemplateIndex == 720)
+                    //if the current temp amulaet item is empty or the equipped amulet is longer equipped, then
+                    if(Amulet0Item == null || !GameManager.Instance.PlayerEntity.ItemEquipTable.IsEquipped(Amulet0Item))
+                        //reassign equipped amulet to holder object for use in code.
+                        Amulet0Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0);
+
+                    if (Amulet1Item == null || !GameManager.Instance.PlayerEntity.ItemEquipTable.IsEquipped(Amulet1Item))
+                        //reassign equipped amulet to holder object for use in code.
+                        Amulet1Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet1);
+
+                    //if there is a equipped item in compass slot loaded and its a newly equipped magical compass, then.
+                    if ((Amulet0Item != null && Amulet0Item.TemplateIndex == 720 && Amulet0Item.UID != lastAmuletID) || (Amulet1Item != null && Amulet1Item.TemplateIndex == 720 && Amulet1Item.UID != lastAmuletID))
                     {
                         //assign current compass.
-                        currentEquippedCompass = Amulet0Item;
-                        //activate minimap.
-                        changedCompass = true;
+                        if (currentEquippedCompass != null)
+                            lastCompassCondition = currentEquippedCompass.currentCondition;
+                        //change the currently equippped compass for the newly equipped one, checking first amulet slot then second.
+                        if(Amulet0Item.TemplateIndex == 720)
+                            currentEquippedCompass = Amulet0Item;
+                        else if (Amulet1Item.TemplateIndex == 720)
+                            currentEquippedCompass = Amulet1Item;
+                        //Tell mod the compass has changed. Ensures compass specific effects load in effect manager.
+                        lastAmuletID = currentEquippedCompass.UID;
+                        if (currentEquippedCompass.currentCondition > currentEquippedCompass.ItemTemplate.hitPoints)
+                            currentEquippedCompass.currentCondition = currentEquippedCompass.maxCondition;
+
+                        lastCompassUID = lastAmuletID;
+                            changedCompass = true;
                     }
                 }
-                //if amulet is null, but the player has something equipped in the slot, load it to the amulet item for checking if compass.
-                else if (Amulet0Item == null && GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0) != null)
-                    Amulet0Item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0);
-                //if amulet is not empty, but the amulet slot is, set amulet item to null to deactivate compass.
-                else if (Amulet0Item != null && GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.Amulet0) == null)
-                    Amulet0Item = null;
 
                 //if the amulet is not equipped or not a compass, reset null out current equipped compass and turn off minimap.
-                if ((Amulet0Item == null || Amulet0Item.TemplateIndex != 720) && lastAmuletID != 0)
+                if (currentEquippedCompass != null && !currentEquippedCompass.IsEquipped)
                 {
-                    lastAmuletID = 0;
                     currentEquippedCompass = null;
                     minimapActive = false;
+                    lastAmuletID = 0;
                 }
 
                 //if a compass is equipped, the minimap is off, and the toggle is on, turn minimap on.
                 if (currentEquippedCompass != null && minimapToggle && !minimapActive)
-                {
                     minimapActive = true;
-                }
             }
             //if the player doesn't want equippable compasses, setup hidden permanent compass so they still get effects and turn on minimap.
-            else
-            {
-                if (currentEquippedCompass == null || currentEquippedCompass.UID != permCompass.UID)
-                {
-                    currentEquippedCompass = permCompass;
 
-                    if (currentEquippedCompass.currentCondition > currentEquippedCompass.ItemTemplate.hitPoints)
-                        currentEquippedCompass.currentCondition = (int)(permCompass.ItemTemplate.hitPoints * (permCompass.ConditionPercentage * .001f));
-                }                 
 
-                if (currentEquippedCompass != null && minimapToggle && !minimapActive)
-                    minimapActive = true;                
-            }
-
-            Debug.Log(permCompass.maxCondition + " " + permCompass.ItemTemplate.hitPoints + " " + currentEquippedCompass.maxCondition + " " + permCompass.ItemTemplate.hitPoints);
-
-            compassHealth = currentEquippedCompass.currentCondition;
+            //Debug.Log(permCompass.maxCondition + " " + permCompass.ItemTemplate.hitPoints + " " + currentEquippedCompass.maxCondition + " " + permCompass.ItemTemplate.hitPoints);
 
             //if compass is equipped, disabled, has a "dirty" effect, and isn't currently being cleaned, start cleaning cycle.
             //else, if compass is disabled, or game is loading or there is no compass equipped, disable compass.
             if (!minimapActive)
                 return;
+
+            compassHealth = currentEquippedCompass.currentCondition;
+            compassPerc = currentEquippedCompass.ConditionPercentage;
+            compassHealthMax = currentEquippedCompass.maxCondition;
+            compassHitPoints = currentEquippedCompass.ItemTemplate.hitPoints;
 
             if (GameManager.Instance.IsPlayerInside)
             {
@@ -1092,7 +1111,7 @@ namespace Minimap
             //}
 
 
-            if (MinimapInputManager.Key1Held)
+            if (SmartKeyManager.Key1Held)
             {
                 if (!GameManager.Instance.IsPlayerInside)
                     outsideViewSize += 3;
@@ -1100,7 +1119,7 @@ namespace Minimap
                     insideViewSize += .6f;
             }
 
-            if (MinimapInputManager.Key2Held)
+            if (SmartKeyManager.Key2Held)
             {
                 if (!GameManager.Instance.IsPlayerInside)
                     outsideViewSize -= 3;
@@ -1108,7 +1127,7 @@ namespace Minimap
                     insideViewSize -= .6f;
             }
 
-            if (MinimapInputManager.Key1DblPress)
+            if (SmartKeyManager.Key1DblPress)
             {
                 if (!fullMinimapMode)
                 {
@@ -1131,7 +1150,7 @@ namespace Minimap
                 }
             }
 
-            if (MinimapInputManager.Key2DblPress)
+            if (SmartKeyManager.Key2DblPress)
             {
                 if (!minimapControls.minimapMenuEnabled)
                 {
@@ -1158,16 +1177,36 @@ namespace Minimap
 
         private void PlayerGPS_OnMapPixelChanged(DFPosition mapPixel)
         {
+            currentPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
             if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
             {
                 //set minimap camera to outside rendering layer mask
                 minimapCamera.cullingMask = minimapLayerMaskOutside;
-                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-                locationPopulation = currentLocation.GetComponent<PopulationManager>();
 
-                //make unique location name based on in a unique location or out in a wilderness area.
-                currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                if(currentLocation != null)
+                {
+                    //make unique location name based on in a unique location or out in a wilderness area.
+                    currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                    //clear building block array holder.
+                    minimapBuildingManager.blockArray = null;
+                    minimapBuildingManager.buildingDirectory = null;
+                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+                    minimapBuildingManager.blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
+                    //grab the rmbblock objects from the location object for use.
+                    minimapBuildingManager.blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
+                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+                    minimapBuildingManager.buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
+                    //if there are buildings present in this location & minimap hasn't been generated yet, assign the unique pixel generation id, update/generate markers,
+                    //and tell system the markers are being generated to ensure proper generation order.
+                    if(minimapBuildingManager.blockArray != null && minimapBuildingManager.buildingDirectory != null && (currentPositionUID != generatedPositionUID))
+                    {
+                        generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
+                        minimapBuildingManager.UpdateMarkers();
+                        minimapBuildingManager.markersGenerated = false;
+                    }
+                }
             }
             changedLocations = true;
         }
@@ -1232,7 +1271,7 @@ namespace Minimap
         private void PlayerEnterExit_OnTransitionExterior(PlayerEnterExit.TransitionEventArgs args)
         {
             minimapCamera.renderingPath = RenderingPath.UsePlayerSettings;
-            if (minimapBuildingManager.currentPositionUID == minimapBuildingManager.generatedPositionUID && minimapBuildingManager.combinedMarkerList != null && minimapBuildingManager.combinedMarkerList.Count != 0)
+            if (currentPositionUID == generatedPositionUID && minimapBuildingManager.combinedMarkerList != null && minimapBuildingManager.combinedMarkerList.Count != 0)
             {
                 foreach (GameObject combinedMarker in minimapBuildingManager.combinedMarkerList)
                     combinedMarker.SetActive(true);
@@ -1242,7 +1281,6 @@ namespace Minimap
                 //set minimap camera to outside rendering layer mask
                 minimapCamera.cullingMask = minimapLayerMaskOutside;
                 currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-                locationPopulation = currentLocation.GetComponent<PopulationManager>();
 
                 //make unique location name based on in a unique location or out in a wilderness area.
                 currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
@@ -1261,10 +1299,16 @@ namespace Minimap
             float nearestDistance = float.MaxValue;
             foreach (RaycastHit hit in hits)
             {
-                if ((hit.distance < nearestDistance) && (!hit.collider.gameObject.GetComponent<MeshRenderer>().enabled))
+                //checks if raycast hit an automap layer, is within distance, and hasn't been enabled for rendering yet, and assigns rayhit if meets automap criteria.
+                //If not, return no hitcast.
+                if (hit.transform.gameObject.layer == AutomapLayer && (hit.distance < nearestDistance) && (!hit.collider.gameObject.GetComponent<MeshRenderer>().enabled))
                 {
                     nearestHit = hit;
                     nearestDistance = hit.distance;
+                }
+                else
+                {
+                    nearestHit = null;
                 }
             }
         }
@@ -1289,7 +1333,9 @@ namespace Minimap
                     automap = GameManager.Instance.InteriorAutomap;
 
                     if (dungeonObject == null)
+                    {
                         dungeonObject = GameManager.Instance.InteriorAutomap.transform.Find("GeometryAutomap (Dungeon)").gameObject;
+                    }                       
 
                     //if the object holder is not active, do...
                     if (!dungeonObject.activeSelf)
@@ -1310,7 +1356,6 @@ namespace Minimap
                         //grab mesh as game object.
                         hitObject = nearestHit.Value.transform.gameObject;
                         hitObject.transform.GetComponent<MeshRenderer>().enabled = true;
-                        hitObject.transform.GetComponent<MeshCollider>().enabled = false;
                     }
                 }
             }                            

@@ -8,20 +8,26 @@ namespace Minimap
         private float lastRotation;
         private Color meshColor;
         private Material buildingMaterials;
-        public Minimap.MarkerGroups buildingType = new Minimap.MarkerGroups();
+        public int buildingType;
 
         void Start()
         {
-           buildingMaterials = gameObject.GetComponent<MeshRenderer>().material;
+            if (gameObject == null)
+            {
+                Destroy(gameObject);
+                Destroy(this);
+            }
+
+            buildingMaterials = gameObject.GetComponent<MeshRenderer>().material;           
         }
 
             // Update is called once per frame
          void Update()
         {
-            if (GameManager.Instance.IsPlayerInside)
+            if (GameManager.Instance.IsPlayerInside || Minimap.MinimapInstance.currentEquippedCompass == null)
                 return;
 
-            if (buildingMaterials.color != Minimap.iconGroupColors[buildingType])
+            if (buildingMaterials.GetColor("_Color") != Minimap.iconGroupColors[(Minimap.MarkerGroups)buildingType])
                 updateMaterials();
         }
 
@@ -32,7 +38,7 @@ namespace Minimap
 
                 string textureName = buildingMaterials.name.Split(new char[] { ' ' })[0];
                 if (textureName == "markerMaterial")
-                    buildingMaterials.color = Minimap.iconGroupColors[buildingType];
+                    buildingMaterials.SetColor("_Color", Minimap.iconGroupColors[(Minimap.MarkerGroups)buildingType]);
         }
     }
 }

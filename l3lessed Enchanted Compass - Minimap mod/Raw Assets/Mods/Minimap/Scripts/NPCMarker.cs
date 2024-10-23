@@ -152,8 +152,14 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || Minimap.MinimapInstance.currentEquippedCompass == null)
                 return;
+
+            if (gameObject == null)
+            {
+                Destroy(gameObject);
+                Destroy(this);
+            }
 
             if (!Minimap.npcFlatActive[marker.markerType] && marker.npcMesh.material.mainTexture != Minimap.minimapNpcManager.npcDotTexture)
                 marker.npcMesh.material.mainTexture = Minimap.minimapNpcManager.npcDotTexture;

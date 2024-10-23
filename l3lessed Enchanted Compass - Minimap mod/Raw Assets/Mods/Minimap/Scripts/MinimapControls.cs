@@ -14,7 +14,7 @@ namespace Minimap
         private GUIStyle currentStyle;
         private GUIStyle currentToggleStyle;
 
-        private Texture2D compassMenu;       
+        private Texture2D compassMenu;
 
         public Rect minimapControlsRect = new Rect(20, 20, 140, 70);
 
@@ -52,7 +52,7 @@ namespace Minimap
         public bool autoRotateActive;
         public bool minimapMenuEnabled;
         public bool updateMinimap;
-        public bool fullScreenMinimap;       
+        public bool fullScreenMinimap;
         public bool questIndicatorActive;
         public bool doorIndicatorActive = true;
         public bool cameraDetectionEnabled;
@@ -62,8 +62,20 @@ namespace Minimap
         public float dragSpeed = .0165f;
         private float xAccumulator;
         private float yAccumulator;
+        public List<Rect> scrollPosList = new List<Rect>{
+         new Rect(Screen.width * .01f, Screen.height * .025f, 290, 375),
+         new Rect(Screen.width * .01f, Screen.height * .25f, 290, 375),
+         new Rect(Screen.width * .01f, Screen.height * .5f, 290, 375),
+         new Rect(Screen.width * .45f, Screen.height * .025f, 290, 375),
+         new Rect(Screen.width * .45f, Screen.height * .25f, 290, 375),
+         new Rect(Screen.width * .45f, Screen.height * .5f, 290, 375),
+         new Rect(Screen.width * .845f, Screen.height * .025f, 290, 375),
+         new Rect(Screen.width * .845f, Screen.height * .25f, 290, 375),
+         new Rect(Screen.width * .845f, Screen.height * .5f, 290, 375),
+        };
         private Vector2 dragCamera;
         public float markerSwitchSize = 80;
+        public int currentScrollPosition;
 
         private void Start()
         {
@@ -73,9 +85,18 @@ namespace Minimap
             blueValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].b;
             greenValue = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops].g;
         }
-
+        private void Update()
+        {
+            if (SmartKeyManager.Key1Press)
+            {
+                currentScrollPosition = currentScrollPosition + 1;
+                if (currentScrollPosition >= scrollPosList.Count)
+                    currentScrollPosition = 0;
+            }
+        }
         void OnGUI()
         {
+
             if (smartViewActive)
             {
                 if (Minimap.minimapCamera.orthographicSize < markerSwitchSize)
@@ -91,7 +112,7 @@ namespace Minimap
             }
 
             //if player is over minimap, minimap controls are open, and they click down mouse begin map dragging code.
-            if (Input.GetMouseButton(0) && !Minimap.MinimapInstance.fullMinimapMode && (Input.GetAxis("Mouse X") != 0 || Input.GetAxis("Mouse Y") != 0) && IsPointerOverUIElement())
+            if (Input.GetMouseButton(0) && !Minimap.MinimapInstance.fullMinimapMode && (Input.GetAxis("Mouse X") != 0 || Input.GetAxis("Mouse Y") != 0) && minimapMenuEnabled && IsPointerOverUIElement())
             {
                 float inputX = Input.GetAxis("Mouse X") * dragSpeed;
                 float inputY = Input.GetAxis("Mouse Y") * dragSpeed;
@@ -119,7 +140,7 @@ namespace Minimap
                 currentStyle.fontSize = 14;
             }
 
-            minimapControlsRect = GUI.Window(0, new Rect(Screen.width * .02f, Screen.height * .025f, 290, 375), MinimapControls, "Enchantment Adjustments", currentStyle);
+            minimapControlsRect = GUI.Window(0, scrollPosList[currentScrollPosition], MinimapControls, "Enchantment Adjustments", currentStyle);
         }
 
         // Make the contents of the window
@@ -278,6 +299,8 @@ namespace Minimap
             if(selectedIconInt >= 6 && selectedIconInt <= 8)
                 Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt] = GUI.Toggle(new Rect(135, 318, 120, 25), Minimap.npcFlatActive[(Minimap.MarkerGroups)selectedIconInt], "Scan Soul", currentToggleStyle);
 
+            if (IconController.UpdateIcon == true)
+                IconController.UpdateIcon = false;
             //assign selected color to color selector.
             colorSelector = new Color(redValue, greenValue, blueValue, blendValue);
             //check if any controls have been updated, and if so, pushed window trigger update.
@@ -292,6 +315,7 @@ namespace Minimap
 
         public void updateMinimapUI()
         {
+            UnityEngine.Debug.Log("SELECTED FOR CONTROLS: " + (Minimap.MarkerGroups)selectedIconInt);
             Minimap.iconSizes[(Minimap.MarkerGroups)selectedIconInt] = iconSize;
             Minimap.iconGroupColors[(Minimap.MarkerGroups)selectedIconInt] = colorSelector;
 

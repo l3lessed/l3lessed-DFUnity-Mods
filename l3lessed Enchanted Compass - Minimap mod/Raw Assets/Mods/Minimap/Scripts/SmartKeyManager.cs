@@ -1,3 +1,4 @@
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using System;
 using System.Collections.Generic;
@@ -18,26 +19,26 @@ namespace Minimap
         private static bool KeysPressed;
         private static Queue<int> playerInput = new Queue<int>();
 
-        public bool Key1Held { get { return key1Held; } private set { key1Held = value; } }
-        public bool key1Held;
-        public bool Key1Press { get { return key1Press; } private set { key1Press = value; } }
-        public bool key1Press;
-        public bool Key1DblPress { get { return key1DblPress; } private set { key1DblPress = value; } }
-        public bool key1DblPress;
-        public bool Key2Held { get { return key2Held; } private set { key2Held = value; } }
-        public bool key2Held;
-        public bool Key2Press { get { return key2Press; } private set { key2Press = value; } }
-        public bool key2Press;
-        public bool Key2DblPress { get { return key2DblPress; } private set { key2DblPress = value; } }
-        public bool key2DblPress;
-        public bool Key3Held { get { return key3Held; } private set { key3Held = value; } }
-        public bool key3Held;
-        public bool Key3Press { get { return key3Press; } private set { key3Press = value; } }
-        public bool key3Press;
-        public bool Key3DblPress { get { return key3DblPress; } private set { key3DblPress = value; } }
-        public bool key3DblPress;
-        public bool DblePress { get { return dblePress; } private set { dblePress = value; } }
-        private bool dblePress;
+        public static bool Key1Held { get { return key1Held; } private set { key1Held = value; } }
+        private static bool key1Held;
+        public static bool Key1Press { get { return key1Press; } private set { key1Press = value; } }
+        private static bool key1Press;
+        public static bool Key1DblPress { get { return key1DblPress; } private set { key1DblPress = value; } }
+        private static bool key1DblPress;
+        public static bool Key2Held { get { return key2Held; } private set { key2Held = value; } }
+        private static bool key2Held;
+        public static bool Key2Press { get { return key2Press; } private set { key2Press = value; } }
+        private static bool key2Press;
+        public static bool Key2DblPress { get { return key2DblPress; } private set { key2DblPress = value; } }
+        private static bool key2DblPress;
+        public static bool Key3Held { get { return key3Held; } private set { key3Held = value; } }
+        private static bool key3Held;
+        public static bool Key3Press { get { return key3Press; } private set { key3Press = value; } }
+        private static bool key3Press;
+        public static bool Key3DblPress { get { return key3DblPress; } private set { key3DblPress = value; } }
+        private static bool key3DblPress;
+        public static bool DblePress { get { return dblePress; } private set { dblePress = value; } }
+        private static bool dblePress;
         public float keyHoldDuration = .25f;
         public float dblTapInterval = .18f;
         public float heldKeyTime;
@@ -55,6 +56,10 @@ namespace Minimap
 
         private void Update()
         {
+            Key1Press = false;
+            Key2Press = false;
+            Key3Press = false;
+
             //if either attack input is press, start the system.
             if (Input.GetKeyDown(key1KeyCode) || Input.GetKeyDown(key2KeyCode) || Input.GetKeyDown(key3KeyCode))
                 KeysPressed = true;
@@ -135,10 +140,6 @@ namespace Minimap
             else
                 dblTapTime = 0;
 
-            Key1Press = false;
-            Key2Press = false;
-            Key3Press = false;
-
             if (playerInput.Count == 1 && dblTapTime >= dblTapInterval)
             {
                 if (playerInput.Contains(0))
@@ -147,9 +148,9 @@ namespace Minimap
                     Key2Press = true;
                 if (playerInput.Contains(2))
                     Key3Press = true;
-
                 dblTapTime = 0;
                 playerInput.Clear();
+                return;
             }
 
             //if the player has qued up an input routine and dblTapInterval time has passed, do...     

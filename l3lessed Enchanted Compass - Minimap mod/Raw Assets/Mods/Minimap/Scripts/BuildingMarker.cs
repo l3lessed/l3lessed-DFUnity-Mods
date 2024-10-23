@@ -48,7 +48,7 @@ namespace Minimap
                 attachedIcon = null;
                 attachedQuestIcon = null;
                 attachedDoorIcon = null;
-                doorPosition = new Vector3(0,0,0);
+                doorPosition = new Vector3(0, 0, 0);
                 buildingLocation = new DFLocation();
                 position = new Vector3();
                 iconColor = new Color();
@@ -62,7 +62,7 @@ namespace Minimap
         }
 
         // Creating an Instance (an Object) of the marker class to store and update specific object properties once initiated.
-        public Marker marker = new Marker();        
+        public Marker marker = new Marker();
         private float sizeMultiplier;
         private float lastRotation;
         private float timePass;
@@ -83,7 +83,7 @@ namespace Minimap
 
         void Update()
         {
-            if (Minimap.MinimapInstance == null || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside || !generatedMarker)
+            if (marker == null || Minimap.MinimapInstance == null || !Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside || !generatedMarker)
                 return;
 
             if (!Minimap.minimapControls.autoRotateActive)
@@ -430,7 +430,7 @@ namespace Minimap
                 if (containsRoofMesh)
                 {
                     buildingMaterials[i] = Minimap.minimapBuildingManager.buildingMaterialDict[marker.iconGroup];
-                    buildingMaterials[i].color = Minimap.iconGroupColors[marker.iconGroup];
+                    buildingMaterials[i].SetColor("_Color", Minimap.iconGroupColors[marker.iconGroup]);
                 }                    
                 else
                 {

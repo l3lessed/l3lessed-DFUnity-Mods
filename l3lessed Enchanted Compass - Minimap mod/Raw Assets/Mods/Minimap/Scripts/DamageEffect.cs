@@ -1,3 +1,4 @@
+using DaggerfallConnect.Arena2;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,6 +8,7 @@ namespace Minimap
     {
         public  float randomEffectDuration;
 
+        public string textureName;
         public int textureID;
         public Minimap.EffectType effectType = new Minimap.EffectType();
         public int siblingIndex = 0;
@@ -15,19 +17,20 @@ namespace Minimap
         public Color textureColor = new Color(.5f, .5f, .5f, .5f);
         private int lastSiblingIndex;
 
-        public RectTransform effectRectTransform { get; private set; }
-        public RawImage effectRawImage { get; private set; }
+        public RectTransform effectRectTransform;
+        public RawImage effectRawImage;
 
         void Start()
         {
-            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, string.Concat("Damage Effect", textureID), false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
+            effectTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/damage/" + textureName);
+            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Damage Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);
             newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().anchoredPosition3D = new Vector3(0, 0, 0);
             newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().localScale = new Vector3(1f, 1f, 0);
 
-            effectRectTransform = newEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
-            effectRawImage = newEffect.GetComponent<RawImage>();
+            effectRectTransform = newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>();
+            effectRawImage = newEffect.GetComponentInChildren<RawImage>();
 
             if(effectType == Minimap.EffectType.None)
                 newEffect.SetActive(false);

@@ -8,12 +8,13 @@ Shader "MinimapMod/Rotation Unlit"
         _Rotation("Rotation Total", Float) = 0
         _LineLength ("Line Length", Float) = 1
         _Spacing ("Spacing", Float) = 0
+        _Color("Color", Color) = (1,1,1,1)
     }
 
     SubShader
     {
 
-        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "IgnoreProjector" = "True" }
+        Tags {"Queue"="Overlay" "RenderType" = "Transparent" "IgnoreProjector" = "True" "ForceNoShadowCasting" = "True"}
                     
         ZWrite Off
         Blend SrcAlpha OneMinusSrcAlpha
@@ -37,6 +38,7 @@ Shader "MinimapMod/Rotation Unlit"
                 float2 uv : TEXCOORD0;
             };
 
+            float4 _Color;
             struct v2f
             {
                 float2 uv : TEXCOORD0;
@@ -53,11 +55,6 @@ Shader "MinimapMod/Rotation Unlit"
             float _Rotation;
             half _LineLength;
             half _Spacing;
-
-            UNITY_INSTANCING_BUFFER_START(Props)
-            UNITY_DEFINE_INSTANCED_PROP(fixed4, _Color) // Make _Color an instanced property (i.e. an array)
-            #define _Color_arr Props
-            UNITY_INSTANCING_BUFFER_END(Props)
 
             v2f vert(appdata v)
             {
@@ -86,7 +83,7 @@ Shader "MinimapMod/Rotation Unlit"
                     discard;
                 if(i.uv.y < .01 || i.uv.y > .99)
                     discard;
-                fixed4 col = tex2D(_MainTex, i.uv);
+                fixed4 col = tex2D(_MainTex, i.uv) * _Color;;
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;

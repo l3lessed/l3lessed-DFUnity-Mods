@@ -17,6 +17,12 @@ namespace Minimap
 
         private void Start()
         {
+            if (gameObject == null)
+            {
+                Destroy(gameObject);
+                Destroy(this);
+            }
+
             iconMaterials = gameObject.GetComponent<MeshRenderer>().material;
             iconRenderer = gameObject.GetComponent<Renderer>();
             doorSize = 1;
