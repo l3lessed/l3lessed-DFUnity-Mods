@@ -591,7 +591,7 @@ namespace Minimap
                         foreach (MudEffect mudEffectInstance in mudEffectList)
                         {
 
-                            if (mudEffectInstance.textureName == currentBloodTextureName)
+                            if (mudEffectInstance.textureName == currentMudTextureName)
                             {
                                 foreach (string texturename in mudTextureDict.Keys)
                                 {
