@@ -273,8 +273,9 @@ namespace Minimap
             labelutility.color = Color.magenta;
             //remove collider from mes.
             Destroy(marker.attachedLabel.GetComponent<Collider>());            
-            Material iconTempMat = marker.attachedIcon.GetComponent<MeshRenderer>().material;    
+            Material iconTempMat = marker.attachedIcon.GetComponent<MeshRenderer>().material;
             //Texture2D iconTexture = null;
+            Debug.Log("BUILD TYPE: " + marker.buildingSummary.BuildingType);
 
             switch (marker.buildingSummary.BuildingType)
             {
@@ -404,6 +405,8 @@ namespace Minimap
                     marker.attachedIcon.transform.localScale = new Vector3(sizeMultiplier, sizeMultiplier * 1.77f);
                     break;
             }
+
+            Debug.Log("Marker Group: " + marker.iconGroup);
 
             marker.attachedIcon.transform.localScale = new Vector3(marker.attachedIcon.transform.localScale.x * 15, marker.attachedIcon.transform.localScale.y * 15);
             marker.attachedIcon.transform.rotation = Quaternion.Euler(90, 0, 0);

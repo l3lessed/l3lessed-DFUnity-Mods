@@ -9,6 +9,7 @@ namespace Minimap
         private float currentSize;
         public Minimap.MarkerGroups iconGroup;
         private Material iconMaterials;
+        public  LabelController LabelControl;
         private Renderer iconRenderer;
         private float savedSize;
         public int buildingtype;
@@ -49,30 +50,32 @@ namespace Minimap
                 //updates rotation for each icon, if they are existing.
                 iconMaterials.SetFloat("_Rotation", lastRotation);
             }
-            UnityEngine.Debug.Log("ATTEMPTING ICON UPDATE: " + Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype]);
 
-            if (UpdateIcon)
+            if (Minimap.minimapControls.updateMinimap || UpdateIcon || SmartKeyManager.Key1Held || SmartKeyManager.Key2Held)
             {
-                UnityEngine.Debug.Log("UPDATED ICON UPDATE: " + Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype]);
+                UpdateIcon = false;
+
                 if (Minimap.minimapControls.smartViewActive)
+                {
+                    iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype];
+                    if (Minimap.minimapCamera.orthographicSize < Minimap.minimapControls.markerSwitchSize)
+                    {
+                        iconMaterials.SetFloat("_LineLength", 1.5f);
+                        iconMaterials.SetFloat("_Spacing", 1.5f);
+                    }
+                    else
+                    {
+                        iconMaterials.SetFloat("_Spacing", 0);
+                        iconMaterials.SetFloat("_LineLength", 8 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
+                    }
+                }
+                else if (!Minimap.minimapControls.smartViewActive)
                 {
                     if (Minimap.minimapControls.iconsActive)
                         iconRenderer.forceRenderingOff = !Minimap.iconGroupActive[(Minimap.MarkerGroups)buildingtype];
                     else
                         iconRenderer.forceRenderingOff = true;
-                }
-                else
-                    iconRenderer.forceRenderingOff = !Minimap.minimapControls.iconsActive;
 
-                if (Minimap.minimapControls.smartViewActive)
-                {
-                    if (iconMaterials.GetFloat("_Spacing") != 0)
-                        iconMaterials.SetFloat("_Spacing", 0);
-
-                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
-                }
-                else if (!Minimap.minimapControls.smartViewActive)
-                {
                     if (Minimap.minimapControls.labelsActive && Minimap.minimapControls.iconsActive)
                     {
                         iconMaterials.SetFloat("_LineLength", 1.5f);
@@ -80,7 +83,7 @@ namespace Minimap
                     }
                     else if (!Minimap.minimapControls.labelsActive && Minimap.minimapControls.iconsActive)
                     {
-                        iconMaterials.SetFloat("_LineLength", 10 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
+                        iconMaterials.SetFloat("_LineLength", 8 * (1.1f - (Minimap.iconSizes[(Minimap.MarkerGroups)buildingtype] + 1) / 2));
                         iconMaterials.SetFloat("_Spacing", 0);
                     }
                 }

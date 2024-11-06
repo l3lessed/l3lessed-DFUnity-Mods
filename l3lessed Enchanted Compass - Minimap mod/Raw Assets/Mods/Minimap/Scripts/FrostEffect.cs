@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Utility;
 using DaggerfallConnect.Arena2;
+using System.IO;
 
 namespace Minimap
 {
@@ -21,7 +22,7 @@ namespace Minimap
         public Color textureColor = new Color(1,1,1,1);
         public float frostTimer;
         private float lastFrostChange;
-        private float frostFadeInTime;
+        public static float frostFadeInTime;
         private float lastSize;
         private int lastSiblingIndex;
 
@@ -30,6 +31,21 @@ namespace Minimap
 
         void Start()
         {
+            Texture2D singleTexture = null;
+            byte[] fileData;
+
+            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/frost.png");
+            singleTexture = new Texture2D(2, 2);
+            singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
+
+            if (singleTexture == null)
+                return;
+
+            siblingIndex = Minimap.MinimapInstance.publicMinimap.transform.childCount;
+            textureColor = new Color(1, 1, 1, 0);
+            effectType = Minimap.EffectType.Frost;
+            effectTexture = singleTexture;
+
             newEffect = Minimap.MinimapInstance.CanvasConstructor(false,"Frost Effect Layer", false, false, true, true, false, 1, 1, 256, 256, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);
@@ -50,8 +66,7 @@ namespace Minimap
             //FROST EFFECT\\
             //set time for frost to fade in.
             float frostDuration = frostFadeInTime;
-            int playerClimateIndex = GameManager.Instance.PlayerGPS.CurrentClimateIndex;
-            DaggerfallDateTime.Seasons playerSeason = DaggerfallUnity.Instance.WorldTime.Now.SeasonValue;
+
             //cut frost time in half when snowing.
             if (GameManager.Instance.WeatherManager.IsSnowing)
                 frostDuration = frostFadeInTime * .5f;
@@ -63,32 +78,38 @@ namespace Minimap
                     bool nightTime = DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < 8;
                     float frostModifier = 1;
 
-                    if (playerSeason == DaggerfallDateTime.Seasons.Winter)
+                    if (EffectManager.playerSeason == DaggerfallDateTime.Seasons.Winter)
                     {
-                        if (playerClimateIndex == (int)MapsFile.Climates.Mountain || playerClimateIndex == (int)MapsFile.Climates.MountainWoods)
-                            frostTimer += Time.deltaTime * 1.7f;
-                        else if ((playerClimateIndex == (int)MapsFile.Climates.Desert || playerClimateIndex == (int)MapsFile.Climates.Desert2) && nightTime)
-                            frostTimer += Time.deltaTime * 1.35f;
-                        else if (playerClimateIndex == (int)MapsFile.Climates.HauntedWoodlands)
+                        if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.Mountain || EffectManager.playerClimateIndex == (int)MapsFile.Climates.MountainWoods)
+                            frostTimer += Time.deltaTime * 1.5f;
+                        else if ((EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert || EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert2) && nightTime)
+                            frostTimer += Time.deltaTime * 1.25f;
+                        else if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.HauntedWoodlands)
+                            frostTimer += Time.deltaTime * .75f;
+                        else if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.Woodlands)
+                            frostTimer += Time.deltaTime * .2f;
+                        else if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.Woodlands && nightTime)
                             frostTimer += Time.deltaTime * .5f;
                         else if (GameManager.Instance.WeatherManager.IsSnowing)
                             frostTimer += Time.deltaTime * 2f;
                     }
-                    else if (playerSeason == DaggerfallDateTime.Seasons.Fall && playerSeason == DaggerfallDateTime.Seasons.Spring)
+                    else if (EffectManager.playerSeason == DaggerfallDateTime.Seasons.Fall && EffectManager.playerSeason == DaggerfallDateTime.Seasons.Spring)
                     {
-                        if (playerClimateIndex == (int)MapsFile.Climates.Mountain && DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < 10)
-                            frostTimer += Time.deltaTime * 2;
-                        if (playerClimateIndex == (int)MapsFile.Climates.Mountain && DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < 6)
-                            frostTimer += Time.deltaTime * 1.25F;
-                        else if ((playerClimateIndex == (int)MapsFile.Climates.Desert || playerClimateIndex == (int)MapsFile.Climates.Desert2) && nightTime)
+                        if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.Mountain && DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < 6)
                             frostTimer += Time.deltaTime * 1.5f;
-                        else if (playerClimateIndex == (int)MapsFile.Climates.HauntedWoodlands && nightTime)
+                        if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.Mountain && DaggerfallUnity.Instance.WorldTime.Now.Hour > DaggerfallDateTime.DuskHour && DaggerfallUnity.Instance.WorldTime.Now.Hour < 10)
+                            frostTimer += Time.deltaTime * 1.25F;
+                        else if ((EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert || EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert2) && nightTime)
+                            frostTimer += Time.deltaTime * 1.3f;
+                        else if (EffectManager.playerClimateIndex == (int)MapsFile.Climates.HauntedWoodlands && nightTime)
                             frostTimer += Time.deltaTime * .5f;
                     }
-                    else if (playerSeason == DaggerfallDateTime.Seasons.Summer)
+                    else if (EffectManager.playerSeason == DaggerfallDateTime.Seasons.Summer)
                     {
-                        if ((playerClimateIndex == (int)MapsFile.Climates.Mountain || playerClimateIndex == (int)MapsFile.Climates.MountainWoods) && nightTime)
-                            frostTimer += Time.deltaTime * 1.5f;
+                        if ((EffectManager.playerClimateIndex == (int)MapsFile.Climates.Mountain || EffectManager.playerClimateIndex == (int)MapsFile.Climates.MountainWoods) && nightTime)
+                            frostTimer += Time.deltaTime * .3f;
+                        if ((EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert || EffectManager.playerClimateIndex == (int)MapsFile.Climates.Desert2) && nightTime)
+                            frostTimer += Time.deltaTime * .2f;
                         else if (GameManager.Instance.WeatherManager.IsSnowing)
                             frostTimer += Time.deltaTime;
                     }

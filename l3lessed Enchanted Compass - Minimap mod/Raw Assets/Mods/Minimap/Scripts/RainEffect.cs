@@ -25,34 +25,40 @@ namespace Minimap
         private float rainTimer;
         private float rainSpawnInterval = 0;
         private float randomScale;
+        private float randomWidth;
+        private float randomHeight;
         private Vector2 randomPosition;
         private Vector2 currentAnchorPosition;
+        private Vector2 rainScale;
         private float updateTimer;
         private float dripMovement;
         private int lastSiblingIndex;
+        private int rainDropRotation;
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
 
         void Start()
         {
-            randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next(10, 50) * .01f;
-            randomPosition = new Vector2( Minimap.MinimapInstance.randomNumGenerator.Next(-120, 120),  Minimap.MinimapInstance.randomNumGenerator.Next(-120, 136));
+            randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next(10, 100) * .01f;
+            randomWidth = randomScale * effectTexture.width;
+            randomHeight = randomScale * effectTexture.height;
+            randomPosition = new Vector2( Minimap.MinimapInstance.randomNumGenerator.Next(-120, 120),  Minimap.MinimapInstance.randomNumGenerator.Next(-90, 120));
             currentAnchorPosition = randomPosition;
 
-            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, string.Concat("Rain Effect", textureID), false, false, true, true, false, 1, 1, 96, 96, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
+            newEffect = Minimap.MinimapInstance.CanvasConstructor(false, string.Concat("Rain Effect", textureID), false, false, true, true, false, 1, 1, randomWidth, randomHeight, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);
 
             newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().localPosition = randomPosition;
-            newEffect.GetComponentInChildren<RawImage>().GetComponent<RectTransform>().localScale = new Vector2(randomScale, randomScale);
 
             effectRectTransform = newEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             effectRawImage = newEffect.GetComponent<RawImage>();
+            effectRawImage.color = new Color(1, 1, 1, .9f);
+            rainDropRotation = Minimap.MinimapInstance.randomNumGenerator.Next(0, 360);
+            effectRectTransform.rotation = Quaternion.Euler(0,0,Minimap.MinimapInstance.randomNumGenerator.Next(0, rainDropRotation));
 
-            dripSpeed =  Minimap.MinimapInstance.randomNumGenerator.Next(50, 60);
-            rainSpawnMax = Minimap.settings.GetValue<int>("CompassEffectSettings", "WaterDropletInterval");
-            rainSpawnMin = (int)(rainSpawnMax * .3333f);
+            dripSpeed =  Minimap.MinimapInstance.randomNumGenerator.Next(40, 60);
         }
 
         void Update()
@@ -60,61 +66,11 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
-            if (effectType == Minimap.EffectType.Rain && newEffect != null && lastSiblingIndex != siblingIndex)
+            if (newEffect != null && lastSiblingIndex != siblingIndex)
             {
                 lastSiblingIndex = siblingIndex;
                 newEffect.transform.SetSiblingIndex(siblingIndex);
             }                
-
-            if (effectType == Minimap.EffectType.None && newEffect != null)
-            {
-                siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 3;
-                if(lastSiblingIndex != siblingIndex)
-                {
-                    newEffect.transform.SetSiblingIndex(siblingIndex);
-                    lastSiblingIndex = siblingIndex;
-                }                
-                
-                //RAIN EFFECT\\
-                //if raining start rain effect code.
-                    if (!GameManager.Instance.IsPlayerInside && GameManager.Instance.WeatherManager.IsRaining || GameManager.Instance.WeatherManager.IsStorming)
-                    {
-                        //count up rain timer.
-                        rainTimer += Time.deltaTime;
-                        //if half a second to 1.5 seconds pass start rain effect.
-                        if (rainTimer > rainSpawnInterval)
-                        {
-                            rainSpawnInterval = ( Minimap.MinimapInstance.randomNumGenerator.Next(rainSpawnMin, rainSpawnMax) * .01f);
-                            //setup and call random to get random texture list #.
-                            int currentRainTextureID =  Minimap.MinimapInstance.randomNumGenerator.Next(0, EffectManager.rainTextureList.Count - 1);
-                            //setup base texture
-                            if (!newEffect.activeSelf)
-                                newEffect.SetActive(true);
-                            //check if the texture is currently being used, and it not set as new effect texture.
-
-                            //reset rain timer.
-                            rainTimer = 0;
-                            maxRainDrops = 30;
-                            //if the current effect isn't in the active effect list, create it, and add to list.
-                            if (EffectManager.rainEffectList.Count < maxRainDrops)
-                            {
-                                RainEffect effectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<RainEffect>();
-                                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 40)
-                                    effectInstance.siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() + 1;
-                                else
-                                    effectInstance.siblingIndex = Minimap.MinimapInstance.publicCompassGlass.transform.GetSiblingIndex() - 1;
-                                effectInstance.effectType = Minimap.EffectType.Rain;
-                                effectInstance.effectTexture = EffectManager.rainTextureList[currentRainTextureID];
-                                EffectManager.rainEffectList.Add(effectInstance);
-                                return;
-                             
-                            }
-                        }
-                    }
-                    else if (newEffect.activeSelf)
-                        newEffect.SetActive(false);
-                return;
-            }
 
             effectTimer += Time.deltaTime;
             dripMovement += dripSpeed * Time.deltaTime;
@@ -122,16 +78,21 @@ namespace Minimap
             if (effectTimer > updateTimer + Minimap.MinimapInstance.fpsUpdateInterval)
             {
                 updateTimer = effectTimer;
+                if ((rainDropRotation > 60 & rainDropRotation < 90) || (rainDropRotation > 210 & rainDropRotation < 270))
+                    effectRectTransform.sizeDelta = new Vector2(Mathf.Lerp(randomHeight, randomHeight * 1.5f, effectTimer * .5f), 96);
+                else
+                    effectRectTransform.sizeDelta = new Vector2(96, Mathf.Lerp(randomHeight, randomHeight * 1.5f, effectTimer * .5f));
                 currentAnchorPosition = new Vector2(effectRectTransform.localPosition.x, effectRectTransform.localPosition.y - dripMovement);
-                effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(.9f, .3f, effectTimer / (randomEffectDuration * 1.35f)));
+                effectRawImage.color = new Color(1, 1, 1, Mathf.Lerp(.9f, .3f, effectTimer));
                 effectRectTransform.localPosition = currentAnchorPosition;
                 dripMovement = 0;
+
             }
 
             if(effectRectTransform.localPosition.y < -130)
             {
                 Destroy(newEffect);
-                EffectManager.rainEffectList.RemoveAt(EffectManager.rainEffectList.IndexOf(this));
+                RainEffectController.rainEffectList.RemoveAt(RainEffectController.rainEffectList.IndexOf(this));
                 Destroy(this);
             }
         }

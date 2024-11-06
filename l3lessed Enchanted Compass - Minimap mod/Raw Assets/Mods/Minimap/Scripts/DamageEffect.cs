@@ -49,18 +49,13 @@ namespace Minimap
                 lastSiblingIndex = siblingIndex;
                 newEffect.transform.SetSiblingIndex(siblingIndex);
             }
-
-            if(textureName != lastTextureName)
-            {
-                lastTextureName = textureName;
-                effectRawImage.texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/damage/" + textureName);
-            }
         }
 
-        public void UpdateTexture(Color color, Texture2D texture, Vector3 effectScale)
+        public void UpdateTexture(string texturename,Color color, Texture2D texture, Vector3 effectScale)
         {
             if (effectRawImage != null)
             {
+                textureName = texturename;
                 effectRawImage.color = color;
                 effectRectTransform.transform.localScale = effectScale;
                 effectRawImage.texture = texture;

@@ -98,7 +98,7 @@ namespace Minimap
                 else
                 {
                     Destroy(newEffect);
-                    EffectManager.bloodEffectList.RemoveAt(EffectManager.bloodEffectList.IndexOf(this));
+                    BloodEffectController.bloodEffectList.RemoveAt(BloodEffectController.bloodEffectList.IndexOf(this));
                     Destroy(this);
                 }
             }

@@ -47,7 +47,9 @@ namespace Minimap
                 DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "You steady your hands and concentrate on repairing the compass. Don't move or you'll drop something.");
                 confirmBox.Show();
                 if (EffectManager.compassDirty)
-                    EffectManager.cleaningCompass = true;
+                {
+                    EffectManager.cleaningCompassTrigger = true;
+                }
 
                 EffectManager.CompassState = 0;
                 EffectManager.repairingCompass = true;

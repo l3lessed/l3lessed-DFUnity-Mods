@@ -139,11 +139,11 @@ namespace Minimap
                 GeneratedStartingEquipment = generatedStartingEquipment,
                 Autorotateactive = minimapControls.autoRotateActive,
                 SavedEffects = minimapEffects,
-                CompassBloodDictionary = EffectManager.compassBloodDictionary,
-                CompassDirtDictionary = EffectManager.compassDirtDictionary,
-                CompassDamageDictionary = EffectManager.compassDamageDictionary,
-                CompassMagicDictionary = EffectManager.compassMagicDictionary,
-                CompassMudDictionary = EffectManager.compassMudDictionary,
+                CompassBloodDictionary = BloodEffectController.compassBloodDictionary,
+                CompassDirtDictionary = DirtEffectController.compassDirtDictionary,
+                CompassDamageDictionary = DamageEffectController.compassDamageDictionary,
+                CompassMagicDictionary = DamageEffectController.compassMagicDictionary,
+                CompassMudDictionary = MudEffectController.compassMudDictionary,
                 CompassDustDictionary = EffectManager.compassDustDictionary,
             };
         }
@@ -183,6 +183,7 @@ namespace Minimap
             {
                 if (!iconSizes.ContainsKey(marker))
                 {
+                    Debug.Log("NO SAVED ICON SIZE");
                     iconSizes = new Dictionary<MarkerGroups, float>()
                     {
                         {MarkerGroups.Shops, 1f},
@@ -201,6 +202,7 @@ namespace Minimap
 
                 if (!npcFlatActive.ContainsKey(marker))
                 {
+                    Debug.Log("NO SAVED NPCFlat MARKER");
                     npcFlatActive = new Dictionary<MarkerGroups, bool>()
                     {
                         {MarkerGroups.Shops, false },
@@ -218,6 +220,7 @@ namespace Minimap
 
                 if (!iconGroupActive.ContainsKey(marker))
                 {
+                    Debug.Log("NO SAVED ICON MARKER");
                     iconGroupActive = new Dictionary<MarkerGroups, bool>()
                     {
                         {MarkerGroups.Shops, true },
@@ -236,6 +239,7 @@ namespace Minimap
 
                 if (!iconGroupTransperency.ContainsKey(marker))
                 {
+                    Debug.Log("NO SAVED ICON TRANSPERENCY");
                     iconGroupTransperency = new Dictionary<MarkerGroups, float>()
                     {
                         {MarkerGroups.Shops, 1 },
@@ -254,6 +258,7 @@ namespace Minimap
 
                 if (!iconGroupColors.ContainsKey(marker))
                 {
+                    Debug.Log("NO SAVED GROUP COLOR");
                     iconGroupColors = new Dictionary<MarkerGroups, Color>()
                     {
                         {MarkerGroups.Shops, new Color(1,.25f,0,1) },
@@ -293,15 +298,15 @@ namespace Minimap
             generatedStartingEquipment = myModSaveData.GeneratedStartingEquipment;
             minimapControls.autoRotateActive = myModSaveData.Autorotateactive;
             if(myModSaveData.CompassDamageDictionary != null)
-                EffectManager.compassDamageDictionary = myModSaveData.CompassDamageDictionary;
+                DamageEffectController.compassDamageDictionary = myModSaveData.CompassDamageDictionary;
             if (myModSaveData.CompassBloodDictionary != null)
-                EffectManager.compassBloodDictionary = myModSaveData.CompassBloodDictionary;
+                BloodEffectController.compassBloodDictionary = myModSaveData.CompassBloodDictionary;
             if (myModSaveData.CompassDirtDictionary != null)
-                EffectManager.compassDirtDictionary = myModSaveData.CompassDirtDictionary;
+                DirtEffectController.compassDirtDictionary = myModSaveData.CompassDirtDictionary;
             if (myModSaveData.CompassMagicDictionary != null)
-                EffectManager.compassMagicDictionary = myModSaveData.CompassMagicDictionary;
+                DamageEffectController.compassMagicDictionary = myModSaveData.CompassMagicDictionary;
             if (myModSaveData.CompassMudDictionary != null)
-                EffectManager.compassMudDictionary = myModSaveData.CompassMudDictionary;
+                MudEffectController.compassMudDictionary = myModSaveData.CompassMudDictionary;
             if (myModSaveData.CompassDustDictionary != null)
                 EffectManager.compassDustDictionary = myModSaveData.CompassDustDictionary;
         }
@@ -535,7 +540,20 @@ namespace Minimap
         public string lastLocationName;
 
         //bools
-        public bool fullMinimapMode = false;
+        private bool fullMinimapMode = false;
+        public bool FullMinimapMode
+        {
+            get { return fullMinimapMode; }
+            set
+            {
+                if (fullMinimapMode != value)
+                {
+                    fullMinimapMode = value;
+                    StartCoroutine(MinimapSize());
+                }
+            }
+        }
+
         public bool minimapActive = true;
         private bool currentLocationHasQuestMarker;
         public static bool dreamModInstalled;
@@ -646,6 +664,7 @@ namespace Minimap
         private bool setPermCompass;
         public int currentPositionUID;
         public int generatedPositionUID;
+        private bool zooming;
         #endregion
         #region enums
         //sets up marker groups to assign each marker type. This is crucial for seperating and controlling each indicator types appearance and use.
@@ -936,6 +955,11 @@ namespace Minimap
         void Start()
         {
             SetupMinimap();
+            var enumerator = Minimap.iconGroupColors.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                Debug.Log("Dictionary Key:" + enumerator.Current.Key);
+            }
         }
 
         // Update is called once per frame
@@ -960,7 +984,7 @@ namespace Minimap
             }
 
             //toggle the minimap on/off when player presses toggle button.
-            if (minimapToggle && SmartKeyManager.Key3Press)
+            if (minimapToggle && SmartKeyManager.Key3Press && !EffectManager.repairingCompass && !EffectManager.cleaningCompass)
                 minimapToggle = false;
             else if (SmartKeyManager.Key3Press)
                 minimapToggle = true;
@@ -986,7 +1010,7 @@ namespace Minimap
                 if (equippableCompass)
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex));
 
-                if (minimapEffects.enableDamageEffect)
+                if (EffectManager.enableDamageEffect)
                 {
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemCutGlass.templateIndex));
                     GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemCutGlass.templateIndex));
@@ -1079,6 +1103,37 @@ namespace Minimap
                 markerScale = new Vector3(indicatorSize, indicatorSize, indicatorSize);
             }
 
+            //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
+            if (changedLocations && !GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
+            {
+                //set minimap camera to outside rendering layer mask
+                minimapCamera.cullingMask = minimapLayerMaskOutside;
+
+                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
+                if (currentLocation != null)
+                {
+                    //make unique location name based on in a unique location or out in a wilderness area.
+                    currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                    //clear building block array holder.
+                    minimapBuildingManager.blockArray = null;
+                    minimapBuildingManager.buildingDirectory = null;
+                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+                    minimapBuildingManager.blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
+                    //grab the rmbblock objects from the location object for use.
+                    minimapBuildingManager.blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
+                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+                    minimapBuildingManager.buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
+                    //if there are buildings present in this location & minimap hasn't been generated yet, assign the unique pixel generation id, update/generate markers,
+                    //and tell system the markers are being generated to ensure proper generation order.
+                    if (minimapBuildingManager.blockArray != null && minimapBuildingManager.buildingDirectory != null && (currentPositionUID != generatedPositionUID))
+                    {
+                        generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
+                        minimapBuildingManager.UpdateMarkers();
+                        minimapBuildingManager.markersGenerated = false;
+                    }
+                }
+            }
+
             //fpsUpdateInterval = frameInterval/(1 / Time.unscaledDeltaTime);
 
             //always running to check and update player minimap camera.
@@ -1105,40 +1160,33 @@ namespace Minimap
             //UnityEngine.Profiling.Profiler.EndSample();
         }
 
-        //monitors for keypresses and uses que system to create smart input controls.
-        void MinimapControls()
+        public IEnumerator MapZoom()
         {
-            //effect toggle code.
-            //if (MinimapInputManager.Key3Press)
-            //{
-                //if (!frustrumCallingEnabled)
-                    //frustrumCallingEnabled = true;
-                //else
-                    //frustrumCallingEnabled = false;
-
-                //DaggerfallUI.Instance.PopupMessage(string.Concat("Icon frustrum calling is ", frustrumCallingEnabled));
-            //}
-
-
-            if (SmartKeyManager.Key1Held)
+            while (true)
             {
-                if (!GameManager.Instance.IsPlayerInside)
-                    outsideViewSize += 3;
-                else
-                    insideViewSize += .6f;
+                zooming = true;
+                if (SmartKeyManager.Key1Held)
+                {
+                    if (!GameManager.Instance.IsPlayerInside)
+                        outsideViewSize += 3;
+                    else
+                        insideViewSize += .6f;
+                }
+
+                if (SmartKeyManager.Key2Held)
+                {
+                    if (!GameManager.Instance.IsPlayerInside)
+                        outsideViewSize -= 3;
+                    else
+                        insideViewSize -= .6f;
+                }
+                yield return new WaitForSeconds(.2f);
             }
+        }
 
-            if (SmartKeyManager.Key2Held)
-            {
-                if (!GameManager.Instance.IsPlayerInside)
-                    outsideViewSize -= 3;
-                else
-                    insideViewSize -= .6f;
-            }
-
-            if (SmartKeyManager.Key1DblPress)
-            {
-                if (!fullMinimapMode)
+        public IEnumerator MinimapSize()
+        {
+                if (fullMinimapMode)
                 {
                     fullMinimapMode = true;
                     savedMinimapSize = minimapSize;
@@ -1149,7 +1197,7 @@ namespace Minimap
                     minimapControls.updateMinimap = true;
                     SetupMinimapLayers(true);
                 }
-                else
+                else if (!fullMinimapMode)
                 {
                     fullMinimapMode = false;
                     minimapSize = savedMinimapSize;
@@ -1159,6 +1207,37 @@ namespace Minimap
                     minimapControls.updateMinimap = true;
                     SetupMinimapLayers(true);
                 }
+
+            yield return null;
+        }
+
+        //monitors for keypresses and uses que system to create smart input controls.
+        void MinimapControls()
+        {
+            //effect toggle code.
+            //if (MinimapInputManager.Key3Press)
+            //{
+            //if (!frustrumCallingEnabled)
+            //frustrumCallingEnabled = true;
+            //else
+            //frustrumCallingEnabled = false;
+
+            //DaggerfallUI.Instance.PopupMessage(string.Concat("Icon frustrum calling is ", frustrumCallingEnabled));
+            //}
+
+            if ((SmartKeyManager.Key1Held || SmartKeyManager.Key2Held) && zooming == false)
+            {
+                StartCoroutine("MapZoom");
+            }
+            else if ((SmartKeyManager.Key1Held == false && SmartKeyManager.Key2Held == false) && zooming == true)
+            {
+                zooming = false;
+                StopCoroutine("MapZoom");
+            }
+
+            if (SmartKeyManager.Key1DblPress)
+            {
+                FullMinimapMode = ! FullMinimapMode;
             }
 
             if (SmartKeyManager.Key2DblPress)
@@ -1189,36 +1268,6 @@ namespace Minimap
         private void PlayerGPS_OnMapPixelChanged(DFPosition mapPixel)
         {
             currentPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
-            //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
-            if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
-            {
-                //set minimap camera to outside rendering layer mask
-                minimapCamera.cullingMask = minimapLayerMaskOutside;
-
-                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-                if(currentLocation != null)
-                {
-                    //make unique location name based on in a unique location or out in a wilderness area.
-                    currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
-                    //clear building block array holder.
-                    minimapBuildingManager.blockArray = null;
-                    minimapBuildingManager.buildingDirectory = null;
-                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
-                    minimapBuildingManager.blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
-                    //grab the rmbblock objects from the location object for use.
-                    minimapBuildingManager.blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
-                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
-                    minimapBuildingManager.buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
-                    //if there are buildings present in this location & minimap hasn't been generated yet, assign the unique pixel generation id, update/generate markers,
-                    //and tell system the markers are being generated to ensure proper generation order.
-                    if(minimapBuildingManager.blockArray != null && minimapBuildingManager.buildingDirectory != null && (currentPositionUID != generatedPositionUID))
-                    {
-                        generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
-                        minimapBuildingManager.UpdateMarkers();
-                        minimapBuildingManager.markersGenerated = false;
-                    }
-                }
-            }
             changedLocations = true;
         }
 
@@ -1302,8 +1351,7 @@ namespace Minimap
             //returns closes raycast hit of not enabled automap mesh layers.
         private void GetRayCastNearestHitOnAutomapLayer(out RaycastHit? nearestHit)
         {
-            Ray ray = new Ray(mainCamera.transform.position, Vector3.down);
-
+            Ray ray = new Ray(mainCamera.transform.position + new Vector3(0,2), Vector3.down);
             RaycastHit[] hits = Physics.RaycastAll(ray, 10, 1 << 10);
 
             nearestHit = null;
@@ -1312,7 +1360,7 @@ namespace Minimap
             {
                 //checks if raycast hit an automap layer, is within distance, and hasn't been enabled for rendering yet, and assigns rayhit if meets automap criteria.
                 //If not, return no hitcast.
-                if (hit.transform.gameObject.layer == AutomapLayer && (hit.distance < nearestDistance) && (!hit.collider.gameObject.GetComponent<MeshRenderer>().enabled))
+                if (hit.collider.gameObject.layer == AutomapLayer && (hit.distance < nearestDistance) && (!hit.collider.gameObject.GetComponent<MeshRenderer>().enabled))
                 {
                     nearestHit = hit;
                     nearestDistance = hit.distance;
@@ -1330,7 +1378,7 @@ namespace Minimap
             if(!GameManager.Instance.PlayerMotor.IsStandingStill)
                 autoMapTimer += Time.deltaTime;
 
-            if (autoMapTimer > .032f || !gameLoaded)
+            if (autoMapTimer > .2f || !gameLoaded)
             {
                 autoMapTimer = 0;
                 Vector3 npcMarkerScale = new Vector3(2, .01f, 2);
@@ -1365,7 +1413,7 @@ namespace Minimap
                     if (nearestHit.HasValue)
                     {
                         //grab mesh as game object.
-                        hitObject = nearestHit.Value.transform.gameObject;
+                        hitObject = nearestHit.Value.collider.gameObject;
                         hitObject.transform.GetComponent<MeshRenderer>().enabled = true;
                     }
                 }
@@ -1505,18 +1553,18 @@ namespace Minimap
                             mouseOverIconMesh.material.mainTexture = hoverTexture;
                             mouseOverIcon.transform.rotation = Quaternion.Euler(0, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 180f, 0);
                             mouseOverIcon.transform.position = hit.point;
-                            mouseOverIcon.transform.Translate(new Vector3(15f, 8f, -15f));
-                            mouseOverIcon.transform.localScale = new Vector3(minimapCamera.orthographicSize * .01f, minimapCamera.orthographicSize * .01f, minimapCamera.orthographicSize * .01f);
+                            mouseOverIcon.transform.Translate(new Vector3(5f, 8f, 5f));
+                            mouseOverIcon.transform.localScale = new Vector3(minimapCamera.orthographicSize * .0175f, minimapCamera.orthographicSize * .0175f, minimapCamera.orthographicSize * .0175f);
                             mouseOverIcon.SetActive(true);
                         }
                         //if the icon is active and player his building, pop up label on building.
                         else if (minimapControls.iconsActive && !minimapControls.labelsActive)
                         {
                             mouseOverLabel.transform.position = hit.point;
-                            mouseOverLabel.transform.Translate(new Vector3(15f, 8f, -15f));
+                            mouseOverLabel.transform.Translate(new Vector3(12f, 8f, -12f));
                             mouseOverLabel.transform.rotation = Quaternion.Euler(90f, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
 
-                            mouseOverLabel.transform.localScale = new Vector3(minimapCamera.orthographicSize * .0005f, minimapCamera.orthographicSize * .0005f, minimapCamera.orthographicSize * .0005f);
+                            mouseOverLabel.transform.localScale = new Vector3(minimapCamera.orthographicSize * .001f, minimapCamera.orthographicSize * .001f, minimapCamera.orthographicSize * .001f);
 
                             mouseOverLabel.GetComponent<TextMeshPro>().text = hoverOverBuilding.marker.dynamicBuildingName;
 
@@ -1526,21 +1574,19 @@ namespace Minimap
                         else if (!minimapControls.iconsActive && !minimapControls.labelsActive)
                         {
                             mouseOverLabel.transform.position = hit.point;
-                            mouseOverLabel.transform.Translate(new Vector3(15f, 8f, -15f));
+                            mouseOverLabel.transform.Translate(new Vector3(0, Mathf.Clamp(minimapCamera.orthographicSize * .11f,0,17), -8f));
                             mouseOverLabel.transform.rotation = Quaternion.Euler(90f, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
 
-                            mouseOverLabel.transform.localScale = new Vector3(minimapCamera.orthographicSize * .0005f, minimapCamera.orthographicSize * .0005f, minimapCamera.orthographicSize * .0005f);
+                            mouseOverLabel.transform.localScale = new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0011f, 0, .16f), Mathf.Clamp(minimapCamera.orthographicSize * .001f, 0, .16f), Mathf.Clamp(minimapCamera.orthographicSize * .001f, 0, .16f));
 
                             mouseOverLabel.GetComponent<TextMeshPro>().text = hoverOverBuilding.marker.dynamicBuildingName;
 
-                            if (hoverOverBuilding.marker.attachedIcon == null)
-                                return;
-
-                            Texture hoverTexture = hoverBuildingMesh.material.mainTexture;
+                            Texture hoverTexture = hoverOverBuilding.marker.iconTexture;
                             mouseOverIconMesh.material.mainTexture = hoverTexture;
                             mouseOverIcon.transform.rotation = Quaternion.Euler(0, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 180f, 0);
-                            mouseOverIcon.transform.Translate(mouseOverLabel.GetComponent<Renderer>().bounds.max + new Vector3(4f, 0f, 0));
-                            mouseOverIcon.transform.localScale = new Vector3(minimapCamera.orthographicSize * .0035f, minimapCamera.orthographicSize * .0035f, minimapCamera.orthographicSize * .0035f);
+                            mouseOverIcon.transform.position = hit.point;
+                            mouseOverIcon.transform.Translate(new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0011f,0,17), 8f, Mathf.Clamp(-minimapCamera.orthographicSize * .0014f,-20,0)));
+                            mouseOverIcon.transform.localScale = new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f), Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f), Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f));
 
                             mouseOverIcon.SetActive(true);
                             mouseOverLabel.SetActive(true);

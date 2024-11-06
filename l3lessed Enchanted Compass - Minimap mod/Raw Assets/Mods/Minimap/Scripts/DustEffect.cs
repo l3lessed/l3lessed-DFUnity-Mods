@@ -1,4 +1,5 @@
 using DaggerfallWorkshop.Game;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +14,7 @@ namespace Minimap
         public GameObject newEffect;
         public Color textureColor = new Color(1,1,1,1);
         public float dustTimer;
-        private float dustFadeInTime;
+        public static float dustFadeInTime;
         private float lastDustChange;
         private int lastSiblingIndex;
 
@@ -22,6 +23,22 @@ namespace Minimap
 
         void Start()
         {
+            Texture2D singleTexture = null;
+            byte[] fileData;
+
+            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/Dust.png");
+            singleTexture = new Texture2D(2, 2);
+            singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
+
+            if (singleTexture == null)
+                return;
+
+            //setup each individual permanent effect.
+            siblingIndex = Minimap.MinimapInstance.publicMinimap.transform.childCount;
+            textureColor = new Color(1, 1, 1, 0);
+            effectType = Minimap.EffectType.Dust;
+            effectTexture = singleTexture;
+
             newEffect = Minimap.MinimapInstance.CanvasConstructor(false,"Dust Effect Layer", false, false, true, true, false, 1, 1, 256, 256, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);

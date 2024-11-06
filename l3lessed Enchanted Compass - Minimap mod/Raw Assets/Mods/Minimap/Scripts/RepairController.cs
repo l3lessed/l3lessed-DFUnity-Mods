@@ -28,7 +28,7 @@ namespace Minimap
         private bool waitingTrigger;
         private GameObject backPlateEffect;
         private RectTransform backPlateRectTran;
-        private GameObject frontScrewEffect;
+        public GameObject frontScrewEffect;
         private RectTransform frontScrewRectTran;
         private Texture2D backPlateTexture;
         private Texture2D gearTexture;
@@ -154,7 +154,7 @@ namespace Minimap
             tempGlassRectTran.localScale = new Vector3(1f, 1f, 0);
             tempGlassEffect.SetActive(false);
 
-            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + EffectManager.damageGlassEffectInstance.textureName);
+            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
             tempBrokenGlassEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Temp Damaged Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), tempBrokenGlassTexture, new Color(.6f, .6f, .6f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency), 1);
             tempBrokenGlassEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             tempBrokenGlassRectTran = tempBrokenGlassEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -166,7 +166,7 @@ namespace Minimap
             frontScrewEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             frontScrewRectTran = frontScrewEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             frontScrewEffect.SetActive(true);
-            frontScrewRectTran.SetAsLastSibling();
+            Minimap.MinimapInstance.publicCompass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimap.transform.GetSiblingIndex() + 2);
             wrenchRectTran.SetAsLastSibling();
 
             wrenchRectTran.anchoredPosition = Minimap.MinimapInstance.minimapRectTransform.anchoredPosition;
@@ -182,7 +182,7 @@ namespace Minimap
 
         private void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive && !EffectManager.repairingCompass)
             {
                 backPlateEffect.SetActive(false);
                 brokenGearEffect.SetActive(false);
@@ -190,9 +190,16 @@ namespace Minimap
                 screwEffect.SetActive(false);
                 tempGlassEffect.SetActive(false);
                 tempBrokenGlassEffect.SetActive(false);
+                frontScrewEffect.SetActive(false);
                 waxRingUsedEffect.SetActive(false);
                 waxRingEffect.SetActive(false);
                 return;
+            }
+            else if (Minimap.MinimapInstance.minimapActive && !frontScrewEffect.activeSelf && !EffectManager.repairingCompass)
+            {
+                Minimap.MinimapInstance.publicCompass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimap.transform.GetSiblingIndex() + 2);
+                frontScrewRectTran.anchoredPosition = new Vector2(Minimap.MinimapInstance.minimapRectTransform.anchoredPosition.x - (Minimap.MinimapInstance.minimapSize * lockScrewXoffset), Minimap.MinimapInstance.minimapRectTransform.anchoredPosition.y - (Minimap.MinimapInstance.minimapSize * lockScrewYOffset));
+                frontScrewEffect.SetActive(true);
             }
 
             if (Minimap.minimapControls.updateMinimap)
@@ -227,7 +234,7 @@ namespace Minimap
 
             if (!EffectManager.repairingCompass && effectsPlaying)
             {
-                Minimap.MinimapInstance.fullMinimapMode = lastMinimapState;
+                Minimap.MinimapInstance.FullMinimapMode = lastMinimapState;
                 Minimap.MinimapInstance.SetupQuestBearings();
                 backPlateEffect.SetActive(false);
                 brokenGearEffect.SetActive(false);
@@ -245,7 +252,7 @@ namespace Minimap
             if (!effectsPlaying)
             {
                 effectsPlaying = true;
-                tempGlassTexture = (Texture2D)EffectManager.damageGlassEffectInstance.effectRawImage.texture;
+                tempGlassTexture = (Texture2D)DamageEffectController.damageGlassEffectInstance.effectRawImage.texture;
                 brokenGearRectTran.SetAsLastSibling();
                 gearRectTran.SetAsLastSibling();
                 tempGlassRectTran.SetAsLastSibling();
@@ -260,7 +267,7 @@ namespace Minimap
 
             if (Minimap.MinimapInstance.currentEquippedCompass != null && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage < 100 && !EffectManager.cleaningCompass)
             {
-                Minimap.MinimapInstance.fullMinimapMode = true;
+                Minimap.MinimapInstance.FullMinimapMode = true;
                 string readoutMessage = "";
                 bool overrideTrigger = false;
                 repairTimer += Time.deltaTime;
@@ -276,7 +283,7 @@ namespace Minimap
 
                 //start incrementally adding to the current compass condition to repair its health.
                 //begin message chain based on current compass condition. Lets player know where they are at.
-                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 0 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
+                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage >= 0 && Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
                 {
                     Minimap.MinimapInstance.publicCompassGlass.SetActive(false);
                     Minimap.MinimapInstance.publicCompass.GetComponent<RawImage>().texture = tempCompassBackTexture;
@@ -304,7 +311,7 @@ namespace Minimap
                         }
 
                         float rotationPerc = Mathf.Lerp(0, 360, positionCounter/11) * 5;
-                        EffectManager.damageGlassEffectInstance.newEffect.SetActive(false);
+                        DamageEffectController.damageGlassEffectInstance.newEffect.SetActive(false);
                         wrenchRectTran.anchoredPosition = screwRectTran.anchoredPosition;
                         wrenchRectTran.transform.eulerAngles = new Vector3(0, 0, rotationPerc);
                         wrenchRectTran.localScale = new Vector3(wrenchRectTran.localScale.x + growSize, wrenchRectTran.localScale.y + growSize, 0);
@@ -326,7 +333,7 @@ namespace Minimap
                         }
 
                         float lerpPosition = Mathf.Lerp(0, 550, positionCounter / 5);
-                        EffectManager.damageGlassEffectInstance.newEffect.SetActive(false);
+                        DamageEffectController.damageGlassEffectInstance.newEffect.SetActive(false);
                         wrenchEffect.SetActive(false);
                         backPlateRectTran.anchoredPosition = minimapAnchorPosition;
                         brokenGearRectTran.anchoredPosition = minimapAnchorPosition;
@@ -427,11 +434,11 @@ namespace Minimap
                     frontScrewRectTran.anchoredPosition = new Vector2(Minimap.MinimapInstance.minimapRectTransform.anchoredPosition.x - (Minimap.MinimapInstance.minimapSize * lockScrewXoffset), Minimap.MinimapInstance.minimapRectTransform.anchoredPosition.y - (Minimap.MinimapInstance.minimapSize * lockScrewYOffset));
                     Minimap.MinimapInstance.publicCompass.GetComponent<RawImage>().texture = Minimap.MinimapInstance.redCrystalCompass;
 
-                    EffectManager.damageGlassEffectInstance.newEffect.SetActive(false);
+                    DamageEffectController.damageGlassEffectInstance.newEffect.SetActive(false);
 
                     if (!setGlass)
                     {
-                        tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + EffectManager.damageGlassEffectInstance.textureName);
+                        tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
                         tempGlassTexture = Minimap.MinimapInstance.cleanGlass;
 
                         setGlass = true;
@@ -569,7 +576,7 @@ namespace Minimap
                         frontScrewRectTran.transform.eulerAngles = wrenchRectTran.transform.eulerAngles;
                         frontScrewRectTran.localScale = new Vector3(frontScrewRectTran.localScale.x + growSize, frontScrewRectTran.localScale.y + growSize , 0);
                     }
-                    else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 95 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition <= 98)
+                    else if(Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 95 && Minimap.MinimapInstance.currentEquippedCompass.currentCondition <= 100)
                     {
                         Minimap.MinimapInstance.SetupQuestBearings();
                         backPlateEffect.SetActive(false);
@@ -585,7 +592,7 @@ namespace Minimap
                         effectsPlaying = false;
                         frontScrewRectTran.sizeDelta = new Vector2(Minimap.MinimapInstance.minimapSize * lockScrewSize, Minimap.MinimapInstance.minimapSize * lockScrewSize);
                     }
-                    else if (Minimap.MinimapInstance.currentEquippedCompass.currentCondition > 98)
+                    else if (Minimap.MinimapInstance.currentEquippedCompass.currentCondition >= 100)
                         Minimap.MinimapInstance.currentEquippedCompass.currentCondition = Minimap.MinimapInstance.currentEquippedCompass.maxCondition;
                 }
 
@@ -596,7 +603,7 @@ namespace Minimap
                     List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
                     GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
                     //reset permanent damaged glass texture to clear/not seen.
-                    EffectManager.damageGlassEffectInstance.UpdateTexture(new Color(1, 1, 1, 0), EffectManager.damageTextureDict["damage1.png"], new Vector3(1, 1, 1));
+                    DamageEffectController.damageGlassEffectInstance.UpdateTexture("damage1.png",new Color(1, 1, 1, 0), DamageEffectController.damageTextureDict["damage1.png"], new Vector3(1, 1, 1));
                     //update glass texture to go back to clean glass.
                     Minimap.MinimapInstance.publicCompassGlass.GetComponentInChildren<RawImage>().texture = Minimap.MinimapInstance.cleanGlass;
                     Minimap.MinimapInstance.currentEquippedCompass.currentCondition = Minimap.MinimapInstance.currentEquippedCompass.maxCondition;
@@ -615,8 +622,9 @@ namespace Minimap
                     Minimap.MinimapInstance.currentEquippedCompass.currentCondition = (int)(Minimap.MinimapInstance.currentEquippedCompass.currentCondition * .66f);
                     EffectManager.repairingCompass = false;
                     //ADD DIRT EFFECT\\
-                    EffectManager.dirtEffectTrigger = true;
-                    EffectManager.mudEffectTrigger = true;
+                    DirtEffectController.dirtEffectTrigger = true;
+                    MudEffectController.mudEffectTrigger = true;
+                    Minimap.MinimapInstance.FullMinimapMode = false;
                 }
 
                 EffectManager.lastCompassCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition;
@@ -631,6 +639,7 @@ namespace Minimap
                 repairMessage = false;
                 waitingTrigger = true;
                 setGlass = false;
+                Minimap.MinimapInstance.FullMinimapMode = lastMinimapState;
                 Minimap.MinimapInstance.minimapActive = true;
                 DaggerfallUI.Instance.PopupMessage("Finished repairing compass. The Enchantment will mend itself with the new parts.");
             }

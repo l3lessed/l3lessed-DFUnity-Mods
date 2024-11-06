@@ -78,7 +78,7 @@ namespace Minimap
                 else
                 {
                     Destroy(newEffect);
-                    EffectManager.mudEffectList.RemoveAt(EffectManager.mudEffectList.IndexOf(this));
+                    MudEffectController.mudEffectList.RemoveAt(MudEffectController.mudEffectList.IndexOf(this));
                     Destroy(this);
                 }
             }

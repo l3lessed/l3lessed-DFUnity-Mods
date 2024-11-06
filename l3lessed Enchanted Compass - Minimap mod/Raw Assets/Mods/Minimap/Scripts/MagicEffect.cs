@@ -125,7 +125,7 @@ namespace Minimap
                     Destroy(newEffect);
                     Destroy(newEffect2);
                     Destroy(this);
-                    EffectManager.magicEffectList.RemoveAt(EffectManager.magicEffectList.IndexOf(this));
+                    DamageEffectController.magicEffectList.RemoveAt(DamageEffectController.magicEffectList.IndexOf(this));
                 }
             }
             

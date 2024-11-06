@@ -76,7 +76,7 @@ namespace Minimap
                 else
                 {
                     Destroy(newEffect);
-                    EffectManager.dirtEffectList.RemoveAt(EffectManager.dirtEffectList.IndexOf(this));
+                    DirtEffectController.dirtEffectList.RemoveAt(DirtEffectController.dirtEffectList.IndexOf(this));
                     Destroy(this);
                 }
             }

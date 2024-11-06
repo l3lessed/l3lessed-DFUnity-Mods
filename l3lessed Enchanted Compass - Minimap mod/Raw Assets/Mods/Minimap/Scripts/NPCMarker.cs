@@ -168,7 +168,7 @@ namespace Minimap
 
             timePass += Time.deltaTime;
             //adjust how fast markers update to help potatoes computers. If above 60FPS, frame time to 60FPS update times. If below, knock it down to 30FPS update times.
-            if(timePass > Minimap.MinimapInstance.npcMarkerUpdateInterval)
+            if (timePass > Minimap.MinimapInstance.npcMarkerUpdateInterval)
             {
                 timePass = 0;
                 //if the marker is turned off compleetly, turn off marker object and stop any further updates.
@@ -190,7 +190,7 @@ namespace Minimap
                 {
                     if (!ObjectInView() && marker.markerObject.activeSelf)
                     {
-                            marker.markerObject.SetActive(false);
+                        marker.markerObject.SetActive(false);
                     }
                     else if (ObjectInView() && !marker.markerObject.activeSelf)
                     {
@@ -217,7 +217,7 @@ namespace Minimap
                     return;
 
                 //update marker material color using saved dictionary.
-                if(marker.npcMarkerColor != Minimap.iconGroupColors[marker.markerType])
+                if (marker.npcMarkerColor != Minimap.iconGroupColors[marker.markerType])
                 {
                     marker.npcMarkerColor = Minimap.iconGroupColors[marker.markerType];
                     marker.npcMesh.material.color = marker.npcMarkerColor;
@@ -229,7 +229,7 @@ namespace Minimap
                 if (Minimap.npcFlatActive[marker.markerType])
                 {
                     if (Minimap.dreamModInstalled)
-                        size =(npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f * .1f;
+                        size = (npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f * .1f;
                     else
                         size = (npcIconTexture.height + npcIconTexture.width) * Minimap.iconSizes[marker.markerType] * 4f;
                 }
@@ -238,7 +238,7 @@ namespace Minimap
 
                 //run updates to update icon and object.
                 marker.markerObject.transform.localScale = Minimap.markerScale * size;
-            }               
+            }
         }
 
         public bool NPCinLOS()
@@ -249,7 +249,7 @@ namespace Minimap
             {
                 PlayerMotor playerCheck = hit.transform.GetComponent<PlayerMotor>();
 
-                if(playerCheck != null)
+                if (playerCheck != null)
                     marker.inLOS = true;
                 else
                     marker.inLOS = false;

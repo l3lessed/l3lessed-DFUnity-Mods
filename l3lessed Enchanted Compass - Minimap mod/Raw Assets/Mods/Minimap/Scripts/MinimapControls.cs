@@ -16,7 +16,7 @@ namespace Minimap
 
         private Texture2D compassMenu;
 
-        public Rect minimapControlsRect = new Rect(20, 20, 140, 70);
+        public Rect minimapControlsRect = new Rect(0, 0, 290, 35);
 
         public Color lastColor;
 
@@ -56,23 +56,16 @@ namespace Minimap
         public bool questIndicatorActive;
         public bool doorIndicatorActive = true;
         public bool cameraDetectionEnabled;
+        public float scrollWidth = 1450;
+        public float scrollHeight = 625;
 
         public string selectedIcon = "Shops";
         public float lastMinimapSize;
-        public float dragSpeed = .0165f;
+        public float dragSpeed = .0085f;
         private float xAccumulator;
         private float yAccumulator;
-        public List<Rect> scrollPosList = new List<Rect>{
-         new Rect(Screen.width * .01f, Screen.height * .025f, 290, 375),
-         new Rect(Screen.width * .01f, Screen.height * .25f, 290, 375),
-         new Rect(Screen.width * .01f, Screen.height * .5f, 290, 375),
-         new Rect(Screen.width * .45f, Screen.height * .025f, 290, 375),
-         new Rect(Screen.width * .45f, Screen.height * .25f, 290, 375),
-         new Rect(Screen.width * .45f, Screen.height * .5f, 290, 375),
-         new Rect(Screen.width * .845f, Screen.height * .025f, 290, 375),
-         new Rect(Screen.width * .845f, Screen.height * .25f, 290, 375),
-         new Rect(Screen.width * .845f, Screen.height * .5f, 290, 375),
-        };
+
+        public Rect scrollPosList = new Rect(Screen.width * .01f, Screen.height * .025f, 290, 375);
         private Vector2 dragCamera;
         public float markerSwitchSize = 80;
         public int currentScrollPosition;
@@ -85,25 +78,36 @@ namespace Minimap
             blueValue = colorSelector.b;
             greenValue = colorSelector.g;
         }
-        private void Update()
+        public Vector3 GUIScale
         {
-            if (SmartKeyManager.Key1Press)
+            get
             {
-                currentScrollPosition = currentScrollPosition + 1;
-                if (currentScrollPosition >= scrollPosList.Count)
-                    currentScrollPosition = 0;
+                float normalWidth = scrollWidth; //Whatever design resolution you want
+                float normalHeight = scrollHeight;
+                return new Vector3(Screen.width / normalWidth, Screen.height / normalHeight, 1);
             }
         }
+
+        public Matrix4x4 AdjustedMatrix
+        {
+            get
+            {
+                return Matrix4x4.TRS(Vector3.zero, Quaternion.identity, GUIScale);
+            }
+        }
+
         void OnGUI()
         {
             if (updateMinimap == true)
                 updateMinimap = false;
 
+            GUI.matrix = AdjustedMatrix;
+
             if (smartViewActive)
             {
                 if (Minimap.minimapCamera.orthographicSize < markerSwitchSize)
                 {
-                    iconsActive = false;
+                    iconsActive = true;
                     labelsActive = true;
                 }
                 else
@@ -114,7 +118,7 @@ namespace Minimap
             }
 
             //if player is over minimap, minimap controls are open, and they click down mouse begin map dragging code.
-            if (Input.GetMouseButton(0) && !Minimap.MinimapInstance.fullMinimapMode && (Input.GetAxis("Mouse X") != 0 || Input.GetAxis("Mouse Y") != 0) && minimapMenuEnabled && IsPointerOverUIElement())
+            if (Input.GetMouseButton(0) && !Minimap.MinimapInstance.FullMinimapMode && (Input.GetAxis("Mouse X") != 0 || Input.GetAxis("Mouse Y") != 0) && minimapMenuEnabled && IsPointerOverUIElement())
             {
                 updateMinimap = true;
                 float inputX = Input.GetAxis("Mouse X") * dragSpeed;
@@ -131,7 +135,7 @@ namespace Minimap
 
             // Register the window. We create two windows that use the same function
             // Notice that their IDs differ
-            if (!Minimap.MinimapInstance.minimapActive || !minimapMenuEnabled)
+            if (!Minimap.MinimapInstance.minimapActive || !minimapMenuEnabled || EffectManager.repairingCompass)
                 return;
 
             if (currentStyle == null)
@@ -142,13 +146,13 @@ namespace Minimap
                 currentStyle.fontStyle = FontStyle.Bold;
                 currentStyle.fontSize = 14;
             }
-
-            minimapControlsRect = GUI.Window(0, scrollPosList[currentScrollPosition], MinimapControls, "Enchantment Adjustments", currentStyle);
+            scrollPosList = GUI.Window(0, scrollPosList, MinimapControls, "Enchantment Adjustments", currentStyle);
         }
 
         // Make the contents of the window
         void MinimapControls(int windowID)
         {
+            GUI.DragWindow(minimapControlsRect);
             GUI.contentColor = Color.black;
             if (currentToggleStyle == null)
             {
@@ -345,7 +349,8 @@ namespace Minimap
             for (int index = 0; index < eventSystemRaysastResults.Count; index++)
             {
                 RaycastResult curRaysastResult = eventSystemRaysastResults[index];
-                if (curRaysastResult.gameObject.name == "Minimap Layer")
+                Debug.Log(curRaysastResult.gameObject.name);
+                if (curRaysastResult.gameObject.name == "Rendering Layer" || curRaysastResult.gameObject.name == "Compass Layer" || curRaysastResult.gameObject.name == "Bearing Layer")
                     return true;
             }
             return false;

@@ -39,18 +39,18 @@ namespace Minimap
         private static bool key3DblPress;
         public static bool DblePress { get { return dblePress; } private set { dblePress = value; } }
         private static bool dblePress;
-        public float keyHoldDuration = .25f;
+        public float keyHoldDuration = .36f;
         public float dblTapInterval = .18f;
         public float heldKeyTime;
         public float dblTapTime;
 
         private void Start()
         {
-            key1 = Minimap.settings.GetValue<string>("CompassKeys", "ZoomOut:SettingScroll");
+            key1 = Minimap.settings.GetValue<string>("CompassKeys", "ZoomOut:OpenScroll");
             key1KeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), key1);
             key2 = Minimap.settings.GetValue<string>("CompassKeys", "ZoomIn:FullViewCompass");
             key2KeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), key2);
-            key3 = Minimap.settings.GetValue<string>("CompassKeys", "ToggleIconFrustrum:ToggleEffects");
+            key3 = Minimap.settings.GetValue<string>("CompassKeys", "EquipCompass:CleanCompass:ToggleEffects");
             key3KeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), key3);
         }
 
@@ -61,7 +61,7 @@ namespace Minimap
             Key3Press = false;
 
             //if either attack input is press, start the system.
-            if (Input.GetKeyDown(key1KeyCode) || Input.GetKeyDown(key2KeyCode) || Input.GetKeyDown(key3KeyCode))
+            if (Input.GetKeyUp(key1KeyCode) || Input.GetKeyUp(key2KeyCode) || Input.GetKeyUp(key3KeyCode))
                 KeysPressed = true;
             else
                 KeysPressed = false;
@@ -70,61 +70,56 @@ namespace Minimap
             //start monitoring key input for que system.
             if (KeysPressed)
             {
-                if (Input.GetKeyDown(key1KeyCode))
-                {                    
+                //clear the hold timer when any key is released to ensure held keys are reset even with taps.
+                heldKeyTime = 0;
+
+                //que up player input.
+                if (Input.GetKeyUp(key1KeyCode))                    
                     playerInput.Enqueue(0);
-                }
 
-                if (Input.GetKeyDown(key2KeyCode))
-                {
+                if (Input.GetKeyUp(key2KeyCode))
                     playerInput.Enqueue(1);
-                }
 
-                if (Input.GetKeyDown(key3KeyCode))
-                {
+                if (Input.GetKeyUp(key3KeyCode))
                     playerInput.Enqueue(2);
-                }
             }
 
             //START OF HELD KEY TRIGGERING\\
             //start timer to measure key held. This sets the interval for this to flip to true for a frame. 0 will make it true every frame.\\
-            if ((Input.GetKey(key1KeyCode) || Input.GetKey(key2KeyCode)) && heldKeyTime <= keyHoldDuration)
+            if ((Input.GetKey(key1KeyCode) || Input.GetKey(key2KeyCode) || Input.GetKey(key3KeyCode)) && heldKeyTime <= keyHoldDuration)
                 heldKeyTime += Time.deltaTime;
 
             //are the individual keys held down, and has the ticker time passed to flip it to true.
             if (Input.GetKey(key1KeyCode) && heldKeyTime >= keyHoldDuration)
-            {
-                heldKeyTime = 0;
                 Key1Held = true;
-            }
-            else
-                Key1Held = false;
 
             if (Input.GetKey(key2KeyCode) && heldKeyTime >= keyHoldDuration)
-            {
-                heldKeyTime = 0;
                 Key2Held = true;
-            }
-            else
-                Key2Held = false;
 
             if (Input.GetKey(key3KeyCode) && heldKeyTime >= keyHoldDuration)
-            {
-                heldKeyTime = 0;
                 Key3Held = true;
-            }
-            else
-                Key3Held = false;
 
-            if (playerInput.Count != 0 && heldKeyTime >= keyHoldDuration)
+            //the keys are held down clear tap inpits and check to see if the key has been released to reset hold key input.
+            //also, return because all below code is for tap and double tap detection.
+            if (Key1Held || Key2Held || Key3Held)
             {
                 playerInput.Clear();
+
+                if (Input.GetKeyUp(key3KeyCode))
+                    Key3Held = false;
+
+                if (Input.GetKeyUp(key2KeyCode))
+                    Key2Held = false;
+
+                if (Input.GetKeyUp(key1KeyCode))
+                    Key1Held = false;
+
                 return;
             }
 
             //START OF DBL KEY TRIGGERING\\
             //clear out trigger key presses and reset key press timer.
-            if(Key1DblPress || Key2DblPress || Key3DblPress || DblePress)
+            if (Key1DblPress || Key2DblPress || Key3DblPress || DblePress)
             {
                 KeysPressed = false;            
                 DblePress = false;
