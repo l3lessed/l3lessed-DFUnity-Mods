@@ -522,7 +522,7 @@ namespace Minimap
                             EffectManager.CompassState = 12;
                             tempGlassTexture = Minimap.MinimapInstance.cleanGlass;
                             //Find and remove a gear and glass from player.
-                            List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
+                            List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemCutGlass.templateIndex);
                             GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
                         }
                         
@@ -600,7 +600,7 @@ namespace Minimap
                 {
                     DaggerfallUI.Instance.PopupMessage("The compass magic repaired its enchantment on its own.");
                     //Find and remove a gear and glass from player.
-                    List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemCutGlass.templateIndex);
+                    List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemCutGlass.templateIndex);
                     GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
                     //reset permanent damaged glass texture to clear/not seen.
                     DamageEffectController.damageGlassEffectInstance.UpdateTexture("damage1.png",new Color(1, 1, 1, 0), DamageEffectController.damageTextureDict["damage1.png"], new Vector3(1, 1, 1));

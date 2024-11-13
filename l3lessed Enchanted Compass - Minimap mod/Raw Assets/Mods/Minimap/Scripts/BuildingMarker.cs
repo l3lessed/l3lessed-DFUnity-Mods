@@ -427,7 +427,7 @@ namespace Minimap
                 bool containsRoofMesh = false;
 
                 if (textureName.Contains("69") || textureName.Contains("70") || textureName.Contains("137") || textureName.Contains("169") || textureName.Contains("170") || textureName.Contains("171") || textureName.Contains("337")
-                    || textureName.Contains("369") || textureName.Contains("370") || textureName.Contains("469") || textureName.Contains("470"))
+                    || textureName.Contains("369") || textureName.Contains("370") || textureName.Contains("469") || textureName.Contains("470") || textureName.Contains("309"))
                     containsRoofMesh = true;
 
                 if (containsRoofMesh)

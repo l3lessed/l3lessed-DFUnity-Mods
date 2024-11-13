@@ -361,7 +361,7 @@ namespace Minimap
             DaggerfallTravelPopUp.OnPostFastTravel += postTravel;
             StartGameBehaviour.OnStartMenu += OnStartMenu;
             //register custom items to game on mod start.
-            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemMagicalCompass.templateIndex, ItemGroups.MagicItems, typeof(ItemMagicalCompass));
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemMagicalCompass.templateIndex, ItemGroups.UselessItems2, typeof(ItemMagicalCompass));
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemCutGlass.templateIndex, ItemGroups.UselessItems2, typeof(ItemCutGlass));
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemDwemerGears.templateIndex, ItemGroups.UselessItems2, typeof(ItemDwemerGears));
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemRepairKit.templateIndex, ItemGroups.UselessItems2, typeof(ItemRepairKit));
@@ -663,7 +663,7 @@ namespace Minimap
         private float autoMapTimer;
         private bool setPermCompass;
         public int currentPositionUID;
-        public int generatedPositionUID;
+        public int generatedPositionUID = 01010101;
         private bool zooming;
         #endregion
         #region enums
@@ -1000,7 +1000,7 @@ namespace Minimap
             }
 
             //check to see if player has had equipment generated yet, and if not, generate it and save bool to true.
-            if ((!generatedStartingEquipment  || forceCompassGeneration) && minimapEffects != null)
+            if (!generatedStartingEquipment  || forceCompassGeneration)
             {
                 generatedStartingEquipment = true;
                 forceCompassGeneration = false;
@@ -1008,7 +1008,7 @@ namespace Minimap
                 permCompass = ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex);
 
                 if (equippableCompass)
-                    GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.MagicItems, ItemMagicalCompass.templateIndex));
+                    GameManager.Instance.PlayerEntity.Items.AddItem(ItemBuilder.CreateItem(ItemGroups.UselessItems2, ItemMagicalCompass.templateIndex));
 
                 if (EffectManager.enableDamageEffect)
                 {
@@ -1101,38 +1101,7 @@ namespace Minimap
             {
                 indicatorSize = Mathf.Clamp(minimapCamera.orthographicSize * iconAdjuster, .015f, 7f);
                 markerScale = new Vector3(indicatorSize, indicatorSize, indicatorSize);
-            }
-
-            //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
-            if (changedLocations && !GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
-            {
-                //set minimap camera to outside rendering layer mask
-                minimapCamera.cullingMask = minimapLayerMaskOutside;
-
-                currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-                if (currentLocation != null)
-                {
-                    //make unique location name based on in a unique location or out in a wilderness area.
-                    currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
-                    //clear building block array holder.
-                    minimapBuildingManager.blockArray = null;
-                    minimapBuildingManager.buildingDirectory = null;
-                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
-                    minimapBuildingManager.blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
-                    //grab the rmbblock objects from the location object for use.
-                    minimapBuildingManager.blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
-                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
-                    minimapBuildingManager.buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
-                    //if there are buildings present in this location & minimap hasn't been generated yet, assign the unique pixel generation id, update/generate markers,
-                    //and tell system the markers are being generated to ensure proper generation order.
-                    if (minimapBuildingManager.blockArray != null && minimapBuildingManager.buildingDirectory != null && (currentPositionUID != generatedPositionUID))
-                    {
-                        generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
-                        minimapBuildingManager.UpdateMarkers();
-                        minimapBuildingManager.markersGenerated = false;
-                    }
-                }
-            }
+            }          
 
             //fpsUpdateInterval = frameInterval/(1 / Time.unscaledDeltaTime);
 
@@ -1268,6 +1237,7 @@ namespace Minimap
         private void PlayerGPS_OnMapPixelChanged(DFPosition mapPixel)
         {
             currentPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
+            currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
             changedLocations = true;
         }
 

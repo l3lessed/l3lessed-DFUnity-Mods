@@ -3,6 +3,7 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Utility;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -19,7 +20,7 @@ namespace Minimap
         private Dictionary<Minimap.MarkerGroups, Material> iconMaterialDict;
         public DaggerfallLocation currentCity = new DaggerfallLocation();
         public DaggerfallLocation lastCityNavigation = new DaggerfallLocation();
-        public string currentLocation;
+        public string currentLocationName;
         public bool markersGenerated;
         public GameObject combinedObj;
         public StaticBuilding[] StaticBuildingArray { get; private set; }
@@ -81,7 +82,7 @@ namespace Minimap
             };
 
             currentCity = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
-            currentLocation = "Starting Game";
+            currentLocationName = "Starting Game";
         }
 
         // Update is called once per frame
@@ -89,6 +90,9 @@ namespace Minimap
         {
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
+            //only runs in non wilderness areas and on pixel detection change.
+           if(Minimap.currentLocation != null && Minimap.MinimapInstance.currentPositionUID != Minimap.MinimapInstance.generatedPositionUID)
+                MarkerManager();
 
             //if player is outside and the streaming world is ready/generated for play setup building indicators.
             if (Minimap.changedLocations)
@@ -134,6 +138,39 @@ namespace Minimap
                 BuildingMarker.labelActive = true;
                 Minimap.minimapControls.updateMinimap = true;
                 generatingMarkers = false;
+            }
+        }
+
+        public void MarkerManager()
+        {
+            //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
+            if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
+            {
+                //set minimap camera to outside rendering layer mask
+                Minimap.minimapCamera.cullingMask = Minimap.minimapLayerMaskOutside;
+
+                if (Minimap.currentLocation != null)
+                {
+                    //make unique location name based on in a unique location or out in a wilderness area.
+                    currentLocationName = string.Concat(GameManager.Instance.PlayerGPS.CurrentMapPixel.X.ToString(), GameManager.Instance.PlayerGPS.CurrentMapPixel.Y.ToString());
+                    //clear building block array holder.
+                    blockArray = null;
+                    buildingDirectory = null;
+                    //setup a new empty array based on the size of the locations child blocks. This ensures dynamic resizing for the location.
+                    blockArray = new DaggerfallRMBBlock[GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.transform.childCount];
+                    //grab the rmbblock objects from the location object for use.
+                    blockArray = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentsInChildren<DaggerfallRMBBlock>();
+                    //grab the building direction object so we can figure out what the individual buildings are based on their key value.
+                    buildingDirectory = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.GetComponentInChildren<BuildingDirectory>();
+                    //if there are buildings present in this location & minimap hasn't been generated yet, assign the unique pixel generation id, update/generate markers,
+                    //and tell system the markers are being generated to ensure proper generation order.
+                    if (blockArray != null && buildingDirectory != null && (Minimap.MinimapInstance.currentPositionUID != Minimap.MinimapInstance.generatedPositionUID))
+                    {
+                        Minimap.MinimapInstance.generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
+                        UpdateMarkers();
+                        markersGenerated = false;
+                    }
+                }
             }
         }
 
