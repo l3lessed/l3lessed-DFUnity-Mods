@@ -7,7 +7,7 @@ namespace Minimap
     {
         public const int templateIndex = 721;
 
-        public ItemCutGlass() : base(ItemGroups.MiscItems, templateIndex)
+        public ItemCutGlass() : base(ItemGroups.UselessItems2, templateIndex)
         {
         }
 

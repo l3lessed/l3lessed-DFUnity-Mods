@@ -177,10 +177,6 @@ namespace Minimap
                             effectInstance.effectTexture = mudTextureDict[currentMudTextureName];
                             effectInstance.textureName = currentMudTextureName;
                             mudEffectList.Add(effectInstance);
-                            if (!compassMudDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
-                                compassMudDictionary.Add(Minimap.MinimapInstance.currentEquippedCompass.UID, mudEffectList);
-                            else
-                                compassMudDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = mudEffectList;
                             EffectManager.totalEffects = EffectManager.totalEffects + 1;
                         }
                     }

@@ -51,7 +51,7 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || EffectManager.repairingCompass)
                 return;
 
             if (effectRectTransform.localPosition.x != currentAnchorPosition.x)

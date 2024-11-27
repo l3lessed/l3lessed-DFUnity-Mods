@@ -33,7 +33,7 @@ namespace Minimap
         void Start()
         {
             if (currentAnchorPosition == new Vector2(0,0))
-                currentAnchorPosition = new Vector2(Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128), Minimap.MinimapInstance.randomNumGenerator.Next(-128, 128));
+                currentAnchorPosition = new Vector2(Minimap.MinimapInstance.randomNumGenerator.Next(-90, 90), Minimap.MinimapInstance.randomNumGenerator.Next(-90, 90));
 
             random = Random.Range(.5f, 1f);
             if(randomScale == 0)
@@ -52,7 +52,7 @@ namespace Minimap
 
             if(randomEffectDuration == 0)
                 randomEffectDuration =  Minimap.MinimapInstance.randomNumGenerator.Next(8, 16);
-
+            effectRectTransform.localPosition = currentAnchorPosition;
             dripSpeed =  Random.Range(2, Minimap.MinimapInstance.dripSpeed);
         }
 
@@ -60,7 +60,7 @@ namespace Minimap
         {
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
-            effectRectTransform.localPosition = currentAnchorPosition;
+
             if (newEffect != null && lastSiblingIndex != siblingIndex)
             {
                 newEffect.transform.SetSiblingIndex(siblingIndex);

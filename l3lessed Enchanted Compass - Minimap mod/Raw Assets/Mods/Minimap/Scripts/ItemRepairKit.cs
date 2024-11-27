@@ -1,8 +1,11 @@
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace Minimap
 {
@@ -30,20 +33,21 @@ namespace Minimap
             List<DaggerfallUnityItem> dwemerGearsList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemDwemerGears.templateIndex);
             List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemCutGlass.templateIndex);
 
-            if(Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage >= 90)
+            if(Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage >= 81)
             {
-                DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "Your compass is in fine shape");
+
+                DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "Your compass is in fine shape");            
                 confirmBox.Show();
                 return false;
             }
-            //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 52;
-            if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
-                Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 0;
-            else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 51)
-                Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 51;
+
+            RepairController.tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
+            RepairController.tempGlassTexture = Minimap.MinimapInstance.cleanGlass;
 
             if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)
             {
+                Minimap.dfInventoryWindow.CloseWindow();
+                Minimap.dfSheetWindow.CloseWindow();
                 DaggerfallMessageBox confirmBox = new DaggerfallMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.Nothing, "You steady your hands and concentrate on repairing the compass. Don't move or you'll drop something.");
                 confirmBox.Show();
                 if (EffectManager.compassDirty)
@@ -53,6 +57,14 @@ namespace Minimap
 
                 EffectManager.CompassState = 0;
                 EffectManager.repairingCompass = true;
+
+                RepairController.startRepairCondition = Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage;
+
+                //Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 52;
+                if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 50)
+                    Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 0;
+                else if (Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage > 51)
+                    Minimap.MinimapInstance.currentEquippedCompass.currentCondition = 51;
             }
             else
             {

@@ -7,7 +7,7 @@ namespace Minimap
     {
         public const int templateIndex = 722;
 
-        public ItemDwemerGears() : base(ItemGroups.MiscItems, templateIndex)
+        public ItemDwemerGears() : base(ItemGroups.UselessItems2, templateIndex)
         {
         }
 

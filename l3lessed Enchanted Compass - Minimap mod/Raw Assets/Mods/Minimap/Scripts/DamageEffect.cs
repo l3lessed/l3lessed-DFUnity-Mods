@@ -40,7 +40,7 @@ namespace Minimap
 
         private void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || EffectManager.repairingCompass)
                 return;
 
             siblingIndex = Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1;

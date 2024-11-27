@@ -44,12 +44,13 @@ namespace Minimap
         public float lastBackplateX;
         public float lastScrewX;
         public float currentLerpPerc;
-        private Texture2D tempGlassTexture;
-        private GameObject tempGlassEffect;
+        public static Texture2D tempGlassTexture;
+        public static GameObject tempGlassEffect;
         private RectTransform tempGlassRectTran;
-        private Texture2D tempBrokenGlassTexture;
-        private GameObject tempBrokenGlassEffect;
-        private RectTransform tempBrokenGlassRectTran;
+        public static Texture2D tempBrokenGlassTexture;
+        public static GameObject tempBrokenGlassEffect;
+        public static int startRepairCondition;
+        public static RectTransform tempBrokenGlassRectTran;
         public float lockScrewSize = .45f;
         public float lockScrewXoffset = -0.536f;
         public float lockScrewYOffset = -0.018f;
@@ -251,6 +252,7 @@ namespace Minimap
         {
             if (!effectsPlaying)
             {
+                Minimap.minimapEffects.DisableCompassEffects();
                 effectsPlaying = true;
                 tempGlassTexture = (Texture2D)DamageEffectController.damageGlassEffectInstance.effectRawImage.texture;
                 brokenGearRectTran.SetAsLastSibling();
@@ -296,6 +298,8 @@ namespace Minimap
                         brokenGearEffect.SetActive(true);
                         screwEffect.SetActive(true);
                         wrenchEffect.SetActive(true);
+                        tempGlassEffect.SetActive(false);
+                        tempBrokenGlassEffect.SetActive(false);
 
                         if (Minimap.MinimapInstance.publicQuestBearing.activeSelf)
                             Minimap.MinimapInstance.publicQuestBearing.SetActive(false);
@@ -372,7 +376,7 @@ namespace Minimap
                         {
                             positionCounter = 0;
                             EffectManager.CompassState = 5;
-                            List<DaggerfallUnityItem> dwemerDynamoList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.MiscItems, ItemDwemerGears.templateIndex);
+                            List<DaggerfallUnityItem> dwemerDynamoList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemDwemerGears.templateIndex);
                             GameManager.Instance.PlayerEntity.Items.RemoveOne(dwemerDynamoList[0]);
                             EffectManager.CompassState = 5;
                         }
@@ -438,16 +442,13 @@ namespace Minimap
 
                     if (!setGlass)
                     {
-                        tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
-                        tempGlassTexture = Minimap.MinimapInstance.cleanGlass;
-
                         setGlass = true;
-                        if(Minimap.MinimapInstance.currentEquippedCompass.ConditionPercentage <= 65)
+                        if (startRepairCondition <= 60)
                         {
                             tempGlassEffect.SetActive(false);
                             tempBrokenGlassEffect.SetActive(true);
                         }
-                        else
+                        else if (startRepairCondition <= 80 && startRepairCondition >= 61)
                         {
                             tempGlassEffect.SetActive(true);
                             tempBrokenGlassEffect.SetActive(true);
@@ -598,6 +599,7 @@ namespace Minimap
 
                 if (overrideTrigger)
                 {
+                    Minimap.minimapEffects.EnableCompassEffects();
                     DaggerfallUI.Instance.PopupMessage("The compass magic repaired its enchantment on its own.");
                     //Find and remove a gear and glass from player.
                     List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemCutGlass.templateIndex);
@@ -619,12 +621,14 @@ namespace Minimap
                 if (!GameManager.Instance.PlayerMotor.IsStandingStill)
                 {
                     DaggerfallUI.Instance.PopupMessage("You drop the compass and parts ruining the repair");
+                    Minimap.minimapEffects.EnableCompassEffects();
                     Minimap.MinimapInstance.currentEquippedCompass.currentCondition = (int)(Minimap.MinimapInstance.currentEquippedCompass.currentCondition * .66f);
                     EffectManager.repairingCompass = false;
                     //ADD DIRT EFFECT\\
                     DirtEffectController.dirtEffectTrigger = true;
                     MudEffectController.mudEffectTrigger = true;
                     Minimap.MinimapInstance.FullMinimapMode = false;
+
                 }
 
                 EffectManager.lastCompassCondition = Minimap.MinimapInstance.currentEquippedCompass.currentCondition;

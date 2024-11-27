@@ -1,4 +1,5 @@
 using DaggerfallWorkshop.Game;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,10 +14,12 @@ namespace Minimap
         public Texture2D effectTexture;
         public GameObject newEffect;
         public Color textureColor = new Color(1,1,1,1);
-        public float dustTimer;
+        public static float dustTimer;
         public static float dustFadeInTime;
         private float lastDustChange;
         private int lastSiblingIndex;
+
+        public static Dictionary<ulong, float> compassDustDictionary = new Dictionary<ulong, float>();
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -53,7 +56,7 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || EffectManager.repairingCompass)
                 return;
 
             if (newEffect != null)

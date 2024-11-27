@@ -14,6 +14,10 @@ namespace Minimap
         public static List<BloodEffect> bloodEffectList = new List<BloodEffect>();
         private string currentBloodTextureName;
         public static bool bloodEffectTrigger;
+        private float randomScale;
+        private int randomWidth;
+        private int randomHeight;
+        public Texture2D effectTexture;
 
         private void Awake()
         {
@@ -47,7 +51,6 @@ namespace Minimap
             //setup health damage blood layer effects. If players health changes run effect code.
             if (EffectManager.enabledBloodEffect && bloodEffectTrigger)
             {
-                Debug.Log("Triggered Blood");
                 int randomID = Minimap.MinimapInstance.randomNumGenerator.Next(0, bloodTextureDict.Count - 1);
                 currentBloodTextureName = bloodTextureDict.ElementAt(randomID).Key;
                 //loops through current effects to ensure it always generates new blood textures until they are all applied.
@@ -93,11 +96,6 @@ namespace Minimap
                     effectInstance.effectTexture = bloodTextureDict[currentBloodTextureName];
                     effectInstance.textureName = currentBloodTextureName;
                     bloodEffectList.Add(effectInstance);
-                    if (!compassBloodDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
-                        compassBloodDictionary.Add(Minimap.MinimapInstance.currentEquippedCompass.UID, bloodEffectList);
-                    else
-                        compassBloodDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = bloodEffectList;
-                    EffectManager.totalEffects = EffectManager.totalEffects + 1;
                 }
                 bloodEffectTrigger = false;
             }

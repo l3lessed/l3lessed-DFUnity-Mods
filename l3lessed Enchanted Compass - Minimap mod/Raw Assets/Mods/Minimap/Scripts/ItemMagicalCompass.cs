@@ -7,7 +7,7 @@ namespace Minimap
     {
         public const int templateIndex = 720;
 
-        public ItemMagicalCompass() : base(ItemGroups.MagicItems, templateIndex)
+        public ItemMagicalCompass() : base(ItemGroups.UselessItems2, templateIndex)
         {
         }        
 

@@ -148,11 +148,6 @@ namespace Minimap
                         damageMagicEffectInstance.siblingIndex = Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1;
                         damageMagicEffectInstance.name = "Magic Effect Instance " + maxMagicRips;
                         magicEffectList.Add(damageMagicEffectInstance);
-
-                        if (!compassMagicDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
-                            compassMagicDictionary.Add(Minimap.MinimapInstance.currentEquippedCompass.UID, maxMagicRips);
-                        else
-                            compassMagicDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = maxMagicRips;
                         EffectManager.totalEffects = EffectManager.totalEffects + 1;
                     }
                 }

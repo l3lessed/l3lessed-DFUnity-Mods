@@ -36,9 +36,11 @@ namespace Minimap
         public Dictionary<ulong, List<MudEffect>> CompassMudDictionary = new Dictionary<ulong, List<MudEffect>>();
         public Dictionary<ulong, int> CompassMagicDictionary = new Dictionary<ulong, int>();
         public Dictionary<ulong, float> CompassDustDictionary = new Dictionary<ulong, float>();
+        public Dictionary<ulong, float> CompassFrostDictionary = new Dictionary<ulong, float>();
         public DaggerfallUnityItem EnchantedCompass = new DaggerfallUnityItem();
         public DaggerfallUnityItem PermEnchantedCompass = new DaggerfallUnityItem();
         public EffectManager SavedEffects = null;
+        public int CompassHealth = 0;
         public float MinimapSize = 256;
         public float OutsideViewSize = 100;
         public float InsideViewSize = 20;
@@ -83,8 +85,10 @@ namespace Minimap
                 CompassMudDictionary = new Dictionary<ulong, List<MudEffect>>(),
                 CompassMagicDictionary = new Dictionary<ulong, int>(),
                 CompassDustDictionary = new Dictionary<ulong, float>(),
+                CompassFrostDictionary = new Dictionary<ulong, float>(),
                 EnchantedCompass = null,
                 PermEnchantedCompass = null,
+                CompassHealth = 0,
                 SavedEffects = null,
                 IconSize = 1f,
                 MinimapSize = 256,
@@ -119,6 +123,7 @@ namespace Minimap
                 IconGroupActive = iconGroupActive,
                 NpcFlatActive = npcFlatActive,
                 IconSizes = iconSizes,
+                CompassHealth = currentEquippedCompass.currentCondition,
                 IconSize = minimapControls.iconSize,
                 MinimapSize = minimapSize,
                 OutsideViewSize = outsideViewSize,
@@ -144,7 +149,8 @@ namespace Minimap
                 CompassDamageDictionary = DamageEffectController.compassDamageDictionary,
                 CompassMagicDictionary = DamageEffectController.compassMagicDictionary,
                 CompassMudDictionary = MudEffectController.compassMudDictionary,
-                CompassDustDictionary = EffectManager.compassDustDictionary,
+                CompassDustDictionary = DustEffect.compassDustDictionary,
+                CompassFrostDictionary = FrostEffect.compassFrostDictionary,
             };
         }
 
@@ -154,7 +160,14 @@ namespace Minimap
 
             //load all the previous saves dictionaries.
             if(myModSaveData.EnchantedCompass != null)
+            {
                 currentEquippedCompass = myModSaveData.EnchantedCompass;
+                Amulet0Item = currentEquippedCompass;
+                Amulet1Item = currentEquippedCompass;
+                lastAmuletID = 0;
+                AmuletID = 0;
+                Debug.LogError("Loaded Current Compass");
+            }
 
             if (myModSaveData.PermEnchantedCompass != null)
             {
@@ -167,6 +180,7 @@ namespace Minimap
                 permCompass.SetItem(ItemGroups.UselessItems2, 720);
             }
 
+            currentEquippedCompass.currentCondition = myModSaveData.CompassHealth;
             iconGroupColors = myModSaveData.IconGroupColors;
             minimapControls.colorSelector = myModSaveData.IconGroupColors[MarkerGroups.Shops];
             minimapControls.lastColor = myModSaveData.IconGroupColors[MarkerGroups.Shops];
@@ -297,7 +311,7 @@ namespace Minimap
             minimapControls.questIndicatorActive = myModSaveData.QuestIndicatorActive;
             generatedStartingEquipment = myModSaveData.GeneratedStartingEquipment;
             minimapControls.autoRotateActive = myModSaveData.Autorotateactive;
-            if(myModSaveData.CompassDamageDictionary != null)
+            if(myModSaveData.CompassDamageDictionary != null) { }
                 DamageEffectController.compassDamageDictionary = myModSaveData.CompassDamageDictionary;
             if (myModSaveData.CompassBloodDictionary != null)
                 BloodEffectController.compassBloodDictionary = myModSaveData.CompassBloodDictionary;
@@ -307,8 +321,12 @@ namespace Minimap
                 DamageEffectController.compassMagicDictionary = myModSaveData.CompassMagicDictionary;
             if (myModSaveData.CompassMudDictionary != null)
                 MudEffectController.compassMudDictionary = myModSaveData.CompassMudDictionary;
+            if (myModSaveData.CompassFrostDictionary != null)
+                FrostEffect.compassFrostDictionary = myModSaveData.CompassFrostDictionary;
             if (myModSaveData.CompassDustDictionary != null)
-                EffectManager.compassDustDictionary = myModSaveData.CompassDustDictionary;
+                DustEffect.compassDustDictionary = myModSaveData.CompassDustDictionary;
+            if (myModSaveData.CompassMudDictionary != null)
+                MudEffectController.compassMudDictionary = myModSaveData.CompassMudDictionary;
         }
         #endregion
 
@@ -415,6 +433,10 @@ namespace Minimap
         public static DaggerfallLocation currentLocation;
         private Automap automap;
         public static Camera minimapCamera;
+
+        //ui objects
+        public static DaggerfallInventoryWindow dfInventoryWindow = (DaggerfallInventoryWindow)UIWindowFactory.GetInstance(UIWindowType.Inventory, DaggerfallUI.UIManager, null);
+        public static DaggerfallCharacterSheetWindow dfSheetWindow = (DaggerfallCharacterSheetWindow)UIWindowFactory.GetInstance(UIWindowType.CharacterSheet, DaggerfallUI.UIManager);
 
         //mesh renderers
         private MeshRenderer insideDoorMesh;
@@ -704,26 +726,39 @@ namespace Minimap
             onstartMenu = true;
         }
 
-        //triggers when a saved game is loaded. Sets proper properties and clears lists/arrays to ensure proper loading.
+            //triggers when a saved game is loaded. Sets proper properties and clears lists/arrays to ensure proper loading.
         static void OnLoadEvent(SaveData_v1 saveData)
         {
             onstartMenu = false;
             gameLoaded = true;
-            lastAmuletID = 0;
+        }
 
-            if (GameManager.Instance.IsPlayerInside)
-                changedLocations = false;
+        static void OnSaveEvent(SaveData_v1 saveData)
+        {
+            if (!BloodEffectController.compassBloodDictionary.ContainsKey(MinimapInstance.currentEquippedCompass.UID))
+                BloodEffectController.compassBloodDictionary.Add(MinimapInstance.currentEquippedCompass.UID, BloodEffectController.bloodEffectList);
             else
-                changedLocations = true;
+                BloodEffectController.compassBloodDictionary[MinimapInstance.currentEquippedCompass.UID] = BloodEffectController.bloodEffectList;
 
+            if (!MudEffectController.compassMudDictionary.ContainsKey(MinimapInstance.currentEquippedCompass.UID))
+                MudEffectController.compassMudDictionary.Add(MinimapInstance.currentEquippedCompass.UID, MudEffectController.mudEffectList);
+            else
+                MudEffectController.compassMudDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = MudEffectController.mudEffectList;
 
+            if (!DirtEffectController.compassDirtDictionary.ContainsKey(MinimapInstance.currentEquippedCompass.UID))
+                DirtEffectController.compassDirtDictionary.Add(MinimapInstance.currentEquippedCompass.UID, DirtEffectController.dirtEffectList);
+            else
+                DirtEffectController.compassDirtDictionary[MinimapInstance.currentEquippedCompass.UID] = DirtEffectController.dirtEffectList;
 
-            currentLocation = null;
-            minimapControls.updateMinimapUI();
-            MinimapInstance.SetupMinimapLayers(true);
-            minimapNpcManager.flatNPCArray.Clear();
-            minimapNpcManager.mobileEnemyArray.Clear();
-            minimapNpcManager.mobileNPCArray.Clear();            
+            if (!FrostEffect.compassFrostDictionary.ContainsKey(MinimapInstance.currentEquippedCompass.UID))
+                FrostEffect.compassFrostDictionary.Add(MinimapInstance.currentEquippedCompass.UID, FrostEffect.frostTimer);
+            else
+                FrostEffect.compassFrostDictionary[MinimapInstance.currentEquippedCompass.UID] = FrostEffect.frostTimer;
+
+            if (!DustEffect.compassDustDictionary.ContainsKey(MinimapInstance.currentEquippedCompass.UID))
+                DustEffect.compassDustDictionary.Add(MinimapInstance.currentEquippedCompass.UID, DustEffect.dustTimer);
+            else
+                DustEffect.compassDustDictionary[MinimapInstance.currentEquippedCompass.UID] = DustEffect.dustTimer;
         }
         //lets mod know when finished fast travelling for loading objects correctly.
         static void postTravel()
@@ -967,7 +1002,7 @@ namespace Minimap
         {
             if (!GameManager.Instance.IsPlayingGame())
             {
-                minimapActive = false;
+                minimapActive = false;               
                 return;
             }
             //UnityEngine.Profiling.Profiler.BeginSample("Minimap Updates");

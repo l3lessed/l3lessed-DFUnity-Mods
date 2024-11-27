@@ -5,6 +5,7 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Utility;
 using DaggerfallConnect.Arena2;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Minimap
 {
@@ -20,11 +21,13 @@ namespace Minimap
         public Texture2D effectTexture;
         public GameObject newEffect;
         public Color textureColor = new Color(1,1,1,1);
-        public float frostTimer;
+        public static float frostTimer;
         private float lastFrostChange;
         public static float frostFadeInTime;
         private float lastSize;
         private int lastSiblingIndex;
+
+        public static Dictionary<ulong, float> compassFrostDictionary = new Dictionary<ulong, float>();
 
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
@@ -60,7 +63,7 @@ namespace Minimap
 
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || EffectManager.repairingCompass)
                 return;
 
             //FROST EFFECT\\

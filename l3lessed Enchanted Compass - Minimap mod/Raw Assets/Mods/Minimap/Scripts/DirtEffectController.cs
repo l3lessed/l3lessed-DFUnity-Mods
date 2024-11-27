@@ -124,10 +124,6 @@ namespace Minimap
                             effectInstance.textureName = currentDirtTextureName;
                             dirtEffectList.Add(effectInstance);
 
-                            if (!compassDirtDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
-                                compassDirtDictionary.Add(Minimap.MinimapInstance.currentEquippedCompass.UID, dirtEffectList);
-                            else
-                                compassDirtDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID] = dirtEffectList;
                             EffectManager.totalEffects = EffectManager.totalEffects + 1;
                         }
                     }

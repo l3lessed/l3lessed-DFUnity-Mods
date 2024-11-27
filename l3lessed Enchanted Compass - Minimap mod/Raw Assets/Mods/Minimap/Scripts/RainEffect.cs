@@ -15,7 +15,7 @@ namespace Minimap
         public int textureID;
         public Minimap.EffectType effectType = new Minimap.EffectType();
         public int siblingIndex = 0;
-        public Texture2D effectTexture;
+        public Texture effectTexture;
         public GameObject newEffect;
         public int lifeTime;
         private float dripSpeed;
@@ -40,9 +40,6 @@ namespace Minimap
 
         void Start()
         {
-            randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next(10, 100) * .01f;
-            randomWidth = randomScale * effectTexture.width;
-            randomHeight = randomScale * effectTexture.height;
             randomPosition = new Vector2( Minimap.MinimapInstance.randomNumGenerator.Next(-120, 120),  Minimap.MinimapInstance.randomNumGenerator.Next(-90, 120));
             currentAnchorPosition = randomPosition;
 
@@ -54,6 +51,10 @@ namespace Minimap
 
             effectRectTransform = newEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             effectRawImage = newEffect.GetComponent<RawImage>();
+            effectTexture = effectRawImage.mainTexture;
+            randomScale = Minimap.MinimapInstance.randomNumGenerator.Next(10, 100) * .01f;
+            randomWidth = randomScale * effectTexture.width;
+            randomHeight = randomScale * effectTexture.height;
             effectRawImage.color = new Color(1, 1, 1, .9f);
             rainDropRotation = Minimap.MinimapInstance.randomNumGenerator.Next(0, 360);
             effectRectTransform.rotation = Quaternion.Euler(0,0,Minimap.MinimapInstance.randomNumGenerator.Next(0, rainDropRotation));
@@ -63,7 +64,7 @@ namespace Minimap
 
         void Update()
         {            
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || EffectManager.repairingCompass)
                 return;
 
             if (newEffect != null && lastSiblingIndex != siblingIndex)

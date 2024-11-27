@@ -35,6 +35,9 @@ namespace Minimap
 
         public static int lastCompassCondition;
         public static int totalEffects;
+        public int currenttotalEffects;
+        public bool currentCleaning;
+        public bool currentDirty;
         private float totalBackupTime;
         private int lastTotalEffects;
         private int msgInstance;
@@ -80,6 +83,7 @@ namespace Minimap
 
         public static int CompassState = 0;
         public bool showndirty;
+        public bool currentRepairCompass;
 
         void Start()
         {
@@ -140,21 +144,36 @@ namespace Minimap
             if (!Minimap.MinimapInstance.minimapActive)
                 return;
 
+            currenttotalEffects = totalEffects;
+            currentCleaning = cleaningCompass;
+            currentDirty = compassDirty;
+
             playerClimateIndex = GameManager.Instance.PlayerGPS.CurrentClimateIndex;
             playerSeason = DaggerfallUnity.Instance.WorldTime.Now.SeasonValue;
 
             //always allow the effects to be enabled and disabled. This will not trigger unless there is an equipped, functioning compass.
             if (Minimap.changedCompass || Minimap.gameLoaded)
             {
-                Debug.Log("Compass Loaded!");
+                Debug.Log("Compass Loaded!" + totalEffects + " | " + compassDirty);
                 Minimap.gameLoaded = false;
-                CleanUpCompass(false, false);
                 Minimap.MinimapInstance.currentEquippedCompass.currentCondition = Minimap.MinimapInstance.Amulet0Item.currentCondition;
-                IEnumerator LoadEffectsRoutine = LoadCompassEffects();
+
+                if (GameManager.Instance.IsPlayerInside)
+                    Minimap.changedLocations = false;
+                else
+                    Minimap.changedLocations = true;
+
+                Minimap.currentLocation = null;
+                Minimap.minimapControls.updateMinimapUI();
+                Minimap.MinimapInstance.SetupMinimapLayers(true);
+                Minimap.minimapNpcManager.flatNPCArray.Clear();
+                Minimap.minimapNpcManager.mobileEnemyArray.Clear();
+                Minimap.minimapNpcManager.mobileNPCArray.Clear();
+
+                removeEffects();
+                IEnumerator LoadEffectsRoutine = Minimap.minimapEffects.LoadCompassEffects();
                 StartCoroutine(LoadEffectsRoutine);
             }
-
-            showndirty = compassDirty;
 
             //if cleaning key is held, start cleaning compass.
             if (SmartKeyManager.Key3Held && compassDirty)
@@ -173,10 +192,11 @@ namespace Minimap
             }
 
             //check if compass is dirty by looking for any active effects in the list or timers.
-            if (totalEffects != 0 || (enableFrostEffect && frostEffectInstance.frostTimer > 10) || (enableDustEffect && dustEffectInstance.dustTimer > 30))
+            if (totalEffects != 0 || (enableFrostEffect && FrostEffect.frostTimer > 10) || (enableDustEffect && DustEffect.dustTimer > 30))
                 compassDirty = true;
 
             //start actual repair code if compass is in repair mode. Compass must be clean before it will actually execute.
+            currentRepairCompass = repairingCompass;
             if (repairingCompass && !compassDirty)
             {
                 Minimap.repairCompassInstance.RepairCompass();
@@ -314,10 +334,10 @@ namespace Minimap
             }
 
             if (enableDustEffect)
-                dustEffectInstance.enabled = false;
+                dustEffectInstance.newEffect.SetActive(false);
 
             if (enableFrostEffect)
-                frostEffectInstance.enabled = false;
+                frostEffectInstance.newEffect.SetActive(false);
             
             return true;
         }
@@ -367,12 +387,11 @@ namespace Minimap
                     Minimap.MinimapInstance.publicCompassGlass.SetActive(false);
                 }
             }
-
             if (enableDustEffect)
-                dustEffectInstance.enabled = true;
+                dustEffectInstance.newEffect.SetActive(true);
 
             if (enableFrostEffect)
-                frostEffectInstance.enabled = true;
+                frostEffectInstance.newEffect.SetActive(true);
 
             return true;
         }
@@ -469,14 +488,14 @@ namespace Minimap
             if(DamageEffectController.compassMagicDictionary != null && DamageEffectController.compassMagicDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
                 DamageEffectController.maxMagicRips = DamageEffectController.compassMagicDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID];
 
-            if(compassDustDictionary != null && compassDustDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
-                dustEffectInstance.dustTimer = compassDustDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID];
+            if(dustEffectInstance != null && compassDustDictionary != null && compassDustDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+                DustEffect.dustTimer = compassDustDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID];
 
-            if(dustEffectInstance != null)
-                dustEffectInstance.enabled = true;
-            if(frostEffectInstance != null)
-                frostEffectInstance.enabled = true;
-            reapplyDamageEffects = true;
+            if (enableDustEffect)
+                dustEffectInstance.newEffect.SetActive(true);
+
+            if (enableFrostEffect)
+                frostEffectInstance.newEffect.SetActive(true);
 
             Minimap.MinimapInstance.publicMinimap.transform.SetAsFirstSibling();
             Minimap.MinimapInstance.publicQuestBearing.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 1);
@@ -490,9 +509,8 @@ namespace Minimap
 
 
         //Clean up the compass. Runs all code to clean up dirty effects.
-        public void CleanUpCompass(bool cleaningMessages = true, bool cleaningDelays = true)
+        public void CleanUpCompass(bool cleaningMessages = true, bool cleaningDelays = true, bool overrideTrigger = false)
         {
-            bool overrideTrigger = false;
             cleanUpTimer += Time.deltaTime;
             BackupTimer += cleanUpTimer;
             totalEffects = MudEffectController.mudEffectList.Count + DirtEffectController.dirtEffectList.Count + BloodEffectController.bloodEffectList.Count;
@@ -522,8 +540,8 @@ namespace Minimap
             //clean one effect every 1 seconds until there are no more.
             if (cleanUpTimer > tempCleanUpSpeed || overrideTrigger)
             {
-                dustEffectInstance.dustTimer = dustEffectInstance.dustTimer - (DustEffect.dustFadeInTime/4);
-                frostEffectInstance.frostTimer = frostEffectInstance.frostTimer - (FrostEffect.frostFadeInTime / 4);
+                DustEffect.dustTimer = DustEffect.dustTimer - (DustEffect.dustFadeInTime/4);
+                FrostEffect.frostTimer = FrostEffect.frostTimer - (FrostEffect.frostFadeInTime / 4);
                 cleanUpTimer = 0;
                 //default found bool to false to indicate no active effects are found yet.
                 bool found = false;
@@ -536,7 +554,7 @@ namespace Minimap
                     int countTrigger = BloodEffectController.bloodEffectList.Count / 2;
                     if (countTrigger < 1)
                         countTrigger = 1;
-                    foreach (BloodEffect bloodEffectInstance in BloodEffectController.bloodEffectList)
+                    foreach (BloodEffect bloodEffectInstance in BloodEffectController.bloodEffectList.ToArray())
                     {
                         Destroy(bloodEffectInstance.newEffect);
                         BloodEffectController.bloodEffectList.RemoveAt(BloodEffectController.bloodEffectList.IndexOf(bloodEffectInstance));
@@ -558,7 +576,7 @@ namespace Minimap
                     if (countTrigger < 1 )
                         countTrigger = 1;
                     //check if the texture is currently being used, and it not set as new effect texture.
-                    foreach (DirtEffect dirtEffectInstance in DirtEffectController.dirtEffectList)
+                    foreach (DirtEffect dirtEffectInstance in DirtEffectController.dirtEffectList.ToArray())
                     {
                         Destroy(dirtEffectInstance.newEffect);
                         Destroy(dirtEffectInstance);
@@ -581,7 +599,7 @@ namespace Minimap
                     if (countTrigger < 1)
                         countTrigger = 1;
 
-                    foreach (MudEffect mudEffectInstance in MudEffectController.mudEffectList)
+                    foreach (MudEffect mudEffectInstance in MudEffectController.mudEffectList.ToArray())
                     {
                         Destroy(mudEffectInstance.newEffect);
                         Destroy(mudEffectInstance);
@@ -599,8 +617,8 @@ namespace Minimap
                 if (totalEffects == 0)
                 {
                     msgInstance = 0;
-                    dustEffectInstance.dustTimer = 0;
-                    frostEffectInstance.frostTimer = 0;
+                    DustEffect.dustTimer = 0;
+                    FrostEffect.frostTimer = 0;
                     BackupTimer = 0;
                     cleanUpTimer = 0;
                     MudEffectController.mudTimer = 0;
@@ -616,9 +634,62 @@ namespace Minimap
             }
         }
 
-       
+        public void removeEffects()
+        {
+            DustEffect.dustTimer = 0;
+            FrostEffect.frostTimer = 0;
+            MudEffectController.mudTimer = 0;
+            DirtEffectController.dirtTimer = 0;
+            DamageEffectController.maxMagicRips = 0;
+            //begin looping through active effects and check effect lists to see what specific effect it is
+            //then begin cleaning code.
 
+            //check if the texture is currently being used, and it not set as new effect texture.
+            if (BloodEffectController.bloodEffectList != null && BloodEffectController.bloodEffectList.Count != 0)
+            {
+                foreach (BloodEffect bloodEffectInstance in BloodEffectController.bloodEffectList.ToArray())
+                {
+                    Debug.LogError("Removing Bood Effect");
+                    Destroy(bloodEffectInstance.newEffect);
+                    BloodEffectController.bloodEffectList.RemoveAt(BloodEffectController.bloodEffectList.IndexOf(bloodEffectInstance));
+                    Destroy(bloodEffectInstance);
+                }
+            }
 
+            if (DirtEffectController.dirtEffectList != null && DirtEffectController.dirtEffectList.Count != 0)
+            {
+                //check if the texture is currently being used, and it not set as new effect texture.
+                foreach (DirtEffect dirtEffectInstance in DirtEffectController.dirtEffectList.ToArray())
+                {
+                    Destroy(dirtEffectInstance.newEffect);
+                    DirtEffectController.dirtEffectList.RemoveAt(DirtEffectController.dirtEffectList.IndexOf(dirtEffectInstance));
+                    Destroy(dirtEffectInstance);
+                }
+            }
+
+            //check if the texture is currently being used, and it not set as new effect texture.
+            if (MudEffectController.mudEffectList != null && MudEffectController.mudEffectList.Count != 0)
+            {
+
+                foreach (MudEffect mudEffectInstance in MudEffectController.mudEffectList.ToArray())
+                {
+                    Destroy(mudEffectInstance.newEffect);
+                    MudEffectController.mudEffectList.RemoveAt(MudEffectController.mudEffectList.IndexOf(mudEffectInstance));
+                    Destroy(mudEffectInstance);
+                }
+            }
+            //check if the texture is currently being used, and it not set as new effect texture.
+            if (DamageEffectController.magicEffectList != null && DamageEffectController.magicEffectList.Count > 0)
+            {
+                foreach (MagicEffect magicEffectInstance in DamageEffectController.magicEffectList.ToArray())
+                {
+                    Destroy(magicEffectInstance.newEffect);
+                    Destroy(magicEffectInstance.newEffect2);
+                    DamageEffectController.magicEffectList.RemoveAt(DamageEffectController.magicEffectList.IndexOf(magicEffectInstance));
+                    Destroy(magicEffectInstance);
+                }
+            }
+        }
     }
 }
 
