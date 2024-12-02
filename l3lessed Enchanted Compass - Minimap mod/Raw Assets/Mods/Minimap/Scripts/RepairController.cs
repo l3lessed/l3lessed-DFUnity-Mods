@@ -73,9 +73,9 @@ namespace Minimap
 
         private void Start()
         {
-            tempCompassBackTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/goldCompassBack.png");
-            tempOpenFrontRedTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/OpenfaceRed.png");
-            tempDoorTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/OpenfaceDoor.png");
+            tempCompassBackTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/goldCompassBack.png");
+            tempOpenFrontRedTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/OpenfaceRed.png");
+            tempDoorTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/OpenfaceDoor.png");
 
             openDoorEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Open Door Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.151f, Minimap.MinimapInstance.minimapSize * 1.4799f, new Vector3(0, 0, 0), tempDoorTexture, Color.white, 1);
             openDoorEffect.name = "Open door Effect";
@@ -86,28 +86,28 @@ namespace Minimap
             openDoorRectTran.pivot = new Vector2(.5f, .387f);
             openDoorRectTran.position = new Vector2(0, 0);
 
-            wrenchTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/wrench.png");
+            wrenchTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/wrench.png");
             wrenchEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Wrench Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), wrenchTexture, Color.white, 1);
             wrenchEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             wrenchRectTran = wrenchEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             wrenchRectTran.localScale = new Vector3(1f, 1f, 0);
             wrenchEffect.SetActive(false);
 
-            brokenGearTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/brokenGear.png");
+            brokenGearTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/brokenGear.png");
             brokenGearEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Broken Gear Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), brokenGearTexture, Color.white, 1);
             brokenGearEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             brokenGearRectTran = brokenGearEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             brokenGearRectTran.localScale = new Vector3(1f, 1f, 0);
             brokenGearEffect.SetActive(false);
 
-            gearTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/dwemerGear.png");
+            gearTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/dwemerGear.png");
             gearEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Gear Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize, Minimap.MinimapInstance.minimapSize, new Vector3(0, 0, 0), gearTexture, Color.white, 1);
             gearEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             gearRectTran = gearEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
             gearRectTran.localScale = new Vector3(1f, 1f, 0);
             gearEffect.SetActive(false);
 
-            screwTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/screw.png");
+            screwTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/screw.png");
             screwEffect = Minimap.MinimapInstance.CanvasConstructor(false, "back screw Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.15f, Minimap.MinimapInstance.minimapSize * 1.15f, new Vector3(0, 0, 0), screwTexture, Color.white, 1);
             screwEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             screwRectTran = screwEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -115,7 +115,7 @@ namespace Minimap
             screwEffect.SetActive(false);
             screwRectTran.SetAsLastSibling();
 
-            backPlateTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/backPlate.png");
+            backPlateTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/backPlate.png");
             backPlateEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Back Plate Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), backPlateTexture, Color.white, 1);
             backPlateEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             backPlateRectTran = backPlateEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -123,7 +123,7 @@ namespace Minimap
             backPlateEffect.SetActive(false);
 
 
-            waxRingTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/waxRing.png");
+            waxRingTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/waxRing.png");
             waxRingEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Wax Ring Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.4799f, new Vector3(0, 0, 0), waxRingTexture, Color.white, 1);
             waxRingEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             waxRingRectTran = waxRingEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -132,7 +132,7 @@ namespace Minimap
             waxRingRectTran.position = new Vector2(0, 0);
             waxRingEffect.SetActive(false);
 
-            waxRingUsedTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/waxRingFlattened.png");
+            waxRingUsedTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/waxRingFlattened.png");
             waxRingUsedEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Wax Used Ring Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.151f, Minimap.MinimapInstance.minimapSize * 1.4799f, new Vector3(0, 0, 0), waxRingUsedTexture, Color.white, 1);
             waxRingUsedEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             waxRingUsedRectTran = waxRingUsedEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -142,7 +142,7 @@ namespace Minimap
             waxRingUsedEffect.SetActive(false);
 
 
-            backPlateTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/backPlate.png");
+            backPlateTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/backPlate.png");
             backPlateEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Back Plate Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.151f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), backPlateTexture, Color.white, 1);
             backPlateEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             backPlateRectTran = backPlateEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -155,7 +155,7 @@ namespace Minimap
             tempGlassRectTran.localScale = new Vector3(1f, 1f, 0);
             tempGlassEffect.SetActive(false);
 
-            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
+            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
             tempBrokenGlassEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Temp Damaged Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), tempBrokenGlassTexture, new Color(.6f, .6f, .6f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency), 1);
             tempBrokenGlassEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             tempBrokenGlassRectTran = tempBrokenGlassEffect.GetComponent<RawImage>().GetComponent<RectTransform>();

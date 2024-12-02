@@ -72,7 +72,7 @@ namespace Minimap
 
         private void Start()
         {
-            compassMenu = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/ScrollCleaned.png");
+            compassMenu = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/ScrollCleaned.png");
             colorSelector = Minimap.iconGroupColors[Minimap.MarkerGroups.Shops];
             redValue = colorSelector.r;
             blueValue = colorSelector.b;

@@ -26,11 +26,11 @@ namespace Minimap
 
             //begin creating texture array's using stored texture folders/texture sets.\\
             //grab directory info for blood and load pngs using a for loop.
-            DirectoryInfo di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/blood");
+            DirectoryInfo di = new DirectoryInfo(Application.streamingAssetsPath + "/Textures/minimap/blood");
             FileInfo[] FileInfoArray = di.GetFiles("*.png");
             foreach (FileInfo textureFile in FileInfoArray)
             {
-                fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/minimap/blood/" + textureFile.Name);
+                fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/minimap/blood/" + textureFile.Name);
                 singleTexture = new Texture2D(2, 2);
                 singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 

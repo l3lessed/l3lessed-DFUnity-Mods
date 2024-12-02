@@ -58,7 +58,7 @@ namespace Minimap
 
         public float dirtTimer;
         public float cleanUpTimer;
-        public float cleanUpSpeed = .25f;
+        public float cleanUpSpeed = .5f;
         public float repairSpeed = .5f;
         private float lastHealth;
         public static float dirtLoopTimer;
@@ -540,8 +540,8 @@ namespace Minimap
             //clean one effect every 1 seconds until there are no more.
             if (cleanUpTimer > tempCleanUpSpeed || overrideTrigger)
             {
-                DustEffect.dustTimer = DustEffect.dustTimer - (DustEffect.dustFadeInTime/4);
-                FrostEffect.frostTimer = FrostEffect.frostTimer - (FrostEffect.frostFadeInTime / 4);
+                DustEffect.dustTimer = DustEffect.dustTimer - (DustEffect.dustFadeInTime/2);
+                FrostEffect.frostTimer = FrostEffect.frostTimer - (FrostEffect.frostFadeInTime / 2);
                 cleanUpTimer = 0;
                 //default found bool to false to indicate no active effects are found yet.
                 bool found = false;

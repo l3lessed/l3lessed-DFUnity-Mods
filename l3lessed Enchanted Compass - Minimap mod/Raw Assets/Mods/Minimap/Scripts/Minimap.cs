@@ -854,23 +854,23 @@ namespace Minimap
             minimapTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
             minimapTexture.Create();
 
-            string backgroundTexturePath = "/StreamingAssets/Textures/Minimap/MinimapMask.png";
+            string backgroundTexturePath = "/Textures/Minimap/MinimapMask.png";
 
             if (minimapBackgroundTexture)
-                backgroundTexturePath = "/StreamingAssets/Textures/Minimap/MinimapMaskTexture.png";
+                backgroundTexturePath = "/Textures/Minimap/MinimapMaskTexture.png";
 
             loadedBackgroundColor = new Color(loadedBackgroundColor.r * minimapBackgroundBrightness, loadedBackgroundColor.b * minimapBackgroundBrightness, loadedBackgroundColor.g * minimapBackgroundBrightness, minimapBackgroundTransperency);
 
             //sets up minimap canvas, including the screen space canvas container.            
-            publicMinimap = CanvasConstructor(true, "Minimap Layer", false, false, true, true, false, 1, 1, defaultTextureSize, defaultTextureSize, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + backgroundTexturePath), loadedBackgroundColor, 1);
+            publicMinimap = CanvasConstructor(true, "Minimap Layer", false, false, true, true, false, 1, 1, defaultTextureSize, defaultTextureSize, new Vector3(0, 0, 0), LoadPNG(Application.streamingAssetsPath + backgroundTexturePath), loadedBackgroundColor, 1);
             //sets up minimap render canvas that render camera texture it projected to.
             publicMinimapRender = CanvasConstructor(false, "Rendering Layer", false, false, true, true, false, 1, 1, defaultTextureSize, defaultTextureSize, new Vector3(0, 0, 0), minimapTexture, new Color(1, 1, 1, 1), 0);
             //sets up quest bearing directions canvas layer.
-            publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, 1, 1, defaultTextureSize * .971f, defaultTextureSize * .971f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
+            publicQuestBearing = CanvasConstructor(false, "Quest Bearing Layer", false, false, true, true, false, 1, 1, defaultTextureSize * .971f, defaultTextureSize * .971f, new Vector3(0, 0, 0), LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/QuestIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
             //sets up bearing directions canvas layer.
-            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, 1, 1, defaultTextureSize * .971f, defaultTextureSize * .971f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
-            publicCompassGlass = CanvasConstructor(false, "Glass Layer", false, false, true, true, false, 1, 1, defaultTextureSize * 1.111f, defaultTextureSize * 1.111f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/Glass/cleanGlass.png"), new Color(.5f, .5f, .5f, .5f), 0);
-            publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1, 1, defaultTextureSize * 1.151f, defaultTextureSize * 1.4799f, new Vector3(0, 0, 0), LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassRedGem.png"), new Color(1, 1, 1, 1), 1);
+            publicDirections = CanvasConstructor(false, "Bearing Layer", false, false, true, true, false, 1, 1, defaultTextureSize * .971f, defaultTextureSize * .971f, new Vector3(0, 0, 0), LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/DirectionalIndicatorsSmallMarkers.png"), new Color(1, 1, 1, 1), 0);
+            publicCompassGlass = CanvasConstructor(false, "Glass Layer", false, false, true, true, false, 1, 1, defaultTextureSize * 1.111f, defaultTextureSize * 1.111f, new Vector3(0, 0, 0), LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/Glass/cleanGlass.png"), new Color(.5f, .5f, .5f, .5f), 0);
+            publicCompass = CanvasConstructor(false, "Compass Layer", false, false, true, true, false, 1, 1, defaultTextureSize * 1.151f, defaultTextureSize * 1.4799f, new Vector3(0, 0, 0), LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/GoldCompassRedGem.png"), new Color(1, 1, 1, 1), 1);
             //sets up the golden compass canvas layer.
             //attaches rendering canvas to the main minimap mask canvas.
             publicCompass.transform.SetParent(canvasScreenSpaceRectTransform.transform);
@@ -918,9 +918,9 @@ namespace Minimap
             publicCompassGlass.GetComponentInChildren<RawImage>().color = new Color(.5f, .5f, .5f, glassTransperency);
 
             //sets up individual textures
-            greenCrystalCompass = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassGreenGem.png");
-            redCrystalCompass = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/GoldCompassRedGem.png");
-            cleanGlass = LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/Glass/cleanGlass.png");
+            greenCrystalCompass = LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/GoldCompassGreenGem.png");
+            redCrystalCompass = LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/GoldCompassRedGem.png");
+            cleanGlass = LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/Glass/cleanGlass.png");
 
             //grab games Minimap layer for assigning mesh and camera layers. Uses layer 31(Mod Reserved Layer Mask)
             layerMinimap = LayerMask.NameToLayer("Minimap");
@@ -1108,6 +1108,13 @@ namespace Minimap
                 //if a compass is equipped, the minimap is off, and the toggle is on, turn minimap on.
                 if (currentEquippedCompass != null && minimapToggle && !minimapActive)
                     minimapActive = true;
+            }
+            else if (permCompass != null && minimapToggle && !minimapActive)
+            {
+                if (currentEquippedCompass.currentCondition > currentEquippedCompass.ItemTemplate.hitPoints)
+                    currentEquippedCompass.currentCondition = currentEquippedCompass.maxCondition;
+
+                minimapActive = true;
             }
             //if the player doesn't want equippable compasses, setup hidden permanent compass so they still get effects and turn on minimap.
 
@@ -1420,6 +1427,8 @@ namespace Minimap
                         //grab mesh as game object.
                         hitObject = nearestHit.Value.collider.gameObject;
                         hitObject.transform.GetComponent<MeshRenderer>().enabled = true;
+                        hitObject.transform.GetComponent<Collider>().enabled = false;
+                        hitObject.transform.GetComponent<MeshCollider>().enabled = false;
                     }
                 }
             }                            

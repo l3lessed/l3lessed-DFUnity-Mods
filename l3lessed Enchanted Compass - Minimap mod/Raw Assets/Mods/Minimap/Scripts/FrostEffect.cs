@@ -37,7 +37,7 @@ namespace Minimap
             Texture2D singleTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/frost.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/frost.png");
             singleTexture = new Texture2D(2, 2);
             singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 

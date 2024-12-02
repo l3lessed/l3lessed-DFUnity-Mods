@@ -24,7 +24,7 @@ namespace Minimap
 
         void Start()
         {
-            effectTexture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/minimap/damage/" + textureName);
+            effectTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/minimap/damage/" + textureName);
             newEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Damage Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);
             newEffect.transform.SetSiblingIndex(siblingIndex);

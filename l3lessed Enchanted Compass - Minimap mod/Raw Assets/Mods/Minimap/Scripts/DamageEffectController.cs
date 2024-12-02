@@ -35,11 +35,11 @@ namespace Minimap
 
             //begin creating texture array's using stored texture folders/texture sets.\\
             //grab directory info for compass damage and load pngs using a for loop.
-            DirectoryInfo di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/damage");
+            DirectoryInfo di = new DirectoryInfo(Application.streamingAssetsPath + "/Textures/minimap/damage");
             FileInfo[] FileInfoArray = di.GetFiles("*.png");
             foreach (FileInfo textureFile in FileInfoArray)
             {
-                fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/minimap/damage/" + textureFile.Name);
+                fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/minimap/damage/" + textureFile.Name);
                 singleTexture = new Texture2D(2, 2);
                 singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 
@@ -50,11 +50,11 @@ namespace Minimap
             }
             damageGlassEffectInstance = Minimap.MinimapInstance.publicMinimap.AddComponent<DamageEffect>();
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/magicRip.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/magicRip.png");
             magicRipTexture = new Texture2D(2, 2);
             magicRipTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/magicSwirlPurple.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/magicSwirlPurple.png");
             magicSwirlTexture = new Texture2D(2, 2);
             magicSwirlTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
         }
@@ -64,7 +64,7 @@ namespace Minimap
             Texture2D singleTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/Damage/damage1.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/Damage/damage1.png");
             singleTexture = new Texture2D(2, 2);
             singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 

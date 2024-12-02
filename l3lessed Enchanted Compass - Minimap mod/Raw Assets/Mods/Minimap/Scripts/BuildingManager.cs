@@ -35,7 +35,7 @@ namespace Minimap
             doorIconTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/doorLabel.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/doorLabel.png");
             doorIconTexture = new Texture2D(2, 2);
             doorIconTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
         }

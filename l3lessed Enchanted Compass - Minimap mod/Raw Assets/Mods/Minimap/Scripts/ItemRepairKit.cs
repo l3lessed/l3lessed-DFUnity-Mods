@@ -41,7 +41,7 @@ namespace Minimap
                 return false;
             }
 
-            RepairController.tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.dataPath + "/StreamingAssets/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
+            RepairController.tempBrokenGlassEffect.GetComponent<RawImage>().texture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
             RepairController.tempGlassTexture = Minimap.MinimapInstance.cleanGlass;
 
             if (dwemerGearsList.Count != 0 && cutGlassList.Count != 0)

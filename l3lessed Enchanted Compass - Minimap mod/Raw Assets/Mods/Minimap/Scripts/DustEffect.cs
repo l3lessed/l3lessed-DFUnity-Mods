@@ -29,7 +29,7 @@ namespace Minimap
             Texture2D singleTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/Dust.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/Dust.png");
             singleTexture = new Texture2D(2, 2);
             singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 

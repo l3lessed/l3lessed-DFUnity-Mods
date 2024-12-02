@@ -23,7 +23,7 @@ namespace Minimap
             Texture2D ragTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/dirtyRag.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/dirtyRag.png");
             ragTexture = new Texture2D(2, 2);
             ragTexture.LoadImage(fileData);
 

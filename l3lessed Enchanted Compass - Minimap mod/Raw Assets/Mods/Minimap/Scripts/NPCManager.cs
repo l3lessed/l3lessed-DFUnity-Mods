@@ -40,7 +40,7 @@ namespace Minimap
             npcDotTexture = null;
             byte[] fileData;
 
-            fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/Minimap/npcDot.png");
+            fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/Minimap/npcDot.png");
             npcDotTexture = new Texture2D(2, 2);
             npcDotTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
         }

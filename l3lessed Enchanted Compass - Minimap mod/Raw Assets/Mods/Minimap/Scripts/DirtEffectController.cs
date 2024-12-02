@@ -30,11 +30,11 @@ namespace Minimap
 
 
             //grab directory info for dirt and load pngs using a for loop.
-            DirectoryInfo di = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Textures/minimap/dirt");
+            DirectoryInfo di = new DirectoryInfo(Application.streamingAssetsPath + "/Textures/minimap/dirt");
             FileInfo[] FileInfoArray = di.GetFiles("*.png");
             foreach (FileInfo textureFile in FileInfoArray)
             {
-                fileData = File.ReadAllBytes(Application.dataPath + "/StreamingAssets/Textures/minimap/dirt/" + textureFile.Name);
+                fileData = File.ReadAllBytes(Application.streamingAssetsPath + "/Textures/minimap/dirt/" + textureFile.Name);
                 singleTexture = new Texture2D(2, 2);
                 singleTexture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
 
