@@ -32,12 +32,15 @@ namespace Minimap
 
         void Start()
         {
+            if (!Minimap.MinimapInstance.minimapActive)
+                return;
+
             if (currentAnchorPosition == new Vector2(0,0))
                 currentAnchorPosition = new Vector2(Minimap.MinimapInstance.randomNumGenerator.Next(-90, 90), Minimap.MinimapInstance.randomNumGenerator.Next(-90, 90));
 
-            random = Random.Range(.5f, 1f);
+            random = Random.Range(.5f, 1.25f);
             if(randomScale == 0)
-                randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next((int)(Minimap.MinimapInstance.minimapSize * random), (int)Minimap.MinimapInstance.minimapSize);
+                randomScale =  Minimap.MinimapInstance.randomNumGenerator.Next((int)(Minimap.MinimapInstance.minimapSize * random), (int)(Minimap.MinimapInstance.minimapSize * 1.25f));
 
             newEffect = Minimap.MinimapInstance.CanvasConstructor(false, textureName, false, false, true, true, false, 1, 1, randomScale, randomScale, new Vector3(0, 0, 0), effectTexture, textureColor, 0);
             newEffect.transform.SetParent(Minimap.MinimapInstance.publicMinimap.transform);

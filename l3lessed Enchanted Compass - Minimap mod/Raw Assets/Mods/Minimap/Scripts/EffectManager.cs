@@ -18,10 +18,10 @@ namespace Minimap
         public static bool enabledBloodEffect;
         public static bool enableDamageEffect;
         public static bool enableRainEffect;
-        public bool enableFrostEffect;
+        public static bool enableFrostEffect;
         public static bool enableMudEffect;
         public static bool enableDirtEffect;
-        public bool enableDustEffect;
+        public static bool enableDustEffect;
         public static bool enableMagicTearEffect;
         public bool compassArmored;
         public bool compassClothed;
@@ -63,7 +63,7 @@ namespace Minimap
         private float lastHealth;
         public static float dirtLoopTimer;
         public static float mudLoopTimer;
-        float bloodTriggerDifference;
+        public static float bloodTriggerDifference;
 
         private KeyCode toggleEffectKey;
         private Texture2D magicRipTexture;
@@ -76,6 +76,7 @@ namespace Minimap
         public static int lastCompassState;
         private int cleancounter;
 
+        public IEnumerator LoadEffectsRoutine;
         public RectTransform effectRectTransform { get; private set; }
         public RawImage effectRawImage { get; private set; }
         public float BackupTimer { get; private set; }
@@ -88,18 +89,6 @@ namespace Minimap
         void Start()
         {
             //enable/disable each individual effect using mod settings.
-            enabledBloodEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableBloodEffect");
-            enableDamageEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableDamageEffect");
-            bloodTriggerDifference = Minimap.settings.GetValue<float>("CompassEffectSettings", "MaxBloodDamageTrigger");
-            enableDamageEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableDamageEffect");
-            enableRainEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableWaterDropEffect");
-            enableFrostEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableFrostEffect");
-            enableMudEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableMudEffect");
-            mudLoopTimer = Minimap.settings.GetValue<float>("CompassEffectSettings", "MudLoopTimer");
-            enableDirtEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableDirtEffect");
-            dirtLoopTimer = Minimap.settings.GetValue<float>("CompassEffectSettings", "DirtLoopTimer");
-            enableDustEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableDustEffect");
-            enableMagicTearEffect = Minimap.settings.GetValue<bool>("CompassGraphicsSettings", "EnableMagicTearEffect");
 
             if (enableRainEffect)
             {
@@ -171,7 +160,7 @@ namespace Minimap
                 Minimap.minimapNpcManager.mobileNPCArray.Clear();
 
                 removeEffects();
-                IEnumerator LoadEffectsRoutine = Minimap.minimapEffects.LoadCompassEffects();
+                LoadEffectsRoutine = LoadCompassEffects();
                 StartCoroutine(LoadEffectsRoutine);
             }
 
@@ -399,7 +388,7 @@ namespace Minimap
         public IEnumerator LoadCompassEffects()
         {
             //if the dictionary contains blood effects for the compass, load the saved dictionary effect instances to the list.
-            if (BloodEffectController.compassBloodDictionary != null && BloodEffectController.compassBloodDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+            if (enabledBloodEffect && BloodEffectController.compassBloodDictionary != null && BloodEffectController.compassBloodDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
             {
                 foreach (var savedEffect in BloodEffectController.compassBloodDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
                 {
@@ -424,10 +413,11 @@ namespace Minimap
                     BloodEffectController.bloodEffectList.Add(effectInstance);
                     yield return new WaitForEndOfFrame();
                 }
+                totalEffects = totalEffects + BloodEffectController.bloodEffectList.Count;
             }
 
             //if the dictionary contains blood effects for the compass, load the saved dictionary effect instances to the list.
-            if (DirtEffectController.compassDirtDictionary != null && DirtEffectController.compassDirtDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+            if (enableDirtEffect && DirtEffectController.compassDirtDictionary != null && DirtEffectController.compassDirtDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
             {
                 //if the dictionary contains blood effects for the compass, load the saved dictionary effect instances to the list.
                 foreach (var savedEffect in DirtEffectController.compassDirtDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
@@ -454,10 +444,11 @@ namespace Minimap
                     DirtEffectController.dirtEffectList.Add(effectInstance);
                     yield return new WaitForEndOfFrame();
                 }
+                totalEffects = totalEffects + DirtEffectController.dirtEffectList.Count;
             }
 
             //if the dictionary contains blood effects for the compass, load the saved dictionary effect instances to the list.
-            if (MudEffectController.compassMudDictionary != null && MudEffectController.compassMudDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+            if(enableMudEffect && MudEffectController.compassMudDictionary != null && MudEffectController.compassMudDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
             {
                 //if the dictionary contains mud effects for the compass, load the saved dictionary effect instances to the list.
                 foreach (var savedEffect in MudEffectController.compassMudDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID])
@@ -483,12 +474,13 @@ namespace Minimap
                     MudEffectController.mudEffectList.Add(effectInstance);
                     yield return new WaitForEndOfFrame();
                 }
+                totalEffects = totalEffects + MudEffectController.mudEffectList.Count;
             }
 
-            if(DamageEffectController.compassMagicDictionary != null && DamageEffectController.compassMagicDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+            if(enableDamageEffect && DamageEffectController.compassMagicDictionary != null && DamageEffectController.compassMagicDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
                 DamageEffectController.maxMagicRips = DamageEffectController.compassMagicDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID];
 
-            if(dustEffectInstance != null && compassDustDictionary != null && compassDustDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
+            if(enableDustEffect && dustEffectInstance != null && compassDustDictionary != null && compassDustDictionary.ContainsKey(Minimap.MinimapInstance.currentEquippedCompass.UID))
                 DustEffect.dustTimer = compassDustDictionary[Minimap.MinimapInstance.currentEquippedCompass.UID];
 
             if (enableDustEffect)
@@ -503,8 +495,6 @@ namespace Minimap
             Minimap.MinimapInstance.publicCompassGlass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimapRender.transform.GetSiblingIndex() + 3);
             Minimap.MinimapInstance.publicCompass.transform.SetSiblingIndex(Minimap.MinimapInstance.publicMinimap.transform.GetSiblingIndex() + 1);
             Minimap.repairCompassInstance.screwEffect.transform.SetAsLastSibling();
-
-            totalEffects = DamageEffectController.maxMagicRips + MudEffectController.mudEffectList.Count + DirtEffectController.dirtEffectList.Count + BloodEffectController.bloodEffectList.Count;
         }
 
 

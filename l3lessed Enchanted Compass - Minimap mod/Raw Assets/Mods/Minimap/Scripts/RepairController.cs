@@ -155,7 +155,7 @@ namespace Minimap
             tempGlassRectTran.localScale = new Vector3(1f, 1f, 0);
             tempGlassEffect.SetActive(false);
 
-            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/damage/" + DamageEffectController.damageGlassEffectInstance.textureName);
+            tempBrokenGlassTexture = Minimap.MinimapInstance.LoadPNG(Application.streamingAssetsPath + "/Textures/Minimap/damage/damage0.png");
             tempBrokenGlassEffect = Minimap.MinimapInstance.CanvasConstructor(false, "Temp Damaged Effect", false, false, true, true, false, 1, 1, Minimap.MinimapInstance.minimapSize * 1.111f, Minimap.MinimapInstance.minimapSize * 1.111f, new Vector3(0, 0, 0), tempBrokenGlassTexture, new Color(.6f, .6f, .6f, Minimap.minimapControls.alphaValue * Minimap.MinimapInstance.glassTransperency), 1);
             tempBrokenGlassEffect.transform.SetParent(Minimap.MinimapInstance.canvasScreenSpaceRectTransform.transform);
             tempBrokenGlassRectTran = tempBrokenGlassEffect.GetComponent<RawImage>().GetComponent<RectTransform>();
@@ -183,6 +183,9 @@ namespace Minimap
 
         private void Update()
         {
+            if (!GameManager.Instance.IsPlayingGame())
+             return;
+
             if (!Minimap.MinimapInstance.minimapActive && !EffectManager.repairingCompass)
             {
                 backPlateEffect.SetActive(false);
@@ -252,7 +255,6 @@ namespace Minimap
         {
             if (!effectsPlaying)
             {
-                Minimap.minimapEffects.DisableCompassEffects();
                 effectsPlaying = true;
                 tempGlassTexture = (Texture2D)DamageEffectController.damageGlassEffectInstance.effectRawImage.texture;
                 brokenGearRectTran.SetAsLastSibling();
@@ -603,7 +605,8 @@ namespace Minimap
                     DaggerfallUI.Instance.PopupMessage("The compass magic repaired its enchantment on its own.");
                     //Find and remove a gear and glass from player.
                     List<DaggerfallUnityItem> cutGlassList = GameManager.Instance.PlayerEntity.Items.SearchItems(ItemGroups.UselessItems2, ItemCutGlass.templateIndex);
-                    GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
+                    if(cutGlassList.Count > 0) 
+                        GameManager.Instance.PlayerEntity.Items.RemoveOne(cutGlassList[0]);
                     //reset permanent damaged glass texture to clear/not seen.
                     DamageEffectController.damageGlassEffectInstance.UpdateTexture("damage1.png",new Color(1, 1, 1, 0), DamageEffectController.damageTextureDict["damage1.png"], new Vector3(1, 1, 1));
                     //update glass texture to go back to clean glass.

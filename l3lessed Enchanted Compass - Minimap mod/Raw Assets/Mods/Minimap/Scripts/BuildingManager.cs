@@ -29,6 +29,8 @@ namespace Minimap
         public string lastLocation;
         public bool generatingMarkers;
         public CityNavigation currentCityNav;
+        public static bool buildingManagerLoading = false;
+        public int testID;
 
         private void Awake()
         {
@@ -85,13 +87,24 @@ namespace Minimap
             currentLocationName = "Starting Game";
         }
 
+
+
         // Update is called once per frame
         void Update()
         {
-            if (!Minimap.MinimapInstance.minimapActive)
+            if (!Minimap.MinimapInstance.minimapActive || GameManager.Instance.IsPlayerInside)
                 return;
+
+            if (buildingManagerLoading)
+            {
+                Minimap.currentLocation = null;
+                buildingManagerLoading = false;
+                Minimap.changedLocations = true;
+                Minimap.MinimapInstance.currentPositionUID = (GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelX - 1) + 5 * (GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelY - 1); ;
+            }
+
             //only runs in non wilderness areas and on pixel detection change.
-           if(Minimap.currentLocation != null && Minimap.MinimapInstance.currentPositionUID != Minimap.MinimapInstance.generatedPositionUID)
+            if (Minimap.MinimapInstance.currentPositionUID != Minimap.MinimapInstance.generatedPositionUID)
                 MarkerManager();
 
             //if player is outside and the streaming world is ready/generated for play setup building indicators.
@@ -99,7 +112,7 @@ namespace Minimap
             {
                 Minimap.changedLocations = false;
 
-                if (Minimap.MinimapInstance.currentPositionUID == Minimap.MinimapInstance.generatedPositionUID)
+                if (Minimap.MinimapInstance.currentPositionUID == Minimap.MinimapInstance.generatedPositionUID && buildingInfoCollection.Count != 0)
                 {
                     foreach (GameObject combinedMarker in combinedMarkerList)
                         combinedMarker.SetActive(true);
@@ -144,10 +157,12 @@ namespace Minimap
         public void MarkerManager()
         {
             //grab the current location name to check if locations have changed. Has to use seperate grab for every location type.
-            if (!GameManager.Instance.IsPlayerInside && !GameManager.Instance.StreamingWorld.IsInit && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
+            if (!GameManager.Instance.IsPlayerInside && GameManager.Instance.StreamingWorld.IsReady && GameManager.Instance.PlayerGPS != null)
             {
                 //set minimap camera to outside rendering layer mask
                 Minimap.minimapCamera.cullingMask = Minimap.minimapLayerMaskOutside;
+
+                Minimap.currentLocation = GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject;
 
                 if (Minimap.currentLocation != null)
                 {
@@ -166,10 +181,17 @@ namespace Minimap
                     //and tell system the markers are being generated to ensure proper generation order.
                     if (blockArray != null && buildingDirectory != null && (Minimap.MinimapInstance.currentPositionUID != Minimap.MinimapInstance.generatedPositionUID))
                     {
-                        Minimap.MinimapInstance.generatedPositionUID = (GameManager.Instance.PlayerGPS.CurrentMapPixel.X - 1) + 5 * (GameManager.Instance.PlayerGPS.CurrentMapPixel.Y - 1);
+                        Debug.LogError("UPDATING MAPS: " + GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelX + " | " + GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelY);
+                        Minimap.MinimapInstance.generatedPositionUID = (GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelX - 1) + 5 * (GameManager.Instance.StreamingWorld.CurrentPlayerLocationObject.Summary.MapPixelY - 1);
                         UpdateMarkers();
                         markersGenerated = false;
                     }
+                }
+                else
+                {
+                    Debug.LogError("NO LOCATION ON CREATION");
+                    Minimap.MinimapInstance.generatedPositionUID = 0;
+                    Minimap.MinimapInstance.currentPositionUID = 0;
                 }
             }
         }
@@ -202,7 +224,7 @@ namespace Minimap
             Debug.Log("GENERATING MARKERS!!");
 
             //Vector3 position = currentCityNav.WorldToScenePosition(new DFPosition(Minimap.currentLocation.Summary.MapPixelX, Minimap.currentLocation.Summary.MapPixelX), true);
-            List<BuildingSummary> housesForSaleList = buildingDirectory.GetHousesForSale();
+            List<BuildingSummary> housesForSaleList = buildingDirectory.GetHousesForSale();           
 
             foreach (DaggerfallRMBBlock block in blockArray)
             {
@@ -225,6 +247,7 @@ namespace Minimap
                 //runs through building array.
                 foreach (StaticBuilding building in StaticBuildingArray)
                 {
+                    Debug.LogError("Running Through Buildings");
                     //sets up and grabes the current buildings material, summary object/info, placing/final position, game model.
                     BuildingSummary SavedBuilding = new BuildingSummary();
                     buildingDirectory.GetBuildingSummary(building.buildingKey, out SavedBuilding);
@@ -466,7 +489,7 @@ namespace Minimap
             //CombineMarkerMeshes(labelObjectList, "Combined Label Mesh", false, false,true);
         }
 
-        void CombineMarkerMeshes(List<BuildingMarker> markerList, Minimap.MarkerGroups markerGroupType = new Minimap.MarkerGroups(), string meshName = "none", bool mesh = false, bool icons = false, bool doors = false, bool labels = false)
+        private void CombineMarkerMeshes(List<BuildingMarker> markerList, Minimap.MarkerGroups markerGroupType = new Minimap.MarkerGroups(), string meshName = "none", bool mesh = false, bool icons = false, bool doors = false, bool labels = false)
         {
             List<CombineInstance> combineIconLister = new List<CombineInstance>();
             List<CombineInstance> combineMeshLister = new List<CombineInstance>();
