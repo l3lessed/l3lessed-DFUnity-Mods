@@ -90,7 +90,7 @@ namespace Minimap
                 PermEnchantedCompass = null,
                 CompassHealth = 0,
                 SavedEffects = null,
-                IconSize = 1f,
+                IconSize = .75f,
                 MinimapSize = 256,
                 OutsideViewSize = 100f,
                 InsideViewSize = 20f,
@@ -211,17 +211,19 @@ namespace Minimap
                     Debug.Log("NO SAVED ICON SIZE");
                     iconSizes = new Dictionary<MarkerGroups, float>()
                     {
-                        {MarkerGroups.Shops, 1f},
-                        {MarkerGroups.Blacksmiths, 1f},
-                        {MarkerGroups.Houses, 1f},
-                        {MarkerGroups.Taverns, 1f},
-                        {MarkerGroups.Utilities, 1f},
-                        {MarkerGroups.Government, 1f},
-                        {MarkerGroups.Friendlies, 1f},
-                        {MarkerGroups.Enemies, 1f},
-                        {MarkerGroups.Resident, 1f},
-                        {MarkerGroups.Doors, 1f},
-                        {MarkerGroups.None, 1f}
+                        {MarkerGroups.Shops, .75f},
+                        {MarkerGroups.Blacksmiths, .75f},
+                        {MarkerGroups.Houses, .75f},
+                        {MarkerGroups.Taverns, .75f},
+                        {MarkerGroups.Utilities, .75f},
+                        {MarkerGroups.Government, .75f},
+                        {MarkerGroups.Friendlies, .75f},
+                        {MarkerGroups.Enemies, .75f},
+                        {MarkerGroups.Resident, .75f},
+                        {MarkerGroups.Doors, .75f},
+                        {MarkerGroups.PlayerIcon, .75f},
+                        {MarkerGroups.Beacon, .75f},
+                        {MarkerGroups.None, .75f}
                     };
                 }
 
@@ -258,6 +260,8 @@ namespace Minimap
                         {MarkerGroups.Enemies, true },
                         {MarkerGroups.Resident, true },
                         {MarkerGroups.Doors, true},
+                        {MarkerGroups.PlayerIcon, true},
+                        {MarkerGroups.Beacon, false},
                         {MarkerGroups.None, false}
                     };
                 }
@@ -277,6 +281,8 @@ namespace Minimap
                         {MarkerGroups.Enemies, 1 },
                         {MarkerGroups.Resident, 1 },
                         {MarkerGroups.Doors, 1},
+                        {MarkerGroups.PlayerIcon, 1},
+                        {MarkerGroups.Beacon, 1},
                         {MarkerGroups.None, 0 }
                     };
                 }
@@ -296,6 +302,8 @@ namespace Minimap
                         {MarkerGroups.Enemies, Color.red },
                         {MarkerGroups.Resident, Color.yellow },
                         {MarkerGroups.Doors, Color.white},
+                        {MarkerGroups.PlayerIcon, Color.yellow},
+                        {MarkerGroups.Beacon, Color.yellow},
                         {MarkerGroups.None, Color.black }
                     };
                 }
@@ -462,6 +470,7 @@ namespace Minimap
         //game objects for storing and manipulating.
         public GameObject minimapMaterialObject;
         public GameObject gameobjectPlayerMarkerArrow;
+        public MeshRenderer gameobjectPlayerMarkerMeshRend;
         public GameObject mainCamera;
         private GameObject minimapCameraObject;
         private GameObject gameobjectAutomap;
@@ -487,6 +496,7 @@ namespace Minimap
         public static Material iconMarkerMaterial;
         public Material playerArrowMaterial;
         public static Material labelMaterial;
+        public static Material beaconMaterial;
 
         public Shader IconShader;
         public Shader MarkerShader;
@@ -548,7 +558,7 @@ namespace Minimap
         public float iconAdjuster = .00025f;
         public float dotSizeAdjuster = 500;
         public float dripSpeed = 10f;
-        private float playerDefaultMouseSensitivity;
+        public float playerDefaultMouseSensitivity;
         private bool forceCompassGeneration;
 
         //ints
@@ -627,6 +637,8 @@ namespace Minimap
             {MarkerGroups.Enemies, Color.red },
             {MarkerGroups.Resident, Color.yellow },
             {MarkerGroups.Doors, Color.white},
+            {MarkerGroups.PlayerIcon, Color.yellow},
+            {MarkerGroups.Beacon, Color.yellow},
             {MarkerGroups.None, Color.black }
         };
 
@@ -642,6 +654,8 @@ namespace Minimap
             {MarkerGroups.Enemies, 1 },
             {MarkerGroups.Resident, 1 },
             {MarkerGroups.Doors, 1},
+            {MarkerGroups.PlayerIcon,1},
+            {MarkerGroups.Beacon, 1},
             {MarkerGroups.None, 0 }
         };
 
@@ -657,6 +671,8 @@ namespace Minimap
             {MarkerGroups.Enemies, true },
             {MarkerGroups.Resident, true },
             {MarkerGroups.Doors, true},
+            {MarkerGroups.PlayerIcon, true},
+            {MarkerGroups.Beacon, true},
             {MarkerGroups.None, false}
         };
 
@@ -676,16 +692,18 @@ namespace Minimap
 
         public static Dictionary<MarkerGroups, float> iconSizes = new Dictionary<MarkerGroups, float>()
         {
-            {MarkerGroups.Shops, .5f},
-            {MarkerGroups.Blacksmiths, .5f},
-            {MarkerGroups.Houses, .5f},
-            {MarkerGroups.Taverns, .5f},
-            {MarkerGroups.Utilities, .5f},
-            {MarkerGroups.Government, .5f},
-            {MarkerGroups.Friendlies, .5f},
-            {MarkerGroups.Enemies, .5f},
-            {MarkerGroups.Resident, .5f},
-            {MarkerGroups.Doors, .5f},
+            {MarkerGroups.Shops, .75f},
+            {MarkerGroups.Blacksmiths, .75f},
+            {MarkerGroups.Houses, .75f},
+            {MarkerGroups.Taverns, .75f},
+            {MarkerGroups.Utilities, .75f},
+            {MarkerGroups.Government, .75f},
+            {MarkerGroups.Friendlies, .75f},
+            {MarkerGroups.Enemies, .75f},
+            {MarkerGroups.Resident, .75f},
+            {MarkerGroups.Doors, .75f},
+            {MarkerGroups.PlayerIcon, .75f},
+            {MarkerGroups.Beacon, .75f},
             {MarkerGroups.None, .5f}
         };
         private float autoMapTimer;
@@ -697,6 +715,8 @@ namespace Minimap
         public static GameObject minimapDungeonObject;
         private float lastPlayerYPos;
         public bool setMap = true;
+        public float viewX = .495f;
+        public float viewY = .5f;
         #endregion
         #region enums
         //sets up marker groups to assign each marker type. This is crucial for seperating and controlling each indicator types appearance and use.
@@ -713,6 +733,8 @@ namespace Minimap
             Enemies,
             Resident,
             Doors,
+            PlayerIcon,
+            Beacon,
             None
         }
 
@@ -949,6 +971,7 @@ namespace Minimap
             buildingMarkerMaterial = minimapMaterial[0];
             iconMarkerMaterial = minimapMaterial[1];
             playerArrowMaterial = minimapMaterial[3];
+            beaconMaterial = minimapMaterial[4];
             labelMaterial = minimapMaterial[2];
 
             //grab the mask and canvas layer rect transforms of the minimap object.
@@ -1483,7 +1506,19 @@ namespace Minimap
                 {
                     if(dungeonObject == null)
                     {
+                        //get the dungeon as a gameobject.
                         dungeonObject = GameManager.Instance.InteriorAutomap.transform.Find("GeometryAutomap (Dungeon)").gameObject;
+                        //grab all the action model items using their attached scripts.
+                        AutomapModel[] actionModelArray = dungeonObject.GetComponentsInChildren<AutomapModel>();
+                        //cycle through each action model and disabled collider if it belongs to the automap to stop hitray collider bugs.
+                        foreach (AutomapModel actionModel in actionModelArray)
+                        {
+                            MeshCollider isCollider = actionModel.GetComponent<MeshCollider>();
+
+                            if (isCollider != null)
+                                isCollider.enabled = false; 
+                        }
+
                         Physics.IgnoreLayerCollision(10, 13, true);
                     }
 
@@ -1566,8 +1601,9 @@ namespace Minimap
             }
 
             //update camera position with above calculated position.
-            minimapCamera.transform.position = cameraPos;
-            minimapCamera.transform.Translate(dragCamera);
+            if(!fullMinimapMode)
+                minimapCamera.transform.position = cameraPos;
+            //minimapCamera.transform.Translate(dragCamera);
 
             //setup the camera angle/view point.
             var cameraRot = transform.rotation;
@@ -1622,99 +1658,6 @@ namespace Minimap
         {
             //setup current minimap rotation angle.
             var minimapRot = transform.eulerAngles;
-
-            //if in full map mode and the player is pressing down on mouse, begin moving minimap around with player mouse.
-            //this is the dynamic full screen map feature.
-            if (fullMinimapMode && !minimapControls.minimapMenuEnabled && Input.GetMouseButton(0))
-            {
-                //don't allow the player to look around while in drag mode.
-                GameManager.Instance.PlayerMouseLook.sensitivityScale = 0;
-                BuildingMarker hoverOverBuilding = null;
-                IconController hoverIcon = null;
-                //sets drag mouse sensitivity by multiplying it by frame time.
-                float speed = 65 * Time.deltaTime;
-                //computes drag using mouse x and y input movement.
-                dragCamera += new Vector3(Input.GetAxis("Mouse X") * speed, Input.GetAxis("Mouse Y") * speed, 0);
-                //sets up ray at center of camera view with 1000f cast distance.
-                Ray ray = minimapCamera.ViewportPointToRay(new Vector3(.5f, .5f, 0f));
-                //Debug.LogError(Mathf.Clamp((Input.mousePosition.x / Screen.width) * 2 - 1, -1.0F, 1.0F));
-                RaycastHit hit = new RaycastHit();               
-
-                //if a sphere cast hits a collider, do the following.
-                if (Physics.SphereCast(ray, .5f, out hit))
-                {
-                    //grab the building marker for the building being hovered over.
-                    if(hoverOverBuilding == null)
-                        hoverOverBuilding = hit.collider.GetComponentInParent<BuildingMarker>();            
-
-                    MeshRenderer hoverBuildingMesh = null;
-                    //if there is an attached marker and marker icon, run code for label or icon show.
-                    if (hoverOverBuilding)
-                    {
-                        //if hit building and label is active, pop up the icon for player.
-                        if (minimapControls.labelsActive && !minimapControls.iconsActive)
-                        {
-                            Texture hoverTexture = hoverOverBuilding.marker.iconTexture;
-                            mouseOverIconMesh.material.mainTexture = hoverTexture;
-                            mouseOverIcon.transform.rotation = Quaternion.Euler(0, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 180f, 0);
-                            mouseOverIcon.transform.position = hit.point;
-                            mouseOverIcon.transform.Translate(new Vector3(5f, 8f, 5f));
-                            mouseOverIcon.transform.localScale = new Vector3(minimapCamera.orthographicSize * .0175f, minimapCamera.orthographicSize * .0175f, minimapCamera.orthographicSize * .0175f);
-                            mouseOverIcon.SetActive(true);
-                        }
-                        //if the icon is active and player his building, pop up label on building.
-                        else if (minimapControls.iconsActive && !minimapControls.labelsActive)
-                        {
-                            mouseOverLabel.transform.position = hit.point;
-                            mouseOverLabel.transform.Translate(new Vector3(12f, 8f, -12f));
-                            mouseOverLabel.transform.rotation = Quaternion.Euler(90f, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-
-                            mouseOverLabel.transform.localScale = new Vector3(minimapCamera.orthographicSize * .001f, minimapCamera.orthographicSize * .001f, minimapCamera.orthographicSize * .001f);
-
-                            mouseOverLabel.GetComponent<TextMeshPro>().text = hoverOverBuilding.marker.dynamicBuildingName;
-
-                            mouseOverLabel.SetActive(true);
-                        }
-                        //if neither are true, but a building is still hit, pop up the label and icon.
-                        else if (!minimapControls.iconsActive && !minimapControls.labelsActive)
-                        {
-                            mouseOverLabel.transform.position = hit.point;
-                            mouseOverLabel.transform.Translate(new Vector3(0, Mathf.Clamp(minimapCamera.orthographicSize * .11f,0,17), -8f));
-                            mouseOverLabel.transform.rotation = Quaternion.Euler(90f, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y, 0);
-
-                            mouseOverLabel.transform.localScale = new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0011f, 0, .16f), Mathf.Clamp(minimapCamera.orthographicSize * .001f, 0, .16f), Mathf.Clamp(minimapCamera.orthographicSize * .001f, 0, .16f));
-
-                            mouseOverLabel.GetComponent<TextMeshPro>().text = hoverOverBuilding.marker.dynamicBuildingName;
-
-                            Texture hoverTexture = hoverOverBuilding.marker.iconTexture;
-                            mouseOverIconMesh.material.mainTexture = hoverTexture;
-                            mouseOverIcon.transform.rotation = Quaternion.Euler(0, GameManager.Instance.PlayerEntityBehaviour.transform.eulerAngles.y + 180f, 0);
-                            mouseOverIcon.transform.position = hit.point;
-                            mouseOverIcon.transform.Translate(new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0011f,0,17), 8f, Mathf.Clamp(-minimapCamera.orthographicSize * .0014f,-20,0)));
-                            mouseOverIcon.transform.localScale = new Vector3(Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f), Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f), Mathf.Clamp(minimapCamera.orthographicSize * .0175f, 0, 2.7f));
-
-                            mouseOverIcon.SetActive(true);
-                            mouseOverLabel.SetActive(true);
-                        }
-                    }
-                    //if nothing is hit hide/disable label and icon.
-                    else
-                    {
-                        mouseOverLabel.SetActive(false);
-                        mouseOverIcon.SetActive(false);
-                    }
-                }
-            }
-            //if not in drag mode, center camera, hide mouseover label, and icon and enable player mouse look again.
-            else if(!fullMinimapMode)
-            {
-                dragCamera = new Vector3(0, 0, 0);
-                minimapCameraX = 0;
-                minimapCameraZ = 0;
-                mouseOverLabel.SetActive(false);
-                mouseOverIcon.SetActive(false);
-                GameManager.Instance.PlayerMouseLook.sensitivityScale = playerDefaultMouseSensitivity;
-            }
 
             //tie the minimap rotation to the players view rotation using eulerAngles.
             if (!minimapControls.autoRotateActive)
@@ -1815,8 +1758,9 @@ namespace Minimap
                 Destroy(gameobjectPlayerMarkerArrow.GetComponent<MeshCollider>());
                 gameobjectPlayerMarkerArrow.name = "PlayerMarkerArrow";
                 gameobjectPlayerMarkerArrow.layer = layerMinimap;
-                gameobjectPlayerMarkerArrow.GetComponent<MeshRenderer>().material = playerArrow;
-                gameobjectPlayerMarkerArrow.GetComponent<MeshRenderer>().material.color = Color.yellow;
+                gameobjectPlayerMarkerMeshRend = gameobjectPlayerMarkerArrow.GetComponent<MeshRenderer>();
+                gameobjectPlayerMarkerMeshRend.material = playerArrow;
+                gameobjectPlayerMarkerMeshRend.material.color = iconGroupColors[MarkerGroups.PlayerIcon];
             }
 
             if (Input.GetKeyDown(KeyCode.O) && playerIndicatorHeight <= 5f)
@@ -1828,9 +1772,9 @@ namespace Minimap
 
             //adjust player marker size to make up for camera view size adjustments when inside or outside.
             if (GameManager.Instance.IsPlayerInside)
-                markerSize = indicatorSize * 120;
+                markerSize = (indicatorSize * 240) * iconSizes[MarkerGroups.PlayerIcon];
             else
-                markerSize = indicatorSize * 240;
+                markerSize = (indicatorSize * 480) * iconSizes[MarkerGroups.PlayerIcon];
 
             gameobjectPlayerMarkerArrow.transform.localScale = new Vector3(markerSize, markerSize, markerSize);
 
@@ -1875,6 +1819,7 @@ namespace Minimap
                 canvasContainer = new GameObject();
                 //names it/
                 canvasContainer.name = "Minimap Canvas";
+                canvasContainer.AddComponent<MiniMapClick>();
                 //grabs and adds the canvasd object from unity library.
                 Canvas tempCanvasContainer =  canvasContainer.AddComponent<Canvas>();
                 tempCanvasContainer.renderMode = RenderMode.ScreenSpaceCamera;

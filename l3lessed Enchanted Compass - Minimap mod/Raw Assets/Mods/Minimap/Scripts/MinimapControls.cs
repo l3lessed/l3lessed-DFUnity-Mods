@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
+using static Minimap.Minimap;
 
 namespace Minimap
 {
@@ -327,6 +328,20 @@ namespace Minimap
             lastIconSize = iconSize;
             //sets minimap transperency level.
             Color loadedBackgroundColor = new Color(Minimap.MinimapInstance.loadedBackgroundColor.r * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.b * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.loadedBackgroundColor.g * Minimap.MinimapInstance.minimapBackgroundBrightness, Minimap.MinimapInstance.minimapBackgroundTransperency * alphaValue);
+
+            if (Minimap.MinimapInstance.gameobjectPlayerMarkerMeshRend != null)
+                Minimap.MinimapInstance.gameobjectPlayerMarkerMeshRend.material.color = iconGroupColors[MarkerGroups.PlayerIcon];
+
+            if(MiniMapClick.cylinderMesh != null)
+            {
+                MiniMapClick.cylinderMesh.material.color = iconGroupColors[Minimap.MarkerGroups.Beacon];
+                MiniMapClick.cylinder.transform.localScale = new Vector3(2 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon], 300,2 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon]);
+                MiniMapClick.cylinderDetector.transform.localScale = new Vector3(15 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon], .5f, 15 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon]);
+                MiniMapClick.beaconSphere.transform.localScale = new Vector3(4 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon], 4 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon], 4 * Minimap.iconSizes[Minimap.MarkerGroups.Beacon]);
+                MiniMapClick.sphereMesh.material.color = iconGroupColors[Minimap.MarkerGroups.Beacon];
+                MiniMapClick.cylinderDetectorMesh.material.color = iconGroupColors[Minimap.MarkerGroups.Beacon];
+            }
+
 
             Minimap.MinimapInstance.publicMinimapRender.GetComponentInChildren<RawImage>().color = new Color(1, 1, 1, alphaValue);
             Minimap.MinimapInstance.publicMinimap.GetComponentInChildren<RawImage>().color = loadedBackgroundColor;

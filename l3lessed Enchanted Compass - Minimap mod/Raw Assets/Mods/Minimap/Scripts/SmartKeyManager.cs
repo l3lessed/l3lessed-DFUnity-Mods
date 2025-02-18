@@ -52,6 +52,7 @@ namespace Minimap
             key2KeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), key2);
             key3 = Minimap.settings.GetValue<string>("CompassKeys", "EquipCompass:CleanCompass:ToggleEffects");
             key3KeyCode = (KeyCode)Enum.Parse(typeof(KeyCode), key3);
+            dblTapInterval = Minimap.settings.GetValue<float>("CompassKeys", "DoubleTapTime");
         }
 
         private void Update()
